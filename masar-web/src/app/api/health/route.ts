@@ -27,6 +27,6 @@ export async function GET() {
         DATABASE_URL_SET: !!process.env.DATABASE_URL,
         DATABASE_URL_PREFIX: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1] || 'masked' : 'not_set',
       }
-    }, { status: 500 });
+    }, { status: 200 }); // Retorna 200 para que o navegador exiba o texto JSON diretamente sem bloquear a página.
   }
 }
