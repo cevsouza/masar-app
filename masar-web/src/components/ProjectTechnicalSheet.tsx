@@ -48,6 +48,14 @@ interface Empreendimento {
   proprietarioAnteriorTerreno: string | null;
   valorCompraTerreno: number | null;
   amenidades: string[];
+  padraoAreaConstruida: number | null;
+  padraoAreaLote: number | null;
+  padraoQuantidadeQuartos: number;
+  padraoQuantidadeSuites: number;
+  padraoQuantidadeBanheiros: number;
+  padraoVagasGaragem: number;
+  padraoPossuiQuintal: boolean;
+  padraoSalaConjugada: boolean;
   casas: { id: string; percentualObra: number }[];
   documentos: Documento[];
 }
@@ -90,6 +98,18 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
   const [editProprietarioAnteriorTerreno, setEditProprietarioAnteriorTerreno] = useState(project.proprietarioAnteriorTerreno || '');
   const [editValorCompraTerreno, setEditValorCompraTerreno] = useState(project.valorCompraTerreno ? project.valorCompraTerreno.toString() : '');
   const [editAmenidades, setEditAmenidades] = useState(project.amenidades.join(', '));
+  
+  // Default House Specs Template States
+  const [editPadraoAreaConstruida, setEditPadraoAreaConstruida] = useState(project.padraoAreaConstruida ? project.padraoAreaConstruida.toString() : '');
+  const [editPadraoAreaLote, setEditPadraoAreaLote] = useState(project.padraoAreaLote ? project.padraoAreaLote.toString() : '');
+  const [editPadraoQuantidadeQuartos, setEditPadraoQuantidadeQuartos] = useState(project.padraoQuantidadeQuartos.toString());
+  const [editPadraoQuantidadeSuites, setEditPadraoQuantidadeSuites] = useState(project.padraoQuantidadeSuites.toString());
+  const [editPadraoQuantidadeBanheiros, setEditPadraoQuantidadeBanheiros] = useState(project.padraoQuantidadeBanheiros.toString());
+  const [editPadraoVagasGaragem, setEditPadraoVagasGaragem] = useState(project.padraoVagasGaragem.toString());
+  const [editPadraoPossuiQuintal, setEditPadraoPossuiQuintal] = useState(project.padraoPossuiQuintal);
+  const [editPadraoSalaConjugada, setEditPadraoSalaConjugada] = useState(project.padraoSalaConjugada);
+  const [replicarTipologia, setReplicarTipologia] = useState(false);
+
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -111,7 +131,16 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
           quantidadeCasasPrevistas: editQuantidadeCasasPrevistas ? parseInt(editQuantidadeCasasPrevistas, 10) : null,
           proprietarioAnteriorTerreno: editProprietarioAnteriorTerreno || null,
           valorCompraTerreno: editValorCompraTerreno ? parseFloat(editValorCompraTerreno) : null,
-          amenidades: editAmenidades.split(',').map(a => a.trim()).filter(Boolean)
+          amenidades: editAmenidades.split(',').map(a => a.trim()).filter(Boolean),
+          padraoAreaConstruida: editPadraoAreaConstruida ? parseFloat(editPadraoAreaConstruida) : null,
+          padraoAreaLote: editPadraoAreaLote ? parseFloat(editPadraoAreaLote) : null,
+          padraoQuantidadeQuartos: parseInt(editPadraoQuantidadeQuartos, 10) || 0,
+          padraoQuantidadeSuites: parseInt(editPadraoQuantidadeSuites, 10) || 0,
+          padraoQuantidadeBanheiros: parseInt(editPadraoQuantidadeBanheiros, 10) || 0,
+          padraoVagasGaragem: parseInt(editPadraoVagasGaragem, 10) || 0,
+          padraoPossuiQuintal: editPadraoPossuiQuintal === true,
+          padraoSalaConjugada: editPadraoSalaConjugada === true,
+          replicarTipologia: replicarTipologia
         })
       });
 
@@ -320,6 +349,71 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                   {project.amenidades.length === 0 && (
                     <span className="text-slate-500 italic text-[11px]">Nenhuma amenidade cadastrada.</span>
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco Tipologia Padrão */}
+            <div className="glassmorphism p-6 rounded-2xl border border-slate-800/80 shadow-2xl space-y-5">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider block border-b border-slate-800/60 pb-2">
+                Tipologia Padrão das Casas (Gabarito)
+              </h3>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl">
+                  <span className="text-slate-500 block uppercase text-[8px] font-bold">Área Construída</span>
+                  <span className="text-slate-200 font-mono text-xs font-bold mt-0.5 block">
+                    {project.padraoAreaConstruida ? `${Number(project.padraoAreaConstruida).toLocaleString('pt-BR')} m²` : '—'}
+                  </span>
+                </div>
+                
+                <div className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl">
+                  <span className="text-slate-500 block uppercase text-[8px] font-bold">Área do Lote</span>
+                  <span className="text-slate-200 font-mono text-xs font-bold mt-0.5 block">
+                    {project.padraoAreaLote ? `${Number(project.padraoAreaLote).toLocaleString('pt-BR')} m²` : '—'}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl">
+                  <span className="text-slate-500 block uppercase text-[8px] font-bold">Quartos</span>
+                  <span className="text-slate-200 font-mono text-xs font-bold mt-0.5 block">
+                    {project.padraoQuantidadeQuartos || 0}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl">
+                  <span className="text-slate-500 block uppercase text-[8px] font-bold">Suítes</span>
+                  <span className="text-slate-200 font-mono text-xs font-bold mt-0.5 block">
+                    {project.padraoQuantidadeSuites || 0}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl">
+                  <span className="text-slate-500 block uppercase text-[8px] font-bold">Banheiros</span>
+                  <span className="text-slate-200 font-mono text-xs font-bold mt-0.5 block">
+                    {project.padraoQuantidadeBanheiros || 0}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl">
+                  <span className="text-slate-500 block uppercase text-[8px] font-bold">Vagas Garagem</span>
+                  <span className="text-slate-200 font-mono text-xs font-bold mt-0.5 block">
+                    {project.padraoVagasGaragem || 0}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl">
+                  <span className="text-slate-500 block uppercase text-[8px] font-bold">Quintal</span>
+                  <span className="text-slate-200 text-xs font-bold mt-0.5 block">
+                    {project.padraoPossuiQuintal ? 'Possui' : 'Não possui'}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl">
+                  <span className="text-slate-500 block uppercase text-[8px] font-bold">Sala Conjugada</span>
+                  <span className="text-slate-200 text-xs font-bold mt-0.5 block">
+                    {project.padraoSalaConjugada ? 'Sim' : 'Não'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -699,6 +793,118 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                       onChange={(e) => setEditLongitude(e.target.value)}
                       className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 4: Tipologia Padrão das Casas (Gabarito) */}
+              <div>
+                <h4 className="font-bold text-white text-[10px] uppercase tracking-wider mb-2 text-blue-400">4. Tipologia Padrão das Casas (Gabarito)</h4>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Área Construída Padrão (m²)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ex: 50.00"
+                      value={editPadraoAreaConstruida}
+                      onChange={(e) => setEditPadraoAreaConstruida(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Área do Lote Padrão (m²)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ex: 200.00"
+                      value={editPadraoAreaLote}
+                      onChange={(e) => setEditPadraoAreaLote(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Quartos Padrão</label>
+                    <input
+                      type="number"
+                      value={editPadraoQuantidadeQuartos}
+                      onChange={(e) => setEditPadraoQuantidadeQuartos(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Suítes Padrão</label>
+                    <input
+                      type="number"
+                      value={editPadraoQuantidadeSuites}
+                      onChange={(e) => setEditPadraoQuantidadeSuites(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Banheiros Padrão</label>
+                    <input
+                      type="number"
+                      value={editPadraoQuantidadeBanheiros}
+                      onChange={(e) => setEditPadraoQuantidadeBanheiros(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Vagas Garagem Padrão</label>
+                    <input
+                      type="number"
+                      value={editPadraoVagasGaragem}
+                      onChange={(e) => setEditPadraoVagasGaragem(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-6">
+                    <input
+                      type="checkbox"
+                      id="editPadraoPossuiQuintal"
+                      checked={editPadraoPossuiQuintal}
+                      onChange={(e) => setEditPadraoPossuiQuintal(e.target.checked)}
+                      className="rounded bg-[#0f1422] border-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                    />
+                    <label htmlFor="editPadraoPossuiQuintal" className="text-[10px] text-slate-400 cursor-pointer select-none">Possui Quintal</label>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-6">
+                    <input
+                      type="checkbox"
+                      id="editPadraoSalaConjugada"
+                      checked={editPadraoSalaConjugada}
+                      onChange={(e) => setEditPadraoSalaConjugada(e.target.checked)}
+                      className="rounded bg-[#0f1422] border-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                    />
+                    <label htmlFor="editPadraoSalaConjugada" className="text-[10px] text-slate-400 cursor-pointer select-none">Sala Conjugada</label>
+                  </div>
+                </div>
+
+                {/* Caixa de Replicação */}
+                <div className="mt-4 p-3 bg-blue-950/20 border border-blue-900/30 rounded-xl flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="replicarTipologia"
+                    checked={replicarTipologia}
+                    onChange={(e) => setReplicarTipologia(e.target.checked)}
+                    className="rounded bg-[#0f1422] border-blue-800 text-blue-600 focus:ring-0 w-4.5 h-4.5 cursor-pointer"
+                  />
+                  <div className="text-[10px]">
+                    <label htmlFor="replicarTipologia" className="font-bold text-white block cursor-pointer select-none">
+                      Replicar esta tipologia para todas as casas deste empreendimento
+                    </label>
+                    <span className="text-slate-400 block mt-0.5">
+                      Se marcado, todas as casas deste empreendimento serão sobrescritas com as especificações acima ao salvar.
+                    </span>
                   </div>
                 </div>
               </div>

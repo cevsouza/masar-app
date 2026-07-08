@@ -134,6 +134,14 @@ model Empreendimento {
   proprietarioAnteriorTerreno String?
   valorCompraTerreno     Decimal?
   amenidades             String[]
+  padraoAreaConstruida   Decimal?
+  padraoAreaLote         Decimal?
+  padraoQuantidadeQuartos Int                 @default(0)
+  padraoQuantidadeSuites  Int                 @default(0)
+  padraoQuantidadeBanheiros Int                 @default(0)
+  padraoVagasGaragem     Int                 @default(0)
+  padraoPossuiQuintal    Boolean             @default(false)
+  padraoSalaConjugada    Boolean             @default(false)
   dataCriacao            DateTime            @default(now())
   dataAtualizacao        DateTime            @updatedAt
   casas                  Casa[]

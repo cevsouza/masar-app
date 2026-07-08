@@ -53,6 +53,16 @@ export async function POST(request: NextRequest) {
 
     const percentualFloat = percentualObra ? parseFloat(percentualObra) : 0.0;
 
+    // Herança automática de tipologia padrão do empreendimento
+    const finalAreaConstruida = areaConstruida ? parseFloat(areaConstruida) : (empreendimento.padraoAreaConstruida ? Number(empreendimento.padraoAreaConstruida) : null);
+    const finalAreaLote = areaLote ? parseFloat(areaLote) : (empreendimento.padraoAreaLote ? Number(empreendimento.padraoAreaLote) : null);
+    const finalQuartos = quantidadeQuartos !== undefined ? parseInt(quantidadeQuartos, 10) : (empreendimento.padraoQuantidadeQuartos ?? 0);
+    const finalSuites = quantidadeSuites !== undefined ? parseInt(quantidadeSuites, 10) : (empreendimento.padraoQuantidadeSuites ?? 0);
+    const finalBanheiros = quantidadeBanheiros !== undefined ? parseInt(quantidadeBanheiros, 10) : (empreendimento.padraoQuantidadeBanheiros ?? 0);
+    const finalVagas = vagasGaragem !== undefined ? parseInt(vagasGaragem, 10) : (empreendimento.padraoVagasGaragem ?? 0);
+    const finalQuintal = possuiQuintal !== undefined ? possuiQuintal === true : (empreendimento.padraoPossuiQuintal ?? false);
+    const finalSalaConjugada = salaConjugada !== undefined ? salaConjugada === true : (empreendimento.padraoSalaConjugada ?? false);
+
     const casa = await db.casa.create({
       data: {
         numero,
@@ -60,14 +70,14 @@ export async function POST(request: NextRequest) {
         empreendimentoId,
         statusObra: statusObraValido,
         percentualObra: percentualFloat,
-        areaConstruida: areaConstruida ? parseFloat(areaConstruida) : null,
-        areaLote: areaLote ? parseFloat(areaLote) : null,
-        quantidadeQuartos: quantidadeQuartos ? parseInt(quantidadeQuartos, 10) : 0,
-        quantidadeSuites: quantidadeSuites ? parseInt(quantidadeSuites, 10) : 0,
-        quantidadeBanheiros: quantidadeBanheiros ? parseInt(quantidadeBanheiros, 10) : 0,
-        vagasGaragem: vagasGaragem ? parseInt(vagasGaragem, 10) : 0,
-        possuiQuintal: possuiQuintal === true,
-        salaConjugada: salaConjugada === true,
+        areaConstruida: finalAreaConstruida,
+        areaLote: finalAreaLote,
+        quantidadeQuartos: finalQuartos,
+        quantidadeSuites: finalSuites,
+        quantidadeBanheiros: finalBanheiros,
+        vagasGaragem: finalVagas,
+        possuiQuintal: finalQuintal,
+        salaConjugada: finalSalaConjugada,
       },
     });
 

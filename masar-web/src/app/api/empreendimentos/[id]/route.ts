@@ -28,7 +28,16 @@ export async function PATCH(
       quantidadeCasasPrevistas,
       proprietarioAnteriorTerreno,
       valorCompraTerreno,
-      amenidades
+      amenidades,
+      padraoAreaConstruida,
+      padraoAreaLote,
+      padraoQuantidadeQuartos,
+      padraoQuantidadeSuites,
+      padraoQuantidadeBanheiros,
+      padraoVagasGaragem,
+      padraoPossuiQuintal,
+      padraoSalaConjugada,
+      replicarTipologia
     } = body;
 
     // Obter dados atuais para log de auditoria e nome do projeto
@@ -59,6 +68,15 @@ export async function PATCH(
     if (proprietarioAnteriorTerreno !== undefined) updateData.proprietarioAnteriorTerreno = proprietarioAnteriorTerreno;
     if (valorCompraTerreno !== undefined) updateData.valorCompraTerreno = valorCompraTerreno ? parseFloat(valorCompraTerreno) : null;
     if (amenidades !== undefined) updateData.amenidades = Array.isArray(amenidades) ? amenidades : [];
+    
+    if (padraoAreaConstruida !== undefined) updateData.padraoAreaConstruida = padraoAreaConstruida ? parseFloat(padraoAreaConstruida) : null;
+    if (padraoAreaLote !== undefined) updateData.padraoAreaLote = padraoAreaLote ? parseFloat(padraoAreaLote) : null;
+    if (padraoQuantidadeQuartos !== undefined) updateData.padraoQuantidadeQuartos = padraoQuantidadeQuartos ? parseInt(padraoQuantidadeQuartos, 10) : 0;
+    if (padraoQuantidadeSuites !== undefined) updateData.padraoQuantidadeSuites = padraoQuantidadeSuites ? parseInt(padraoQuantidadeSuites, 10) : 0;
+    if (padraoQuantidadeBanheiros !== undefined) updateData.padraoQuantidadeBanheiros = padraoQuantidadeBanheiros ? parseInt(padraoQuantidadeBanheiros, 10) : 0;
+    if (padraoVagasGaragem !== undefined) updateData.padraoVagasGaragem = padraoVagasGaragem ? parseInt(padraoVagasGaragem, 10) : 0;
+    if (padraoPossuiQuintal !== undefined) updateData.padraoPossuiQuintal = padraoPossuiQuintal === true;
+    if (padraoSalaConjugada !== undefined) updateData.padraoSalaConjugada = padraoSalaConjugada === true;
 
     function cityOrTown(val: any) {
       return val || null;
@@ -68,6 +86,23 @@ export async function PATCH(
       where: { id },
       data: updateData
     });
+
+    // Se a replicação em massa foi solicitada, sobrescrever todas as casas
+    if (replicarTipologia === true) {
+      await db.casa.updateMany({
+        where: { empreendimentoId: id },
+        data: {
+          areaConstruida: updateData.padraoAreaConstruida !== undefined ? updateData.padraoAreaConstruida : undefined,
+          areaLote: updateData.padraoAreaLote !== undefined ? updateData.padraoAreaLote : undefined,
+          quantidadeQuartos: updateData.padraoQuantidadeQuartos !== undefined ? updateData.padraoQuantidadeQuartos : undefined,
+          quantidadeSuites: updateData.padraoQuantidadeSuites !== undefined ? updateData.padraoQuantidadeSuites : undefined,
+          quantidadeBanheiros: updateData.padraoQuantidadeBanheiros !== undefined ? updateData.padraoQuantidadeBanheiros : undefined,
+          vagasGaragem: updateData.padraoVagasGaragem !== undefined ? updateData.padraoVagasGaragem : undefined,
+          possuiQuintal: updateData.padraoPossuiQuintal !== undefined ? updateData.padraoPossuiQuintal : undefined,
+          salaConjugada: updateData.padraoSalaConjugada !== undefined ? updateData.padraoSalaConjugada : undefined,
+        }
+      });
+    }
 
     // Gatilho de Custo do Terreno (Sincronizar valor da compra)
     const finalValorCompra = updated.valorCompraTerreno ? Number(updated.valorCompraTerreno) : 0;
