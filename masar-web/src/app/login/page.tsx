@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Building2, Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Building2, Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, X, KeyRound } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-md space-y-8 animate-fade-in">
         {/* Brand */}
         <div className="flex flex-col items-center">
           <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/20">
@@ -84,7 +84,7 @@ export default function LoginPage() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 placeholder-slate-600"
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 placeholder-slate-600 font-mono"
                 />
               </div>
             </div>
@@ -102,7 +102,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 placeholder-slate-600"
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 placeholder-slate-600 font-mono"
                 />
                 <button
                   type="button"
@@ -119,11 +119,11 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/10 disabled:opacity-50 cursor-pointer"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/10 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" />
+                  <Loader2 size={14} className="animate-spin" />
                   Autenticando...
                 </>
               ) : (
@@ -132,17 +132,50 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Footer */}
+          {/* Footer: Forgot Password link instead of Signup */}
           <div className="mt-6 text-center">
-            <p className="text-xs text-slate-400">
-              Não possui uma conta?{' '}
-              <Link href="/signup" className="font-semibold text-blue-400 hover:underline">
-                Cadastre-se grátis
-              </Link>
-            </p>
+            <button
+              type="button"
+              onClick={() => setShowForgotModal(true)}
+              className="text-xs font-semibold text-blue-400 hover:underline hover:text-blue-300 transition cursor-pointer"
+            >
+              Esqueceu a senha?
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Modal: Esqueceu a Senha */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 bg-[#000000]/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-sm rounded-2xl border border-slate-850 shadow-2xl p-6 relative">
+            <button
+              onClick={() => setShowForgotModal(false)}
+              className="absolute right-4 top-4 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <h3 className="text-sm font-bold text-white mb-2.5 flex items-center gap-2 font-sans">
+              <KeyRound className="text-blue-500" size={16} /> Recuperar Senha
+            </h3>
+            
+            <p className="text-xs text-slate-400 leading-relaxed mb-3">
+              Por motivos de segurança e governança de dados da construtora, a recuperação de senha é gerenciada diretamente pelo administrador do sistema.
+            </p>
+            <p className="text-xs text-slate-400 leading-relaxed mb-6">
+              Entre em contato com o <strong>gestor do painel</strong> ou com a <strong>equipe de TI</strong> da sua empresa para solicitar a redefinição de suas credenciais de acesso.
+            </p>
+
+            <button
+              onClick={() => setShowForgotModal(false)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition cursor-pointer"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
