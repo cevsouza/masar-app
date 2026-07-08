@@ -23,8 +23,10 @@ import {
   Droplet,
   Smartphone,
   ShieldCheck,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
+import GedManager from '@/components/GedManager';
 import {
   BarChart,
   Bar,
@@ -51,7 +53,7 @@ const STAGES = [
 
 export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDetailsProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'geral' | 'financeiro' | 'infra'>('geral');
+  const [activeTab, setActiveTab] = useState<'geral' | 'financeiro' | 'infra' | 'ged'>('geral');
   const [isUpdatingApproval, setIsUpdatingApproval] = useState<string | null>(null);
 
   // Physical evolution state
@@ -238,6 +240,9 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
         </button>
         <button onClick={() => setActiveTab('infra')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'infra' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
           <Lightbulb size={14} /> Diário & Utilidades
+        </button>
+        <button onClick={() => setActiveTab('ged')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'ged' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
+          <FileText size={14} /> Documentação (GED)
         </button>
       </div>
 
@@ -624,6 +629,15 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {activeTab === 'ged' && (
+        <div className="glassmorphism p-6 rounded-2xl border border-slate-800/60 max-w-4xl mx-auto">
+          <h2 className="text-base font-bold text-white mb-2 flex items-center gap-2">
+            <FileText size={18} className="text-indigo-400" /> Gestão Eletrônica de Documentos (GED)
+          </h2>
+          <p className="text-xs text-slate-400 mb-6">Mapeamento de laudos, alvarás, relatórios de vistoria e documentações do adquirente.</p>
+          <GedManager casaId={initialCasa.id} clienteId={initialCasa.clienteId} />
         </div>
       )}
     </div>

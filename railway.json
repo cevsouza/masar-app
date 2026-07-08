@@ -7,6 +7,12 @@
   "deploy": {
     "numReplicas": 1,
     "sleepApplication": false,
-    "restartPolicyType": "ON_FAILURE"
+    "restartPolicyType": "ON_FAILURE",
+    "volumes": [
+      {
+        "mountPath": "/app/uploads",
+        "volumeName": "masar-ged-volume"
+      }
+    ]
   }
 }

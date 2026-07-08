@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
       nome: user.nome,
+      role: user.role,
     });
 
     // Save token in cookie

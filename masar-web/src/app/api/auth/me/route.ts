@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       authenticated: true,
       nome: session.nome,
       email: session.email,
+      role: session.role || 'COMERCIAL',
     });
   } catch (error) {
     return NextResponse.json({ authenticated: false }, { status: 500 });

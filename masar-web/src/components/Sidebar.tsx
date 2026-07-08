@@ -16,7 +16,9 @@ import {
   X,
   Loader2,
   Smartphone,
-  PiggyBank
+  PiggyBank,
+  Users,
+  Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -27,6 +29,7 @@ const MENU_ITEMS = [
   { name: 'Comercial (CRM)', href: '/comercial', icon: BadgeDollarSign },
   { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
   { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank },
+  { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users },
 ];
 
 export default function Sidebar() {
@@ -34,15 +37,20 @@ export default function Sidebar() {
   const menuRef = useRef<HTMLDivElement>(null);
   
   const [hasGlosa, setHasGlosa] = useState(false);
-  const [user, setUser] = useState({ nome: 'Carregando...', email: 'gestor@masar.com' });
+  const [user, setUser] = useState({ nome: 'Carregando...', email: 'gestor@masar.com', role: 'COMERCIAL' });
   
   // Theme state
   const [theme, setTheme] = useState('dark');
   
   // Dropdown/Modal states
   const [showMenu, setShowMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   
+  // Notifications states
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   // Change password form state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -65,7 +73,7 @@ export default function Sidebar() {
       .then(res => res.json())
       .then(data => {
         if (data.authenticated) {
-          setUser({ nome: data.nome, email: data.email });
+          setUser({ nome: data.nome, email: data.email, role: data.role || 'COMERCIAL' });
         }
       })
       .catch(err => console.error(err));
@@ -78,13 +86,31 @@ export default function Sidebar() {
     } else {
       document.documentElement.classList.remove('light');
     }
+
+    // Dynamic notifications poller
+    const fetchNotifications = () => {
+      fetch('/api/notificacoes')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setNotifications(data);
+            setUnreadCount(data.filter((n: any) => !n.lida).length);
+          }
+        })
+        .catch(err => console.error(err));
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 20000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Close profile menu on clicking outside
+  // Close profile and notification menu on clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false);
+        setShowNotifications(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -169,7 +195,13 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {MENU_ITEMS.map((item) => {
+        {MENU_ITEMS.filter((item) => {
+          const role = user.role || 'COMERCIAL';
+          if (item.href === '/socios/caixa' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
+          if (item.href === '/usuarios' && role !== 'ADMIN') return false;
+          if (item.href === '/canteiro' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
+          return true;
+        }).map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
 
@@ -258,6 +290,45 @@ export default function Sidebar() {
           </div>
         )}
 
+        {/* Notifications Popover */}
+        {showNotifications && (
+          <div className="absolute bottom-18 left-4 right-4 bg-[#151b2c] border border-slate-800 rounded-xl shadow-2xl p-3.5 space-y-2.5 z-50 max-h-60 overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider">Notificações</span>
+              {unreadCount > 0 && (
+                <button 
+                  onClick={async () => {
+                    await fetch('/api/notificacoes', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ marcarTodasLidas: true })
+                    });
+                    setNotifications(prev => prev.map(n => ({ ...n, lida: true })));
+                    setUnreadCount(0);
+                  }} 
+                  className="text-[9px] font-bold text-blue-400 hover:text-blue-300 cursor-pointer"
+                >
+                  Lidas
+                </button>
+              )}
+            </div>
+            <div className="space-y-2 text-[10px] text-slate-300">
+              {notifications.length === 0 ? (
+                <p className="text-slate-500 text-center py-4">Nenhum alerta recente</p>
+              ) : (
+                notifications.map(n => (
+                  <div key={n.id} className={`p-2 rounded-lg ${n.lida ? 'bg-[#0f1422]/30 text-slate-400' : 'bg-blue-600/5 border border-blue-500/10 text-slate-200'}`}>
+                    <p className="leading-normal">{n.mensagem}</p>
+                    <span className="text-[8px] text-slate-500 mt-1 block font-mono">
+                      {new Date(n.data).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <div 
             onClick={() => setShowMenu(!showMenu)}
@@ -273,13 +344,31 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <button 
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition shrink-0 cursor-pointer"
-            title="Configurações do usuário"
-          >
-            <Settings size={15} />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => {
+                setShowNotifications(!showNotifications);
+                setShowMenu(false);
+              }}
+              className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition cursor-pointer relative"
+              title="Notificações"
+            >
+              <Bell size={15} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </button>
+            <button 
+              onClick={() => {
+                setShowMenu(!showMenu);
+                setShowNotifications(false);
+              }}
+              className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+              title="Configurações do usuário"
+            >
+              <Settings size={15} />
+            </button>
+          </div>
         </div>
       </div>
 

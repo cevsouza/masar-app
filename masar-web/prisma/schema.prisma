@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -85,12 +86,20 @@ enum TipoCustoGlobal {
   OUTRO
 }
 
+enum RoleUsuario {
+  ADMIN
+  FINANCEIRO
+  ENGENHARIA
+  COMERCIAL
+}
+
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
+  id          String      @id @default(uuid())
+  email       String      @unique
   password    String
   nome        String
-  dataCriacao DateTime @default(now())
+  role        RoleUsuario @default(COMERCIAL)
+  dataCriacao DateTime    @default(now())
 }
 
 model Empreendimento {
@@ -108,6 +117,7 @@ model Empreendimento {
   casas                  Casa[]
   marcos                 MarcoBurocratico[]
   movimentacoesSocios    MovimentacaoSocio[]
+  documentos             DocumentoAnexo[]
 }
 
 model MarcoBurocratico {
@@ -132,6 +142,7 @@ model Cliente {
   dataAtualizacao DateTime        @updatedAt
   casas           Casa[]
   contratos       ContratoVenda[]
+  documentos      DocumentoAnexo[]
 }
 
 model InsumoPadrao {
@@ -164,6 +175,7 @@ model Casa {
   diarios          DiarioDeObra[]
   infraestrutura   InfraestruturaUnidade?
   contrato         ContratoVenda?
+  documentos       DocumentoAnexo[]
 }
 
 model OrcamentoCasa {
@@ -311,4 +323,39 @@ model Imposto {
   id         String @id @default(uuid())
   nome       String @unique
   percentual Float  @default(0.0)
+}
+
+model LogAuditoria {
+  id           String   @id @default(uuid())
+  usuarioId    String?
+  usuarioNome  String?
+  acao         String   
+  tabela       String   
+  registroId   String?
+  valoresAntigos Json?
+  valoresNovos   Json?
+  data         DateTime @default(now())
+}
+
+model DocumentoAnexo {
+  id               String          @id @default(uuid())
+  nome             String
+  caminhoArquivo   String          
+  dataVencimento   DateTime?
+  status           String          @default("ATIVO") // ATIVO, VENCIDO
+  casaId           String?
+  casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  clienteId        String?
+  cliente          Cliente?        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  empreendimentoId String?
+  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  dataCriacao      DateTime        @default(now())
+}
+
+model Notificacao {
+  id        String   @id @default(uuid())
+  usuarioId String
+  mensagem  String
+  lida      Boolean  @default(false)
+  data      DateTime @default(now())
 }
