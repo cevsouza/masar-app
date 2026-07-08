@@ -200,16 +200,31 @@ export default function SocioCaixaForm({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Gráfico Recharts de Projeção de Tesouraria */}
+        {/* Gráfico Recharts de Curva S Acumulada */}
         <div className="lg:col-span-8 glassmorphism p-6 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-white">Projeção de Fluxo de Caixa (6 Meses)</h3>
-            <p className="text-xs text-slate-400 mt-1">Estimativa de receitas (CEF + parcelas clientes) vs. despesas previstas (rateio do custo a incorrer)</p>
+            <h3 className="text-base font-bold text-white">Curva S - Fluxo de Caixa Acumulado (6 Meses)</h3>
+            <p className="text-xs text-slate-400 mt-1">Visão de evolução acumulada: Recebimentos previstos (CEF + parcelas) vs. Desembolsos orçados de obras</p>
           </div>
 
           <div className="h-64 w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartTimeline} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+              <LineChart 
+                data={(() => {
+                  let cumRec = 0;
+                  let cumDes = 0;
+                  return chartTimeline.map(item => {
+                    cumRec += item.receitas;
+                    cumDes += item.despesas;
+                    return {
+                      mes: item.mes,
+                      "Recebimento Acumulado": cumRec,
+                      "Desembolso Acumulado": cumDes
+                    };
+                  });
+                })()} 
+                margin={{ top: 10, right: 10, left: 10, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.3} />
                 <XAxis dataKey="mes" stroke="#94a3b8" fontSize={10} tickLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} />
@@ -217,11 +232,11 @@ export default function SocioCaixaForm({
                   contentStyle={{ backgroundColor: '#0f1422', borderColor: '#1e293b' }}
                   itemStyle={{ fontSize: '11px', color: '#fff' }}
                   labelStyle={{ fontSize: '11px', fontWeight: 'bold' }}
-                  formatter={(val) => [formatCurrency(val as number), 'Valor']}
+                  formatter={(val) => [formatCurrency(val as number), '']}
                 />
                 <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-                <Line type="monotone" dataKey="receitas" stroke="#10b981" activeDot={{ r: 8 }} name="Receitas Previstas" strokeWidth={2.5} />
-                <Line type="monotone" dataKey="despesas" stroke="#ef4444" name="Despesas Obra (Proporcional)" strokeWidth={2} strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="Recebimento Acumulado" stroke="#10b981" activeDot={{ r: 8 }} strokeWidth={2.5} />
+                <Line type="monotone" dataKey="Desembolso Acumulado" stroke="#ef4444" strokeWidth={2.5} />
               </LineChart>
             </ResponsiveContainer>
           </div>

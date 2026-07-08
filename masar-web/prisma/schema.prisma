@@ -118,6 +118,7 @@ model Empreendimento {
   marcos                 MarcoBurocratico[]
   movimentacoesSocios    MovimentacaoSocio[]
   documentos             DocumentoAnexo[]
+  cotacoes               CotacaoMaterial[]
 }
 
 model MarcoBurocratico {
@@ -143,6 +144,7 @@ model Cliente {
   casas           Casa[]
   contratos       ContratoVenda[]
   documentos      DocumentoAnexo[]
+  usuarioCliente  UsuarioCliente?
 }
 
 model InsumoPadrao {
@@ -176,6 +178,7 @@ model Casa {
   infraestrutura   InfraestruturaUnidade?
   contrato         ContratoVenda?
   documentos       DocumentoAnexo[]
+  pontos           PontoTrabalhador[]
 }
 
 model OrcamentoCasa {
@@ -265,12 +268,14 @@ model ContratoVenda {
   financiamento Float                   @default(0.0)
   fgts          Float                   @default(0.0)
   subsidio      Float                   @default(0.0)
-  comissaoValor Float                   @default(0.0)
-  comissaoPaga  Boolean                 @default(false)
-  status        StatusContrato          @default(EM_PROSPECCAO)
-  contasReceber ContasAReceberCliente[]
-  dataCriacao   DateTime                @default(now())
-  dataAtualizacao DateTime              @updatedAt
+  comissaoValor   Float                   @default(0.0)
+  comissaoPaga    Boolean                 @default(false)
+  status          StatusContrato          @default(EM_PROSPECCAO)
+  contasReceber   ContasAReceberCliente[]
+  dataCriacao     DateTime                @default(now())
+  dataAtualizacao DateTime                @updatedAt
+  distrato        Distrato?
+  assinatura      AssinaturaContrato?
 }
 
 model ContasAReceberCliente {
@@ -285,11 +290,12 @@ model ContasAReceberCliente {
 }
 
 model ContaBancaria {
-  id              String   @id @default(uuid())
-  nome            String   @unique
-  saldoAtual      Float    @default(0.0)
-  dataCriacao     DateTime @default(now())
-  dataAtualizacao DateTime @updatedAt
+  id              String              @id @default(uuid())
+  nome            String              @unique
+  saldoAtual      Float               @default(0.0)
+  dataCriacao     DateTime            @default(now())
+  dataAtualizacao DateTime            @updatedAt
+  transacoes      TransacaoBancaria[]
 }
 
 model Socio {
@@ -358,4 +364,70 @@ model Notificacao {
   mensagem  String
   lida      Boolean  @default(false)
   data      DateTime @default(now())
+}
+
+model CotacaoMaterial {
+  id               String          @id @default(uuid())
+  material         String
+  quantidade       Float
+  fornecedor       String
+  valorUnitario    Float
+  aprovado         Boolean         @default(false)
+  empreendimentoId String
+  empreendimento   Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  dataCriacao      DateTime        @default(now())
+  dataAtualizacao  DateTime        @updatedAt
+}
+
+model PontoTrabalhador {
+  id             String   @id @default(uuid())
+  trabalhadorNome String
+  trabalhadorCpf  String
+  casaId         String
+  casa           Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  tipo           String   // ENTRADA, SAIDA
+  dataRegistro   DateTime @default(now())
+}
+
+model TransacaoBancaria {
+  id                   String        @id @default(uuid())
+  contaBancariaId      String
+  contaBancaria        ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Cascade)
+  data                 DateTime
+  valor                Float
+  descricao            String
+  tipo                 String        // CREDITO, DEBITO
+  conciliado           Boolean       @default(false)
+  documentoIdentificador String?     @unique
+  dataCriacao          DateTime      @default(now())
+}
+
+model Distrato {
+  id              String        @id @default(uuid())
+  contratoId      String        @unique
+  contrato        ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  data            DateTime      @default(now())
+  multaCisao      Float
+  valorRestituido Float
+  motivo          String
+  dataCriacao     DateTime      @default(now())
+}
+
+model AssinaturaContrato {
+  id             String        @id @default(uuid())
+  contratoId     String        @unique
+  contrato       ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  status         String        @default("PENDENTE") // PENDENTE, ASSINADO, REJEITADO
+  dataAssinatura DateTime?
+  externalId     String?       // Token da ZapSign
+  dataCriacao    DateTime      @default(now())
+}
+
+model UsuarioCliente {
+  id          String   @id @default(uuid())
+  clienteId   String   @unique
+  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  email       String   @unique
+  password    String
+  dataCriacao DateTime @default(now())
 }

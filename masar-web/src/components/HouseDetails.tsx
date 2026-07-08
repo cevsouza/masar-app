@@ -127,7 +127,6 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
   const totalABC = [...itemsABC, ...unbudgetedApropriacoes].sort((a, b) => b.realizado - a.realizado);
 
-  // Handlers
   const handleUpdatePhysical = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdatingObra(true);
@@ -137,10 +136,15 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statusObra, percentualObra: parseFloat(percentualObra), prazoFisico: prazoFisicoInput, prazoFinanceiro: prazoFinanceiroInput, obstaculos: obstaculosInput }),
       });
-      if (!response.ok) throw new Error('Falha ao atualizar');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Falha ao atualizar');
       router.refresh();
       alert('Dados de obra atualizados!');
-    } catch (err) { alert('Erro ao atualizar obra.'); } finally { setIsUpdatingObra(false); }
+    } catch (err: any) { 
+      alert(err.message || 'Erro ao atualizar obra.'); 
+    } finally { 
+      setIsUpdatingObra(false); 
+    }
   };
 
   const handleCreateMedicao = async (e: React.FormEvent) => {
