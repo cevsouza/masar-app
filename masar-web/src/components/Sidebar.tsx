@@ -206,8 +206,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <Building2 size={20} />
             </div>
             <div>
-              <span className="font-extrabold text-base text-white tracking-wide block font-sans">MASAR</span>
-              <span className="text-[10px] text-blue-400 font-semibold tracking-wider uppercase">Empreendimentos</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-base text-white tracking-wide block font-sans">MASAR</span>
+                <span className="text-xs font-serif text-slate-400 font-bold animate-pulse" dir="rtl" lang="ar" title="مسار - Trajetória">
+                  مسار
+                </span>
+              </div>
+              <span className="text-[10px] text-blue-400 font-semibold tracking-wider uppercase block">Empreendimentos</span>
             </div>
           </div>
 

@@ -56,6 +56,14 @@ export default function LoginPage() {
           <h2 className="text-center text-3xl font-extrabold text-white tracking-tight font-sans">
             Masar Empreendimentos
           </h2>
+          <div className="mt-3 flex flex-col items-center gap-1 select-none">
+            <span className="text-3xl font-serif text-blue-400 tracking-widest leading-none font-bold" dir="rtl" lang="ar">
+              مسار
+            </span>
+            <span className="text-[9px] uppercase font-extrabold text-slate-500 tracking-[0.2em] leading-none">
+              Trajetória
+            </span>
+          </div>
         </div>
 
         {/* Card */}
