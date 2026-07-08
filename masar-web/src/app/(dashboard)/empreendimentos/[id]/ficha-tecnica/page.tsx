@@ -19,6 +19,9 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
       },
       documentos: {
         orderBy: { dataCriacao: 'desc' }
+      },
+      custosGlobais: {
+        orderBy: { data: 'desc' }
       }
     }
   });
@@ -60,6 +63,13 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
       caminhoArquivo: doc.caminhoArquivo,
       tipo: doc.tipo,
       dataCriacao: doc.dataCriacao.toISOString()
+    })),
+    custosGlobais: project.custosGlobais.map(cg => ({
+      id: cg.id,
+      descricao: cg.descricao,
+      tipo: cg.tipo,
+      valor: cg.valor,
+      data: cg.data.toISOString()
     }))
   };
 

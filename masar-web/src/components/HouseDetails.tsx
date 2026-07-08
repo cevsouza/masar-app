@@ -85,6 +85,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   const [editQuadra, setEditQuadra] = useState(initialCasa.quadra);
   const [editAreaConstruida, setEditAreaConstruida] = useState(initialCasa.areaConstruida ? initialCasa.areaConstruida.toString() : '');
   const [editAreaLote, setEditAreaLote] = useState(initialCasa.areaLote ? initialCasa.areaLote.toString() : '');
+  const [editValorVendaProjetado, setEditValorVendaProjetado] = useState(initialCasa.valorVendaProjetado ? initialCasa.valorVendaProjetado.toString() : '');
   const [editQuartos, setEditQuartos] = useState(initialCasa.quantidadeQuartos.toString());
   const [editSuites, setEditSuites] = useState(initialCasa.quantidadeSuites.toString());
   const [editBanheiros, setEditBanheiros] = useState(initialCasa.quantidadeBanheiros.toString());
@@ -137,6 +138,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           quadra: editQuadra,
           areaConstruida: editAreaConstruida ? parseFloat(editAreaConstruida) : null,
           areaLote: editAreaLote ? parseFloat(editAreaLote) : null,
+          valorVendaProjetado: editValorVendaProjetado ? parseFloat(editValorVendaProjetado) : null,
           quantidadeQuartos: parseInt(editQuartos, 10) || 0,
           quantidadeSuites: parseInt(editSuites, 10) || 0,
           quantidadeBanheiros: parseInt(editBanheiros, 10) || 0,
@@ -372,6 +374,21 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                     <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">Área do Lote</span>
                     <span className="text-slate-200 font-bold font-mono text-sm mt-0.5 block">
                       {initialCasa.areaLote ? `${initialCasa.areaLote} m²` : '---'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="p-3 bg-[#0f1422]/60 rounded-xl border border-slate-850">
+                    <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">Venda Projetada</span>
+                    <span className="text-blue-400 font-bold font-mono text-sm mt-0.5 block">
+                      {initialCasa.valorVendaProjetado ? formatCurrency(Number(initialCasa.valorVendaProjetado)) : '---'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-[#0f1422]/60 rounded-xl border border-slate-850">
+                    <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">Venda Realizada</span>
+                    <span className="text-emerald-400 font-bold font-mono text-sm mt-0.5 block">
+                      {initialCasa.contrato ? formatCurrency(Number(initialCasa.contrato.valorVenda)) : 'Em Estoque'}
                     </span>
                   </div>
                 </div>
@@ -856,6 +873,17 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                     step="0.01"
                     value={editAreaLote}
                     onChange={(e) => setEditAreaLote(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Valor de Venda Projetado (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editValorVendaProjetado}
+                    onChange={(e) => setEditValorVendaProjetado(e.target.value)}
                     className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
                   />
                 </div>

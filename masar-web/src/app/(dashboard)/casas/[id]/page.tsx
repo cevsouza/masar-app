@@ -13,6 +13,7 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
       empreendimento: true,
       cliente: true,
       infraestrutura: true,
+      contrato: true,
       orcamento: {
         include: {
           itens: {
@@ -66,7 +67,12 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
     diarios: casa.diarios.map(d => ({
       ...d,
       data: d.data.toISOString(),
-    }))
+    })),
+    contrato: casa.contrato ? {
+      ...casa.contrato,
+      dataCriacao: casa.contrato.dataCriacao.toISOString(),
+      dataAtualizacao: casa.contrato.dataAtualizacao.toISOString(),
+    } : null
   };
 
   return <HouseDetails initialCasa={serializedCasa} allInsumos={allInsumos} />;

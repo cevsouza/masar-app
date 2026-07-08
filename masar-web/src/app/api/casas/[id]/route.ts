@@ -31,6 +31,7 @@ export async function PATCH(
       percentualObra,
       areaConstruida,
       areaLote,
+      valorVendaProjetado,
       quantidadeQuartos,
       quantidadeSuites,
       quantidadeBanheiros,
@@ -46,6 +47,7 @@ export async function PATCH(
     if (percentualObra !== undefined) updateData.percentualObra = parseFloat(percentualObra);
     if (areaConstruida !== undefined) updateData.areaConstruida = areaConstruida ? parseFloat(areaConstruida) : null;
     if (areaLote !== undefined) updateData.areaLote = areaLote ? parseFloat(areaLote) : null;
+    if (valorVendaProjetado !== undefined) updateData.valorVendaProjetado = valorVendaProjetado ? parseFloat(valorVendaProjetado) : null;
     if (quantidadeQuartos !== undefined) updateData.quantidadeQuartos = parseInt(quantidadeQuartos, 10) || 0;
     if (quantidadeSuites !== undefined) updateData.quantidadeSuites = parseInt(quantidadeSuites, 10) || 0;
     if (quantidadeBanheiros !== undefined) updateData.quantidadeBanheiros = parseInt(quantidadeBanheiros, 10) || 0;

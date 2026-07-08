@@ -58,6 +58,13 @@ interface Empreendimento {
   padraoSalaConjugada: boolean;
   casas: { id: string; percentualObra: number }[];
   documentos: Documento[];
+  custosGlobais?: {
+    id: string;
+    descricao: string;
+    tipo: string;
+    valor: number;
+    data: string;
+  }[];
 }
 
 interface ProjectTechnicalSheetProps {
@@ -76,7 +83,7 @@ const TIPO_DOCS_GED = [
 
 export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheetProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'ficha' | 'cofre'>('ficha');
+  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre'>('ficha');
   
   // Upload States
   const [file, setFile] = useState<File | null>(null);
@@ -148,6 +155,92 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
       alert(err.message);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Global Cost and DRE states
+  const [dreData, setDreData] = useState<any>(null);
+  const [isLoadingDre, setIsLoadingDre] = useState(false);
+  const [cgDescricao, setCgDescricao] = useState('');
+  const [cgTipo, setCgTipo] = useState('TERRENO');
+  const [cgValor, setCgValor] = useState('');
+  const [cgData, setCgData] = useState(new Date().toISOString().split('T')[0]);
+  const [isSavingCg, setIsSavingCg] = useState(false);
+
+  const fetchDreData = async () => {
+    setIsLoadingDre(true);
+    try {
+      const res = await fetch(`/api/financeiro/dre?empreendimentoId=${project.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDreData(data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar DRE:', err);
+    } finally {
+      setIsLoadingDre(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeTab === 'financeiro') {
+      fetchDreData();
+    }
+  }, [activeTab]);
+
+  const handleAddGlobalCost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cgDescricao || !cgValor) {
+      alert('Por favor, preencha a descrição e o valor do custo.');
+      return;
+    }
+    setIsSavingCg(true);
+    try {
+      const res = await fetch(`/api/empreendimentos/${project.id}/custos-globais`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          descricao: cgDescricao,
+          tipo: cgTipo,
+          valor: parseFloat(cgValor),
+          data: cgData
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao adicionar custo global.');
+      }
+
+      setCgDescricao('');
+      setCgValor('');
+      alert('✓ Custo global adicionado com sucesso!');
+      router.refresh();
+      fetchDreData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSavingCg(false);
+    }
+  };
+
+  const handleDeleteGlobalCost = async (costId: string) => {
+    if (!confirm('Deseja realmente excluir este custo global do empreendimento?')) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/financeiro/custos-globais/${costId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao excluir custo.');
+      }
+      alert('✓ Custo global excluído com sucesso!');
+      router.refresh();
+      fetchDreData();
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
@@ -286,6 +379,14 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
               }`}
             >
               Ficha Técnica
+            </button>
+            <button 
+              onClick={() => setActiveTab('financeiro')} 
+              className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
+                activeTab === 'financeiro' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Financeiro & DRE
             </button>
             <button 
               onClick={() => setActiveTab('cofre')} 
@@ -541,7 +642,292 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
         </div>
       )}
 
-      {/* Conteúdo Aba 2: Cofre de Projetos (GED Técnico) */}
+      {/* Conteúdo Aba 2: Gestão Financeira Global (Custos Globais e DRE Comparativo) */}
+      {activeTab === 'financeiro' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in text-xs text-slate-350">
+          
+          {/* Lado Esquerdo: Gestão de Custos Globais (Terreno, Impostos de Aquisição, Projetos Globais) */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 bg-[#0f1422]/20">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider block border-b border-slate-850 pb-2.5 mb-4 font-sans">
+                Adicionar Custo Terreno / Global
+              </h3>
+              <form onSubmit={handleAddGlobalCost} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 font-medium">Descrição do Custo</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Imposto ITBI e Custos de Registro"
+                    value={cgDescricao}
+                    onChange={(e) => setCgDescricao(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-medium">Categoria do Custo</label>
+                    <select
+                      value={cgTipo}
+                      onChange={(e) => setCgTipo(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-350 focus:outline-none focus:border-blue-500/50"
+                    >
+                      <option value="TERRENO">Terreno / Aquisição</option>
+                      <option value="PROJETOS">Projetos & Licenças</option>
+                      <option value="MARKETING">Marketing & Vendas</option>
+                      <option value="OUTRO">Outros Custos Globais</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-medium">Valor Total (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      placeholder="Ex: 15400.00"
+                      value={cgValor}
+                      onChange={(e) => setCgValor(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 font-medium">Data de Pagamento</label>
+                  <input
+                    type="date"
+                    required
+                    value={cgData}
+                    onChange={(e) => setCgData(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSavingCg}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-lg shadow-blue-500/10 disabled:opacity-50"
+                >
+                  {isSavingCg ? 'Salvando...' : '+ Cadastrar Custo'}
+                </button>
+              </form>
+            </div>
+
+            {/* Listagem de custos globais cadastrados */}
+            <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
+              <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider border-b border-slate-850 pb-2 font-sans">
+                Custos Globais do Terreno ({project.custosGlobais?.length || 0})
+              </h3>
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                {project.custosGlobais && project.custosGlobais.length > 0 ? (
+                  project.custosGlobais.map((cg: any) => (
+                    <div key={cg.id} className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-slate-200">{cg.descricao}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          {cg.tipo} | {formatDate(cg.data)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono font-bold text-red-400">{formatCurrency(cg.valor)}</span>
+                        {['ADMIN', 'FINANCEIRO'].includes(userRole) && (
+                          <button
+                            onClick={() => handleDeleteGlobalCost(cg.id)}
+                            className="text-[9px] font-bold text-red-500 hover:text-red-400 px-1.5 py-0.5 bg-red-950/20 rounded border border-red-900/30 transition cursor-pointer"
+                          >
+                            Excluir
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-500 py-6 text-center">Nenhum custo global registrado para o terreno.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Direito: DRE Comparativo de Incorporação (Projetado vs Realizado) */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="glassmorphism p-6 rounded-2xl border border-slate-800/80 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 mb-5">
+                <div>
+                  <h3 className="text-base font-bold text-white uppercase tracking-wider font-sans">
+                    DRE Real vs Projetado (Incorporação)
+                  </h3>
+                  <p className="text-[10px] text-slate-400 mt-1">Demonstração de resultados de loteamento e construção.</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={fetchDreData}
+                  disabled={isLoadingDre}
+                  className="px-3 py-1.5 bg-[#0f1422] border border-slate-800 hover:bg-slate-800 rounded-lg text-[10px] text-slate-300 font-bold uppercase transition cursor-pointer"
+                >
+                  {isLoadingDre ? 'Atualizando...' : 'Atualizar DRE'}
+                </button>
+              </div>
+
+              {isLoadingDre && !dreData ? (
+                <div className="py-20 text-center text-slate-400 text-xs">Carregando dados da DRE corporativa...</div>
+              ) : dreData ? (
+                <div className="space-y-6 text-xs text-slate-350">
+                  <div className="overflow-x-auto border border-slate-850 rounded-xl">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-900/40 border-b border-slate-850 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                          <th className="py-3 px-4">Demonstração de Resultado (DRE)</th>
+                          <th className="py-3 px-4 text-right">Projetado (Orçado)</th>
+                          <th className="py-3 px-4 text-right">Realizado (Fechado)</th>
+                          <th className="py-3 px-4 text-right">Desvio</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-850 text-slate-300">
+                        {/* Receita Bruta */}
+                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
+                          <td className="py-3 px-4">Receita Operacional Bruta (VGV)</td>
+                          <td className="py-3 px-4 text-right font-mono">{formatCurrency(dreData.totalVGVProjetado)}</td>
+                          <td className="py-3 px-4 text-right font-mono text-emerald-400">{formatCurrency(dreData.totalVGVRealizado)}</td>
+                          <td className={`py-3 px-4 text-right font-mono ${(dreData.totalVGVRealizado - dreData.totalVGVProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(dreData.totalVGVRealizado - dreData.totalVGVProjetado)}
+                          </td>
+                        </tr>
+
+                        {/* Deduções */}
+                        <tr className="hover:bg-slate-800/5 text-slate-400">
+                          <td className="py-2 px-4 pl-6">(-) Comissão de Vendas (5%)</td>
+                          <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoProjetada)}</td>
+                          <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoRealizada)}</td>
+                          <td className={`py-2 px-4 text-right font-mono ${dreData.totalComissaoRealizada > dreData.totalComissaoProjetada ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(dreData.totalComissaoProjetada - dreData.totalComissaoRealizada)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-slate-400">
+                          <td className="py-2 px-4 pl-6">(-) Impostos (RET)</td>
+                          <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalImpostoProjetado)}</td>
+                          <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalImpostoRealizado)}</td>
+                          <td className={`py-2 px-4 text-right font-mono ${dreData.totalImpostoRealizado > dreData.totalImpostoProjetado ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(dreData.totalImpostoProjetado - dreData.totalImpostoRealizado)}
+                          </td>
+                        </tr>
+
+                        {/* Custos Globais */}
+                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-350">
+                          <td className="py-3 px-4">(-) Custos Globais de Loteamento / Infra</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateio)}</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateio)}</td>
+                          <td className="py-3 px-4 text-right font-mono text-slate-500">R$ 0,00</td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
+                          <td className="py-1 px-4 pl-8">Aquisição de Terreno</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerreno)}</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerreno)}</td>
+                          <td className="py-1 px-4 text-right font-mono">R$ 0,00</td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
+                          <td className="py-1 px-4 pl-8">Projetos & Licenciamento</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetos)}</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetos)}</td>
+                          <td className="py-1 px-4 text-right font-mono">R$ 0,00</td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
+                          <td className="py-1 px-4 pl-8">Marketing & Publicidade</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketing)}</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketing)}</td>
+                          <td className="py-1 px-4 text-right font-mono">R$ 0,00</td>
+                        </tr>
+
+                        {/* Custos Diretos de Obras */}
+                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
+                          <td className="py-3 px-4">(-) Custos Diretos de Construção (Casas)</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalDiretoProjetado)}</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalDiretoRealizado)}</td>
+                          <td className={`py-3 px-4 text-right font-mono ${dreData.totalDiretoRealizado > dreData.totalDiretoProjetado ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(dreData.totalDiretoProjetado - dreData.totalDiretoRealizado)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450">
+                          <td className="py-1.5 px-4 pl-8">Materiais de Construção</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projMaterial)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realMaterial)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${dreData.realMaterial > dreData.projMaterial ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(dreData.projMaterial - dreData.realMaterial)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450">
+                          <td className="py-1.5 px-4 pl-8">Mão de Obra de Campo</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projMaoDeObra)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realMaoDeObra)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${dreData.realMaoDeObra > dreData.projMaoDeObra ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(dreData.projMaoDeObra - dreData.realMaoDeObra)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450">
+                          <td className="py-1.5 px-4 pl-8">Equipamentos / Maquinários</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projEquipamento)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realEquipamento)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${dreData.realEquipamento > dreData.projEquipamento ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(dreData.projEquipamento - dreData.realEquipamento)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450">
+                          <td className="py-1.5 px-4 pl-8">Taxas Diretamente Apropriadas</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projTaxa)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realTaxa)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${dreData.realTaxa > dreData.projTaxa ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(dreData.projTaxa - dreData.realTaxa)}
+                          </td>
+                        </tr>
+
+                        {/* Lucro Líquido */}
+                        <tr className="bg-slate-900/30 font-extrabold text-sm text-white">
+                          <td className="py-3 px-4">(=) RESULTADO LÍQUIDO DO PROJETO</td>
+                          <td className="py-3 px-4 text-right font-mono">{formatCurrency(dreData.lucroLiquidoProjetado)}</td>
+                          <td className={`py-3 px-4 text-right font-mono ${dreData.lucroLiquidoRealizado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(dreData.lucroLiquidoRealizado)}
+                          </td>
+                          <td className={`py-3 px-4 text-right font-mono ${(dreData.lucroLiquidoRealizado - dreData.lucroLiquidoProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(dreData.lucroLiquidoRealizado - dreData.lucroLiquidoProjetado)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Margem de Lucro comparativa */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-[#0f1422]/60 border border-slate-850 rounded-xl text-center">
+                      <span className="text-slate-500 uppercase tracking-wider text-[8px] font-bold block">Margem Projetada</span>
+                      <span className="text-white font-mono text-sm font-bold mt-1 block">
+                        {dreData.totalVGVProjetado > 0 
+                          ? `${((dreData.lucroLiquidoProjetado / dreData.totalVGVProjetado) * 100).toFixed(1)}%`
+                          : '0.0%'
+                        }
+                      </span>
+                    </div>
+                    <div className="p-4 bg-[#0f1422]/60 border border-slate-850 rounded-xl text-center">
+                      <span className="text-slate-500 uppercase tracking-wider text-[8px] font-bold block">Margem Realizada</span>
+                      <span className={`font-mono text-sm font-bold mt-1 block ${dreData.lucroLiquidoRealizado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {dreData.totalVGVRealizado > 0 
+                          ? `${((dreData.lucroLiquidoRealizado / dreData.totalVGVRealizado) * 100).toFixed(1)}%`
+                          : '0.0%'
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-20 text-center text-slate-500 text-xs">Carregando dados da DRE corporativa... Clique em "Atualizar DRE" para forçar o recálculo.</div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* Conteúdo Aba 3: Cofre de Projetos (GED Técnico) */}
       {activeTab === 'cofre' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           

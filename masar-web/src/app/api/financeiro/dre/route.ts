@@ -19,15 +19,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Empreendimento não encontrado' }, { status: 404 });
     }
 
-    // 1. Calcular VGV (Valor de Venda fechado)
-    const contratos = await db.contratoVenda.findMany({
-      where: {
-        casa: { empreendimentoId }
+    // 1. Calcular VGV Projetado e Realizado
+    const houses = await db.casa.findMany({
+      where: { empreendimentoId },
+      select: { 
+        valorVendaProjetado: true,
+        contrato: {
+          select: {
+            valorVenda: true,
+            comissaoValor: true
+          }
+        }
       }
     });
 
-    const totalVGV = contratos.reduce((acc, c) => acc + c.valorVenda, 0);
-    const totalComissao = contratos.reduce((acc, c) => acc + c.comissaoValor, 0);
+    const totalVGVProjetado = houses.reduce((acc, h) => acc + (h.valorVendaProjetado ? Number(h.valorVendaProjetado) : 0), 0);
+    const totalVGVRealizado = houses.reduce((acc, h) => acc + (h.contrato ? h.contrato.valorVenda : 0), 0);
+
+    // Comissão: Projetada (5% padrão do VGV Projetado) vs Realizada (soma dos contratos assinados)
+    const totalComissaoProjetada = totalVGVProjetado * 0.05;
+    const totalComissaoRealizada = houses.reduce((acc, h) => acc + (h.contrato ? h.contrato.comissaoValor : 0), 0);
 
     // 2. Calcular rateio de custos globais (Específicos do projeto + Compartilhados rateados)
     const totalHouses = await db.casa.count();
@@ -66,33 +77,108 @@ export async function GET(request: NextRequest) {
     // 3. Calcular Impostos (RET - Regime Especial de Tributação, padrão 4%)
     const impostoRET = await db.imposto.findUnique({ where: { nome: 'RET' } });
     const retPercent = impostoRET ? impostoRET.percentual : 4.0;
-    const totalImposto = (retPercent / 100) * totalVGV;
+    const totalImpostoProjetado = (retPercent / 100) * totalVGVProjetado;
+    const totalImpostoRealizado = (retPercent / 100) * totalVGVRealizado;
 
-    // 4. Custos Diretos de Construção (apropriados e aprovados)
-    const apropriacoesSum = await db.apropriacaoCusto.aggregate({
+    // 4. Custos Diretos de Construção (Projetado vs Realizado por categoria)
+    const orcadoItens = await db.itemOrcamento.findMany({
+      where: {
+        orcamentoCasa: {
+          casa: { empreendimentoId }
+        }
+      },
+      select: {
+        quantidadePlanejada: true,
+        custoUnitarioPrevisto: true,
+        insumo: {
+          select: { categoria: true }
+        }
+      }
+    });
+
+    let totalDiretoProjetado = 0;
+    let projMaterial = 0;
+    let projMaoDeObra = 0;
+    let projEquipamento = 0;
+    let projTaxa = 0;
+
+    for (const item of orcadoItens) {
+      const itemCost = item.quantidadePlanejada * item.custoUnitarioPrevisto;
+      totalDiretoProjetado += itemCost;
+      if (item.insumo.categoria === 'MATERIAL') projMaterial += itemCost;
+      else if (item.insumo.categoria === 'MAO_DE_OBRA') projMaoDeObra += itemCost;
+      else if (item.insumo.categoria === 'EQUIPAMENTO') projEquipamento += itemCost;
+      else if (item.insumo.categoria === 'TAXA') projTaxa += itemCost;
+    }
+
+    const apropriacoes = await db.apropriacaoCusto.findMany({
       where: {
         aprovado: true,
         casa: { empreendimentoId }
       },
-      _sum: { custoTotal: true }
+      select: {
+        custoTotal: true,
+        insumo: {
+          select: { categoria: true }
+        }
+      }
     });
-    const totalConstrucao = apropriacoesSum._sum.custoTotal || 0;
+
+    let totalDiretoRealizado = 0;
+    let realMaterial = 0;
+    let realMaoDeObra = 0;
+    let realEquipamento = 0;
+    let realTaxa = 0;
+
+    for (const ap of apropriacoes) {
+      totalDiretoRealizado += ap.custoTotal;
+      if (ap.insumo.categoria === 'MATERIAL') realMaterial += ap.custoTotal;
+      else if (ap.insumo.categoria === 'MAO_DE_OBRA') realMaoDeObra += ap.custoTotal;
+      else if (ap.insumo.categoria === 'EQUIPAMENTO') realEquipamento += ap.custoTotal;
+      else if (ap.insumo.categoria === 'TAXA') realTaxa += ap.custoTotal;
+    }
 
     // 5. Lucro Líquido
-    const lucroLiquido = totalVGV - totalComissao - totalRateio - totalImposto - totalConstrucao;
+    const lucroLiquidoProjetado = totalVGVProjetado - totalComissaoProjetada - totalRateio - totalImpostoProjetado - totalDiretoProjetado;
+    const lucroLiquidoRealizado = totalVGVRealizado - totalComissaoRealizada - totalRateio - totalImpostoRealizado - totalDiretoRealizado;
 
     return NextResponse.json({
       empreendimentoNome: emp.nome,
-      totalVGV,
-      totalComissao,
+      
+      // Receitas
+      totalVGVProjetado,
+      totalVGVRealizado,
+      
+      // Comissões
+      totalComissaoProjetada,
+      totalComissaoRealizada,
+      
+      // Custos Globais (rateio)
       rateioTerreno,
       rateioProjetos,
       rateioMarketing,
       rateioOutros,
       totalRateio,
-      totalImposto,
-      totalConstrucao,
-      lucroLiquido
+
+      // Impostos
+      totalImpostoProjetado,
+      totalImpostoRealizado,
+
+      // Custos Diretos
+      totalDiretoProjetado,
+      totalDiretoRealizado,
+      projMaterial,
+      realMaterial,
+      projMaoDeObra,
+      realMaoDeObra,
+      projEquipamento,
+      realEquipamento,
+      projTaxa,
+      realTaxa,
+
+      // Resultado
+      lucroLiquidoProjetado,
+      lucroLiquidoRealizado
     });
   } catch (error) {
     console.error('Erro ao calcular DRE:', error);

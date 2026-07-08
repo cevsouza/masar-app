@@ -211,6 +211,7 @@ model Casa {
   obstaculos       String?
   areaConstruida   Decimal?
   areaLote         Decimal?
+  valorVendaProjetado Decimal?
   quantidadeQuartos Int                    @default(0)
   quantidadeSuites  Int                    @default(0)
   quantidadeBanheiros Int                    @default(0)
