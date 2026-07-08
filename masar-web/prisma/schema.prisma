@@ -1,0 +1,84 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum StatusLegal {
+  ESTUDO_VIABILIDADE
+  APROVACAO_PREFEITURA
+  APROVACAO_CAIXA
+  EM_OBRA
+}
+
+enum StatusCredito {
+  DOCUMENTACAO_PENDENTE
+  EM_ANALISE_CAIXA
+  APROVADO
+}
+
+enum StatusObra {
+  SEM_INICIO
+  FUNDACAO
+  ALVENARIA
+  COBERTURA
+  ACABAMENTO
+  CONCLUIDA
+}
+
+enum StatusMedicao {
+  AGUARDANDO
+  PAGA
+  GLOSADA_REPROVADA
+}
+
+model Empreendimento {
+  id              String      @id @default(uuid())
+  nome            String
+  localizacao     String
+  statusLegal     StatusLegal @default(ESTUDO_VIABILIDADE)
+  dataCriacao     DateTime    @default(now())
+  dataAtualizacao DateTime    @updatedAt
+  casas           Casa[]
+}
+
+model Cliente {
+  id              String        @id @default(uuid())
+  nome            String
+  cpf             String        @unique
+  rendaComprovada Float
+  statusCredito   StatusCredito @default(DOCUMENTACAO_PENDENTE)
+  dataCriacao     DateTime      @default(now())
+  dataAtualizacao DateTime      @updatedAt
+  casas           Casa[]
+}
+
+model Casa {
+  id               String         @id @default(uuid())
+  numero           String
+  quadra           String
+  empreendimentoId String
+  empreendimento   Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  clienteId        String?
+  cliente          Cliente?       @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  statusObra       StatusObra     @default(SEM_INICIO)
+  percentualObra   Float          @default(0.0)
+  dataCriacao      DateTime       @default(now())
+  dataAtualizacao  DateTime       @updatedAt
+  medicoes         MedicaoCaixa[]
+}
+
+model MedicaoCaixa {
+  id               String        @id @default(uuid())
+  casaId           String
+  casa             Casa          @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  percentualMedido Float
+  valorLiberado    Float
+  status           StatusMedicao @default(AGUARDANDO)
+  dataMedicao      DateTime      @default(now())
+  dataCriacao      DateTime      @default(now())
+  dataAtualizacao  DateTime      @updatedAt
+}
