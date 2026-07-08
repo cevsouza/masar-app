@@ -15,7 +15,8 @@ import {
   Moon,
   X,
   Loader2,
-  Smartphone
+  Smartphone,
+  PiggyBank
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -25,6 +26,7 @@ const MENU_ITEMS = [
   { name: 'Projetos (Kanban)', href: '/empreendimentos', icon: KanbanSquare },
   { name: 'Comercial (CRM)', href: '/comercial', icon: BadgeDollarSign },
   { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
+  { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank },
 ];
 
 export default function Sidebar() {

@@ -4,6 +4,15 @@ import { db } from '@/lib/db';
 export async function GET() {
   try {
     // 1. Limpar banco na ordem de dependência
+    await db.movimentacaoSocio.deleteMany();
+    await db.socio.deleteMany();
+    await db.contaBancaria.deleteMany();
+    await db.contasAReceberCliente.deleteMany();
+    await db.contratoVenda.deleteMany();
+    await db.corretor.deleteMany();
+    await db.custoGlobal.deleteMany();
+    await db.imposto.deleteMany();
+
     await db.diarioDeObra.deleteMany();
     await db.infraestruturaUnidade.deleteMany();
     await db.apropriacaoCusto.deleteMany();
@@ -59,7 +68,7 @@ export async function GET() {
           tipo: 'ALVARA_PREFEITURA',
           dataProtocolo: new Date(new Date().setDate(new Date().getDate() - 60)),
           prazoEsperadoDias: 30,
-          dataAprovacaoReal: null, // Atrasado! (60 dias > 30 prazo)
+          dataAprovacaoReal: null,
         }
       ]
     });
@@ -151,9 +160,7 @@ export async function GET() {
 
     // 6. Criar Orçamentos Planejados (OrcamentoCasa e ItemOrcamento)
     const orcCasa1 = await db.orcamentoCasa.create({
-      data: {
-        casaId: casa1.id,
-      }
+      data: { casaId: casa1.id }
     });
 
     await db.itemOrcamento.createMany({
@@ -171,8 +178,8 @@ export async function GET() {
     // 7. Criar Apropriações Iniciais de Custo (Realizado)
     await db.apropriacaoCusto.createMany({
       data: [
-        { casaId: casa1.id, insumoId: cimento.id, quantidadeReal: 95, custoTotal: 3610.0, aprovado: true }, // Real Unit: 38.0
-        { casaId: casa1.id, insumoId: aco.id, quantidadeReal: 410, custoTotal: 4920.0, aprovado: true },  // Real Unit: 12.0 (Mais caro)
+        { casaId: casa1.id, insumoId: cimento.id, quantidadeReal: 95, custoTotal: 3610.0, aprovado: true },
+        { casaId: casa1.id, insumoId: aco.id, quantidadeReal: 410, custoTotal: 4920.0, aprovado: true },
         { casaId: casa1.id, insumoId: retro.id, quantidadeReal: 20, custoTotal: 3200.0, aprovado: true },
         { casaId: casa1.id, insumoId: maoFundacao.id, quantidadeReal: 1, custoTotal: 9500.0, aprovado: true }
       ]
@@ -255,7 +262,69 @@ export async function GET() {
       ],
     });
 
-    return NextResponse.json({ success: true, message: 'Banco de dados de microgerenciamento populado com sucesso!' });
+    // === ADICIONAIS FASE 5 (CONTA BANCÁRIA, SÓCIOS, RET RATEIOS, CONTRATOS, CORRETOR) ===
+
+    // Criar Contas Bancárias
+    const contaCEF = await db.contaBancaria.create({
+      data: { nome: 'Conta Corrente CEF - Masar App', saldoAtual: 285000.00 }
+    });
+
+    // Criar Sócios cotistas
+    const socioInc = await db.socio.create({
+      data: { nome: 'Sócio Incorporador Principal', percentualCotas: 60.0 }
+    });
+    const socioEmp = await db.socio.create({
+      data: { nome: 'Sócio Empreiteiro Operacional', percentualCotas: 40.0 }
+    });
+
+    // Criar Impostos (RET incorporação MCMV)
+    await db.imposto.create({
+      data: { nome: 'RET', percentual: 4.0 }
+    });
+
+    // Criar Custos Globais (Terreno geral para rateio contábil proporcional)
+    await db.custoGlobal.createMany({
+      data: [
+        { descricao: 'Terreno Geral Residencial Bela Vista', tipo: 'TERRENO', valor: 90000.00 },
+        { descricao: 'Marketing Geral Outdoor & Banners', tipo: 'MARKETING', valor: 12000.00 },
+        { descricao: 'Projetos Arquitetônicos & Topografia Bela Vista', tipo: 'PROJETOS', valor: 18000.00 }
+      ]
+    });
+
+    // Criar Corretor parceiro
+    const corretor = await db.corretor.create({
+      data: { nome: 'Lucas Imóveis Campinas', creci: 'CRECI-12345-J', comissaoPercentual: 2.0 }
+    });
+
+    // Criar Contrato de Venda para Casa 101
+    const contratoCasa1 = await db.contratoVenda.create({
+      data: {
+        casaId: casa1.id,
+        clienteId: cli1.id,
+        corretorId: corretor.id,
+        valorVenda: 180000.00,
+        entrada: 20000.00,
+        financiamento: 140000.00,
+        fgts: 10000.00,
+        subsidio: 10000.00,
+        comissaoValor: 3600.00,
+        comissaoPaga: false,
+        status: 'ASSINADO_CAIXA'
+      }
+    });
+
+    // Criar parcelas do sinal a receber
+    const hoje = new Date();
+    await db.contasAReceberCliente.createMany({
+      data: [
+        { contratoId: contratoCasa1.id, numeroParcela: 1, valor: 5000.00, dataVencimento: new Date(new Date().setDate(hoje.getDate() - 15)), pago: true },
+        { contratoId: contratoCasa1.id, numeroParcela: 2, valor: 5000.00, dataVencimento: new Date(new Date().setDate(hoje.getDate() - 5)), pago: true },
+        { contratoId: contratoCasa1.id, numeroParcela: 3, valor: 5000.00, dataVencimento: new Date(new Date().setDate(hoje.getDate() + 10)), pago: false },
+        { contratoId: contratoCasa1.id, numeroParcela: 4, valor: 5000.00, dataVencimento: new Date(new Date().setDate(hoje.getDate() + 40)), pago: false }
+      ]
+    });
+
+    return NextResponse.json({ success: true, message: 'Banco de dados de microgerenciamento e tesouraria societária (Fase 5) populado com sucesso!' });
   } catch (error: any) {
     console.error('Erro ao rodar o seed via API:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

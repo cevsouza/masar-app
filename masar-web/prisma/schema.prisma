@@ -64,6 +64,27 @@ enum Clima {
   IMPRATICAVEL
 }
 
+enum StatusContrato {
+  EM_PROSPECCAO
+  SIMULACAO
+  ANALISE_CAIXA
+  ASSINADO_PROVISORIO
+  ASSINADO_CAIXA
+}
+
+enum TipoMovimentacaoSocio {
+  APORTE
+  RETIRADA_LUCRO
+  PRO_LABORE
+}
+
+enum TipoCustoGlobal {
+  TERRENO
+  PROJETOS
+  MARKETING
+  OUTRO
+}
+
 model User {
   id          String   @id @default(uuid())
   email       String   @unique
@@ -73,19 +94,20 @@ model User {
 }
 
 model Empreendimento {
-  id                     String             @id @default(uuid())
+  id                     String              @id @default(uuid())
   nome                   String
   localizacao            String
-  statusLegal            StatusLegal        @default(ESTUDO_VIABILIDADE)
+  statusLegal            StatusLegal         @default(ESTUDO_VIABILIDADE)
   dataInicio             DateTime?
   dataFim                DateTime?
   orcamento              Float?
-  temSondagemSolo        Boolean            @default(false)
-  temInfraestruturaBasica Boolean            @default(false)
-  dataCriacao            DateTime           @default(now())
-  dataAtualizacao        DateTime           @updatedAt
+  temSondagemSolo        Boolean             @default(false)
+  temInfraestruturaBasica Boolean             @default(false)
+  dataCriacao            DateTime            @default(now())
+  dataAtualizacao        DateTime            @updatedAt
   casas                  Casa[]
   marcos                 MarcoBurocratico[]
+  movimentacoesSocios    MovimentacaoSocio[]
 }
 
 model MarcoBurocratico {
@@ -101,14 +123,15 @@ model MarcoBurocratico {
 }
 
 model Cliente {
-  id              String        @id @default(uuid())
+  id              String          @id @default(uuid())
   nome            String
-  cpf             String        @unique
+  cpf             String          @unique
   rendaComprovada Float
-  statusCredito   StatusCredito @default(DOCUMENTACAO_PENDENTE)
-  dataCriacao     DateTime      @default(now())
-  dataAtualizacao DateTime      @updatedAt
+  statusCredito   StatusCredito   @default(DOCUMENTACAO_PENDENTE)
+  dataCriacao     DateTime        @default(now())
+  dataAtualizacao DateTime        @updatedAt
   casas           Casa[]
+  contratos       ContratoVenda[]
 }
 
 model InsumoPadrao {
@@ -140,6 +163,7 @@ model Casa {
   apropriacoes     ApropriacaoCusto[]
   diarios          DiarioDeObra[]
   infraestrutura   InfraestruturaUnidade?
+  contrato         ContratoVenda?
 }
 
 model OrcamentoCasa {
@@ -205,4 +229,86 @@ model MedicaoCaixa {
   dataMedicao       DateTime      @default(now())
   dataCriacao       DateTime      @default(now())
   dataAtualizacao   DateTime      @updatedAt
+}
+
+model Corretor {
+  id                 String          @id @default(uuid())
+  nome               String
+  creci              String          @unique
+  comissaoPercentual Float           @default(1.5)
+  dataCriacao        DateTime        @default(now())
+  contratos          ContratoVenda[]
+}
+
+model ContratoVenda {
+  id            String                  @id @default(uuid())
+  casaId        String                  @unique
+  casa          Casa                    @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  clienteId     String
+  cliente       Cliente                 @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  corretorId    String?
+  corretor      Corretor?               @relation(fields: [corretorId], references: [id], onDelete: SetNull)
+  valorVenda    Float
+  entrada       Float                   @default(0.0)
+  financiamento Float                   @default(0.0)
+  fgts          Float                   @default(0.0)
+  subsidio      Float                   @default(0.0)
+  comissaoValor Float                   @default(0.0)
+  comissaoPaga  Boolean                 @default(false)
+  status        StatusContrato          @default(EM_PROSPECCAO)
+  contasReceber ContasAReceberCliente[]
+  dataCriacao   DateTime                @default(now())
+  dataAtualizacao DateTime              @updatedAt
+}
+
+model ContasAReceberCliente {
+  id             String        @id @default(uuid())
+  contratoId     String
+  contrato       ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  numeroParcela  Int
+  valor          Float
+  dataVencimento DateTime
+  pago           Boolean       @default(false)
+  dataCriacao    DateTime      @default(now())
+}
+
+model ContaBancaria {
+  id              String   @id @default(uuid())
+  nome            String   @unique
+  saldoAtual      Float    @default(0.0)
+  dataCriacao     DateTime @default(now())
+  dataAtualizacao DateTime @updatedAt
+}
+
+model Socio {
+  id              String              @id @default(uuid())
+  nome            String              @unique
+  percentualCotas Float               @default(0.0)
+  dataCriacao     DateTime            @default(now())
+  movimentacoes   MovimentacaoSocio[]
+}
+
+model MovimentacaoSocio {
+  id               String                @id @default(uuid())
+  socioId          String
+  socio            Socio                 @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  empreendimentoId String?
+  empreendimento   Empreendimento?       @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+  tipo             TipoMovimentacaoSocio
+  valor            Float
+  data             DateTime              @default(now())
+}
+
+model CustoGlobal {
+  id        String          @id @default(uuid())
+  descricao String
+  tipo      TipoCustoGlobal
+  valor     Float
+  data      DateTime        @default(now())
+}
+
+model Imposto {
+  id         String @id @default(uuid())
+  nome       String @unique
+  percentual Float  @default(0.0)
 }

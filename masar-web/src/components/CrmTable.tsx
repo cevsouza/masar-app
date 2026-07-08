@@ -2,7 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, ShieldAlert, ShieldCheck, Clock, UserMinus, Eye, Plus, X, UserPlus } from 'lucide-react';
+import { 
+  Search, 
+  ShieldAlert, 
+  ShieldCheck, 
+  Clock, 
+  UserMinus, 
+  Eye, 
+  UserPlus, 
+  X,
+  FileText,
+  DollarSign
+} from 'lucide-react';
 import Link from 'next/link';
 
 interface Client {
@@ -25,10 +36,16 @@ interface House {
   cliente: Client | null;
 }
 
+const STAGES = [
+  { id: 'DOCUMENTACAO_PENDENTE', label: 'Prospecção / Pendente', color: 'border-red-500/30 text-red-400 bg-red-950/20' },
+  { id: 'EM_ANALISE_CAIXA', label: 'Análise Caixa', color: 'border-amber-500/30 text-amber-400 bg-amber-950/20' },
+  { id: 'APROVADO_CONDICIONADO', label: 'Assinado Provisório / Condic.', color: 'border-blue-500/30 text-blue-400 bg-blue-950/20' },
+  { id: 'APROVADO', label: 'Assinado Caixa / Aprovado', color: 'border-emerald-500/30 text-emerald-400 bg-emerald-950/20' }
+];
+
 export default function CrmTable({ initialHouses }: { initialHouses: House[] }) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // New Client modal state
@@ -120,203 +137,184 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
     }).format(val);
   };
 
-  // Filter logic
-  const filteredHouses = initialHouses.filter(house => {
-    const clientName = house.cliente?.nome.toLowerCase() || 'estoque';
-    const clientCpf = house.cliente?.cpf || '';
-    const houseNum = house.numero.toLowerCase();
-    const houseQuadra = house.quadra.toLowerCase();
-    const empName = house.empreendimento.nome.toLowerCase();
+  // Filter houses with clients based on search terms
+  const housesWithClients = initialHouses.filter(h => h.cliente !== null);
+  const stockHouses = initialHouses.filter(h => h.cliente === null);
 
-    const matchesSearch = 
-      clientName.includes(searchTerm.toLowerCase()) || 
-      clientCpf.includes(searchTerm) ||
-      houseNum.includes(searchTerm.toLowerCase()) ||
-      houseQuadra.includes(searchTerm.toLowerCase()) ||
-      empName.includes(searchTerm.toLowerCase());
+  const filterCards = (cards: House[]) => {
+    return cards.filter(house => {
+      const clientName = house.cliente?.nome.toLowerCase() || 'estoque';
+      const clientCpf = house.cliente?.cpf || '';
+      const houseNum = house.numero.toLowerCase();
+      const houseQuadra = house.quadra.toLowerCase();
+      const empName = house.empreendimento.nome.toLowerCase();
 
-    const matchesStatus = 
-      statusFilter === 'ALL' || 
-      (statusFilter === 'ESTOQUE' && !house.cliente) ||
-      (house.cliente?.statusCredito === statusFilter);
+      return (
+        clientName.includes(searchTerm.toLowerCase()) || 
+        clientCpf.includes(searchTerm) ||
+        houseNum.includes(searchTerm.toLowerCase()) ||
+        houseQuadra.includes(searchTerm.toLowerCase()) ||
+        empName.includes(searchTerm.toLowerCase())
+      );
+    });
+  };
 
-    return matchesSearch && matchesStatus;
-  });
+  const activeFilteredCards = filterCards(housesWithClients);
+  const stockFilteredCards = filterCards(stockHouses);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'APROVADO':
-        return (
-          <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-semibold w-fit">
-            <ShieldCheck size={14} /> Aprovado
-          </span>
-        );
+        return <ShieldCheck size={14} className="text-emerald-400" />;
       case 'APROVADO_CONDICIONADO':
-        return (
-          <span className="flex items-center gap-1.5 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full font-semibold w-fit">
-            <Clock size={14} /> Aprovado Condic.
-          </span>
-        );
+        return <Clock size={14} className="text-blue-400" />;
       case 'EM_ANALISE_CAIXA':
-        return (
-          <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full font-semibold w-fit">
-            <Clock size={14} /> Análise Caixa
-          </span>
-        );
+        return <Clock size={14} className="text-amber-400" />;
       case 'DOCUMENTACAO_PENDENTE':
-        return (
-          <span className="flex items-center gap-1.5 text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full font-semibold w-fit">
-            <ShieldAlert size={14} /> Pendente
-          </span>
-        );
+        return <ShieldAlert size={14} className="text-red-400" />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Top action header */}
-      <div className="flex justify-between items-center bg-[#151b2c] p-4 rounded-xl border border-slate-800/80">
-        <span className="text-xs text-slate-400 font-medium">Gestão e vinculação de adquirentes e aprovação de crédito na CEF</span>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#151b2c] p-4 rounded-xl border border-slate-800/80 gap-3">
+        <div>
+          <span className="text-xs text-slate-400 font-medium">Pipeline Comercial (CRM) e de Análise de Crédito da Caixa Econômica Federal.</span>
+        </div>
         <button
           onClick={() => setIsClientModalOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-blue-500/10 cursor-pointer"
+          className="flex items-center gap-1.5 px-4.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-blue-500/10 cursor-pointer w-full sm:w-auto justify-center"
         >
           <UserPlus size={14} /> Novo Cliente
         </button>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-80">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Pesquisar por cliente, CPF, quadra..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#151b2c] border border-slate-800/85 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
-          />
-        </div>
-        
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <Filter size={16} className="text-slate-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-[#151b2c] border border-slate-800/85 rounded-xl px-4 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50 grow md:grow-0"
-          >
-            <option value="ALL">Todos os Status</option>
-            <option value="APROVADO">Crédito Aprovado</option>
-            <option value="APROVADO_CONDICIONADO">Crédito Aprovado Condic.</option>
-            <option value="EM_ANALISE_CAIXA">Em Análise Caixa</option>
-            <option value="DOCUMENTACAO_PENDENTE">Pendência de Doc</option>
-            <option value="ESTOQUE">Em Estoque (Sem Cliente)</option>
-          </select>
-        </div>
+      {/* Search Bar */}
+      <div className="relative w-full max-w-md">
+        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Pesquisar por adquirente, CPF, casa ou quadra..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-[#151b2c] border border-slate-800/85 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
+        />
       </div>
 
-      {/* CRM Table */}
-      <div className="glassmorphism rounded-2xl border border-slate-800/60 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-[#1e293b] bg-slate-900/20 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                <th className="py-4 px-5">Unidade / Empreendimento</th>
-                <th className="py-4 px-5">Adquirente (Cliente)</th>
-                <th className="py-4 px-5">Renda Mensal</th>
-                <th className="py-4 px-5">Status de Crédito (CEF)</th>
-                <th className="py-4 px-5">Ações CRM</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#1e293b] text-sm text-slate-300">
-              {filteredHouses.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
-                    Nenhuma unidade encontrada correspondente aos filtros.
-                  </td>
-                </tr>
-              ) : (
-                filteredHouses.map((house) => {
-                  const client = house.cliente;
+      {/* Kanban Board Container */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
+        {STAGES.map(stage => {
+          const cardsInStage = activeFilteredCards.filter(h => h.cliente?.statusCredito === stage.id);
+          const totalIncomeInStage = cardsInStage.reduce((acc, h) => acc + (h.cliente?.rendaComprovada || 0), 0);
 
+          return (
+            <div key={stage.id} className="bg-[#0f1422]/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[450px]">
+              {/* Header de coluna */}
+              <div className="mb-4">
+                <div className={`p-2.5 rounded-xl border ${stage.color} text-xs font-bold uppercase tracking-wider flex items-center justify-between`}>
+                  <span>{stage.label}</span>
+                  <span className="bg-slate-900/60 px-2 py-0.5 rounded text-[10px]">{cardsInStage.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2 px-1">
+                  <span>Renda Mensal Total:</span>
+                  <span className="font-mono font-bold text-slate-400">{formatCurrency(totalIncomeInStage)}</span>
+                </div>
+              </div>
+
+              {/* Lista de cartões */}
+              <div className="space-y-3.5 overflow-y-auto flex-1 max-h-[500px] pr-1">
+                {cardsInStage.map(house => {
+                  const client = house.cliente!;
                   return (
-                    <tr key={house.id} className="hover:bg-slate-800/10 transition">
-                      {/* Casa */}
-                      <td className="py-4 px-5">
+                    <div key={house.id} className="bg-[#151b2c] border border-slate-850 hover:border-slate-700/60 p-4 rounded-xl transition space-y-3 shadow-md">
+                      <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-bold text-white">Qd {house.quadra}, Casa {house.numero}</p>
-                          <span className="text-xs text-slate-400">{house.empreendimento.nome}</span>
+                          <h4 className="text-xs font-bold text-white leading-tight">{client.nome}</h4>
+                          <span className="text-[10px] text-slate-500 font-mono">CPF: {client.cpf}</span>
                         </div>
-                      </td>
+                        <Link 
+                          href={`/casas/${house.id}`}
+                          className="p-1.5 bg-[#0f1422] hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition border border-slate-800"
+                        >
+                          <Eye size={12} />
+                        </Link>
+                      </div>
 
-                      {/* Cliente */}
-                      <td className="py-4 px-5">
-                        {client ? (
-                          <div>
-                            <p className="font-medium text-white">{client.nome}</p>
-                            <span className="text-xs text-slate-500">CPF: {client.cpf}</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                            <UserMinus size={14} /> Unidade em Estoque
-                          </div>
-                        )}
-                      </td>
+                      <div className="p-2.5 bg-[#0f1422]/80 border border-slate-850 rounded-lg text-[10px] text-slate-300">
+                        <p className="font-semibold text-slate-200">Qd {house.quadra}, Casa {house.numero}</p>
+                        <p className="text-slate-500 mt-0.5">{house.empreendimento.nome}</p>
+                      </div>
 
-                      {/* Renda */}
-                      <td className="py-4 px-5 font-mono">
-                        {client ? formatCurrency(client.rendaComprovada) : '—'}
-                      </td>
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-500">Renda Comprovada:</span>
+                        <span className="font-mono font-bold text-slate-300">{formatCurrency(client.rendaComprovada)}</span>
+                      </div>
 
-                      {/* Status de Crédito */}
-                      <td className="py-4 px-5">
-                        {client ? (
-                          <div className="space-y-1.5">
-                            {getStatusBadge(client.statusCredito)}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500 font-semibold bg-slate-500/10 border border-slate-500/10 px-2.5 py-1 rounded-full w-fit block">
-                            Disponível
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Ações */}
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-3">
-                          {client ? (
-                            <select
-                              value={client.statusCredito}
-                              disabled={updatingId === client.id}
-                              onChange={(e) => handleStatusChange(client.id, e.target.value)}
-                              className="bg-[#0f1422] border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-blue-500/50"
-                            >
-                              <option value="DOCUMENTACAO_PENDENTE">Pendente</option>
-                              <option value="EM_ANALISE_CAIXA">Em Análise</option>
-                              <option value="APROVADO_CONDICIONADO">Aprovado Condic.</option>
-                              <option value="APROVADO">Aprovado</option>
-                            </select>
-                          ) : (
-                            <span className="text-xs text-slate-500">Nenhum vínculo</span>
-                          )}
-
-                          <Link 
-                            href={`/casas/${house.id}`}
-                            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition border border-slate-700/50"
-                            title="Ver detalhes da obra"
-                          >
-                            <Eye size={14} />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
+                      {/* Dropdown de ação rápida de CRM */}
+                      <div className="pt-2 border-t border-slate-850 flex items-center justify-between gap-2">
+                        <span className="text-[9px] text-slate-500 uppercase font-semibold flex items-center gap-1">
+                          {getStatusIcon(client.statusCredito)} Mover
+                        </span>
+                        <select
+                          value={client.statusCredito}
+                          disabled={updatingId === client.id}
+                          onChange={(e) => handleStatusChange(client.id, e.target.value)}
+                          className="bg-[#0f1422] border border-slate-800 rounded-lg px-2 py-1 text-[10px] text-slate-300 focus:outline-none focus:border-blue-500/50"
+                        >
+                          <option value="DOCUMENTACAO_PENDENTE">Pendente</option>
+                          <option value="EM_ANALISE_CAIXA">Análise Caixa</option>
+                          <option value="APROVADO_CONDICIONADO">Condicionado</option>
+                          <option value="APROVADO">Aprovado</option>
+                        </select>
+                      </div>
+                    </div>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+
+                {cardsInStage.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-32 border border-dashed border-slate-800/40 rounded-xl text-[10px] text-slate-500">
+                    Sem adquirentes
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Unidades em Estoque (Destaque Lateral/Inferior) */}
+      <div className="glassmorphism p-5 rounded-2xl border border-slate-800/60">
+        <h3 className="text-xs font-extrabold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+          <UserMinus size={16} className="text-slate-500" /> Unidades Disponíveis em Estoque ({stockFilteredCards.length})
+        </h3>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {stockFilteredCards.map(house => (
+            <div key={house.id} className="p-3 bg-[#0f1422] border border-slate-850 rounded-xl text-center flex flex-col justify-between min-h-[90px]">
+              <div>
+                <p className="text-xs font-bold text-white">Qd {house.quadra}, Casa {house.numero}</p>
+                <p className="text-[9px] text-slate-500 truncate mt-0.5">{house.empreendimento.nome}</p>
+              </div>
+              <div className="mt-2.5 flex items-center justify-center gap-1.5">
+                <span className="text-[8px] font-bold text-slate-400 bg-slate-500/10 px-1.5 py-0.5 rounded border border-slate-500/10 uppercase">
+                  Estoque
+                </span>
+                <Link 
+                  href={`/casas/${house.id}`}
+                  className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded border border-slate-700/60"
+                >
+                  <Eye size={10} />
+                </Link>
+              </div>
+            </div>
+          ))}
+
+          {stockFilteredCards.length === 0 && (
+            <p className="text-xs text-slate-500 col-span-full text-center py-4">Nenhuma unidade em estoque disponível.</p>
+          )}
         </div>
       </div>
 
@@ -344,7 +342,7 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                   placeholder="Nome Completo"
                   value={newClientName}
                   onChange={(e) => setNewClientName(e.target.value)}
-                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50"
                 />
               </div>
 
@@ -356,7 +354,7 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                   placeholder="000.000.000-00"
                   value={newClientCpf}
                   onChange={(e) => setNewClientCpf(e.target.value)}
-                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
                 />
               </div>
 
@@ -369,7 +367,7 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                   placeholder="Ex: 4500"
                   value={newClientIncome}
                   onChange={(e) => setNewClientIncome(e.target.value)}
-                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
                 />
               </div>
 
@@ -378,7 +376,7 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                 <select
                   value={newClientCredit}
                   onChange={(e) => setNewClientCredit(e.target.value)}
-                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50"
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50"
                 >
                   <option value="DOCUMENTACAO_PENDENTE">Documentação Pendente</option>
                   <option value="EM_ANALISE_CAIXA">Em Análise na Caixa</option>
@@ -392,7 +390,7 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                 <select
                   value={selectedHouseId}
                   onChange={(e) => setSelectedHouseId(e.target.value)}
-                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50"
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50"
                 >
                   <option value="">-- Deixar em Estoque (Sem Vínculo) --</option>
                   {availableHouses.map(house => (

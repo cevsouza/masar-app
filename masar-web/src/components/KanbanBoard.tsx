@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Building2, 
   MapPin, 
@@ -285,6 +286,13 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                           >
                             <ArrowLeft size={14} />
                           </button>
+
+                          <Link
+                            href={`/financeiro/${project.id}`}
+                            className="flex items-center gap-1 px-2.5 py-1 text-[10px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded border border-indigo-500/20 transition font-bold"
+                          >
+                            DRE Contábil
+                          </Link>
                           
                           {isLoading && <Loader2 size={14} className="animate-spin text-slate-500" />}
 
