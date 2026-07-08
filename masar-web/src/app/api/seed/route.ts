@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { hashPassword } from '@/lib/auth';
 
 export async function GET() {
   try {
     // 1. Limpar banco na ordem de dependência
+    await db.user.deleteMany();
     await db.movimentacaoSocio.deleteMany();
     await db.socio.deleteMany();
     await db.contaBancaria.deleteMany();
@@ -24,6 +26,26 @@ export async function GET() {
     await db.cliente.deleteMany();
     await db.marcoBurocratico.deleteMany();
     await db.empreendimento.deleteMany();
+
+    // Criar usuários administradores padrão solicitados
+    const adminPasswordHash = await hashPassword('admin123');
+    await db.user.create({
+      data: {
+        nome: 'Julio Souza',
+        email: 'cevsouza@hotmail',
+        password: adminPasswordHash,
+        role: 'ADMIN'
+      }
+    });
+
+    await db.user.create({
+      data: {
+        nome: 'Julio Souza',
+        email: 'cevsouza@hotmail.com',
+        password: adminPasswordHash,
+        role: 'ADMIN'
+      }
+    });
 
     // 2. Criar Empreendimentos
     const emp1 = await db.empreendimento.create({
