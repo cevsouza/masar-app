@@ -50,15 +50,12 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8 animate-fade-in">
         {/* Brand */}
         <div className="flex flex-col items-center">
-          <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/20">
-            <Building2 size={36} />
+          <div className="p-3.5 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/25 mb-4">
+            <Building2 size={38} />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-white tracking-tight font-sans">
-            Acesse o Masar
+          <h2 className="text-center text-3xl font-extrabold text-white tracking-tight font-sans">
+            Masar Empreendimentos
           </h2>
-          <p className="mt-2 text-center text-sm text-slate-400">
-            Controle de medições e fluxo de caixa MCMV
-          </p>
         </div>
 
         {/* Card */}
