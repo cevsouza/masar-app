@@ -28,7 +28,7 @@ export async function GET() {
     await db.empreendimento.deleteMany();
 
     // Criar usuários administradores padrão solicitados
-    const adminPasswordHash = await hashPassword('admin123');
+    const adminPasswordHash = await hashPassword('V!to2017');
     await db.user.create({
       data: {
         nome: 'Julio Souza',
