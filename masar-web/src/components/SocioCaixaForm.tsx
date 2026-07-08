@@ -22,7 +22,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Legend
+  Legend,
+  ReferenceLine
 } from 'recharts';
 
 interface Socio {
@@ -203,23 +204,21 @@ export default function SocioCaixaForm({
         {/* Gráfico Recharts de Curva S Acumulada */}
         <div className="lg:col-span-8 glassmorphism p-6 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-white">Curva S - Fluxo de Caixa Acumulado (6 Meses)</h3>
-            <p className="text-xs text-slate-400 mt-1">Visão de evolução acumulada: Recebimentos previstos (CEF + parcelas) vs. Desembolsos orçados de obras</p>
+            <h3 className="text-base font-bold text-white">Curva J - Fluxo de Caixa Consolidado (Incorporação)</h3>
+            <p className="text-xs text-slate-400 mt-1">Evolução do Saldo de Caixa Acumulado: Desembolso inicial do Terreno/Projetos seguido pelo Breakeven e Lucro.</p>
           </div>
 
           <div className="h-64 w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
                 data={(() => {
-                  let cumRec = 0;
-                  let cumDes = 0;
+                  // O caixa acumulado inicia negativo simulando o desembolso do Terreno + Projetos Globais do Empreendimento
+                  let cumSaldo = - (custoAIncorrer * 0.3 + 180000); 
                   return chartTimeline.map(item => {
-                    cumRec += item.receitas;
-                    cumDes += item.despesas;
+                    cumSaldo += (item.receitas - item.despesas);
                     return {
                       mes: item.mes,
-                      "Recebimento Acumulado": cumRec,
-                      "Desembolso Acumulado": cumDes
+                      "Saldo de Caixa": cumSaldo
                     };
                   });
                 })()} 
@@ -235,8 +234,8 @@ export default function SocioCaixaForm({
                   formatter={(val) => [formatCurrency(val as number), '']}
                 />
                 <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-                <Line type="monotone" dataKey="Recebimento Acumulado" stroke="#10b981" activeDot={{ r: 8 }} strokeWidth={2.5} />
-                <Line type="monotone" dataKey="Desembolso Acumulado" stroke="#ef4444" strokeWidth={2.5} />
+                <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" label={{ value: 'Breakeven', fill: '#94a3b8', fontSize: 9, position: 'top' }} />
+                <Line type="monotone" dataKey="Saldo de Caixa" stroke="#6366f1" activeDot={{ r: 8 }} strokeWidth={3} />
               </LineChart>
             </ResponsiveContainer>
           </div>

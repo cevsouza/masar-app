@@ -150,6 +150,7 @@ model Empreendimento {
   documentos             DocumentoAnexo[]
   cotacoes               CotacaoMaterial[]
   solicitacoesCompra     SolicitacaoCompra[]
+  custosGlobais          CustoGlobal[]
 }
 
 model MarcoBurocratico {
@@ -367,11 +368,13 @@ model MovimentacaoSocio {
 }
 
 model CustoGlobal {
-  id        String          @id @default(uuid())
-  descricao String
-  tipo      TipoCustoGlobal
-  valor     Float
-  data      DateTime        @default(now())
+  id               String          @id @default(uuid())
+  descricao        String
+  tipo             TipoCustoGlobal
+  valor            Float
+  empreendimentoId String?
+  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  data             DateTime        @default(now())
 }
 
 model Imposto {

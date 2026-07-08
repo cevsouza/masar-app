@@ -110,16 +110,19 @@ export async function PATCH(
       const desc = `Aquisição do Terreno - ${updated.nome}`;
       const existingCost = await db.custoGlobal.findFirst({
         where: {
-          descricao: desc,
+          empreendimentoId: updated.id,
           tipo: 'TERRENO'
         }
       });
 
       if (existingCost) {
-        if (existingCost.valor !== finalValorCompra) {
+        if (existingCost.valor !== finalValorCompra || existingCost.descricao !== desc) {
           await db.custoGlobal.update({
             where: { id: existingCost.id },
-            data: { valor: finalValorCompra }
+            data: { 
+              valor: finalValorCompra,
+              descricao: desc
+            }
           });
         }
       } else {
@@ -127,7 +130,8 @@ export async function PATCH(
           data: {
             descricao: desc,
             tipo: 'TERRENO',
-            valor: finalValorCompra
+            valor: finalValorCompra,
+            empreendimentoId: updated.id
           }
         });
       }

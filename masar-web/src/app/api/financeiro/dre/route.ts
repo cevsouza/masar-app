@@ -29,20 +29,31 @@ export async function GET(request: NextRequest) {
     const totalVGV = contratos.reduce((acc, c) => acc + c.valorVenda, 0);
     const totalComissao = contratos.reduce((acc, c) => acc + c.comissaoValor, 0);
 
-    // 2. Calcular rateio proporcional de custos globais (Terreno, Projetos, Mkt)
+    // 2. Calcular rateio de custos globais (Específicos do projeto + Compartilhados rateados)
     const totalHouses = await db.casa.count();
     const projectHouses = emp.casas.length;
 
-    const custosGlobais = await db.custoGlobal.groupBy({
+    const custosEspecificos = await db.custoGlobal.groupBy({
+      where: { empreendimentoId },
+      by: ['tipo'],
+      _sum: { valor: true }
+    });
+
+    const custosCompartilhados = await db.custoGlobal.groupBy({
+      where: { empreendimentoId: null },
       by: ['tipo'],
       _sum: { valor: true }
     });
 
     const getCustoGlobalProporcional = (tipo: 'TERRENO' | 'PROJETOS' | 'MARKETING' | 'OUTRO') => {
-      const item = custosGlobais.find(c => c.tipo === tipo);
-      const totalValor = item?._sum.valor || 0;
-      if (totalHouses === 0) return 0;
-      return (totalValor / totalHouses) * projectHouses;
+      const itemEsp = custosEspecificos.find(c => c.tipo === tipo);
+      const valorEsp = itemEsp?._sum.valor || 0;
+
+      const itemComp = custosCompartilhados.find(c => c.tipo === tipo);
+      const valorComp = itemComp?._sum.valor || 0;
+      const compProporcional = totalHouses > 0 ? (valorComp / totalHouses) * projectHouses : 0;
+
+      return valorEsp + compProporcional;
     };
 
     const rateioTerreno = getCustoGlobalProporcional('TERRENO');
