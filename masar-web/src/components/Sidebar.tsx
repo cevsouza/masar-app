@@ -197,9 +197,12 @@ export default function Sidebar() {
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {MENU_ITEMS.filter((item) => {
           const role = user.role || 'COMERCIAL';
+          if (item.href === '/' && role !== 'ADMIN') return false;
+          if (item.href === '/empreendimentos' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
+          if (item.href === '/comercial' && !['ADMIN', 'FINANCEIRO', 'COMERCIAL'].includes(role)) return false;
+          if (item.href === '/canteiro' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           if (item.href === '/socios/caixa' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
           if (item.href === '/usuarios' && role !== 'ADMIN') return false;
-          if (item.href === '/canteiro' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           return true;
         }).map((item) => {
           const isActive = pathname === item.href;

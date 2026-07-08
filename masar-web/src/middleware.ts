@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySession } from './lib/auth';
 
+function getDefaultRouteForRole(role: string): string {
+  switch (role) {
+    case 'ADMIN':
+      return '/';
+    case 'FINANCEIRO':
+      return '/empreendimentos';
+    case 'ENGENHARIA':
+      return '/canteiro';
+    case 'COMERCIAL':
+      return '/comercial';
+    default:
+      return '/login';
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -12,6 +27,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/auth') || 
     pathname.startsWith('/api/health') || 
     pathname.startsWith('/api/seed') || 
+    pathname.startsWith('/api/clean') || 
     pathname.startsWith('/api/debug-env') || 
     pathname.includes('.') || 
     pathname.startsWith('/_next');
@@ -40,30 +56,47 @@ export async function middleware(request: NextRequest) {
 
   const userRole = session.role || 'COMERCIAL';
 
-  // 1. Apenas ADMIN e FINANCEIRO acessam o DRE e a Tesouraria Societária
+  // 1. Dashboard (/) é de acesso exclusivo do ADMIN
+  if (pathname === '/') {
+    if (userRole !== 'ADMIN') {
+      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  // 2. Apenas ADMIN e FINANCEIRO acessam o DRE e a Tesouraria Societária
   if (pathname.startsWith('/socios') || pathname.startsWith('/financeiro')) {
     if (!['ADMIN', 'FINANCEIRO'].includes(userRole)) {
-      const dashboardUrl = new URL('/', request.url);
-      dashboardUrl.searchParams.set('unauthorized', 'true');
-      return NextResponse.redirect(dashboardUrl);
+      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
+      redirectUrl.searchParams.set('unauthorized', 'true');
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
-  // 2. Apenas ADMIN, FINANCEIRO e ENGENHARIA acessam o apontamento de canteiro
-  if (pathname.startsWith('/canteiro')) {
+  // 3. Apenas ADMIN, FINANCEIRO e ENGENHARIA acessam projetos, casas e canteiro
+  if (pathname.startsWith('/canteiro') || pathname.startsWith('/empreendimentos') || pathname.startsWith('/casas')) {
     if (!['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(userRole)) {
-      const dashboardUrl = new URL('/', request.url);
-      dashboardUrl.searchParams.set('unauthorized', 'true');
-      return NextResponse.redirect(dashboardUrl);
+      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
+      redirectUrl.searchParams.set('unauthorized', 'true');
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
-  // 3. Apenas ADMIN acessa a tela de gerenciamento de usuários da equipe (/usuarios)
+  // 4. Apenas ADMIN, FINANCEIRO e COMERCIAL acessam a tela comercial (CRM)
+  if (pathname.startsWith('/comercial')) {
+    if (!['ADMIN', 'FINANCEIRO', 'COMERCIAL'].includes(userRole)) {
+      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
+      redirectUrl.searchParams.set('unauthorized', 'true');
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  // 5. Apenas ADMIN acessa a tela de gerenciamento de usuários da equipe (/usuarios)
   if (pathname.startsWith('/usuarios')) {
     if (userRole !== 'ADMIN') {
-      const dashboardUrl = new URL('/', request.url);
-      dashboardUrl.searchParams.set('unauthorized', 'true');
-      return NextResponse.redirect(dashboardUrl);
+      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
+      redirectUrl.searchParams.set('unauthorized', 'true');
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
