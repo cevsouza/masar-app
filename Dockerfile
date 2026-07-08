@@ -27,5 +27,5 @@ COPY --from=builder /app/masar-web/prisma ./masar-web/prisma
 
 EXPOSE 3000
 
-# Start script: run migrations and start the web server
-CMD ["sh", "-c", "cd masar-web && npx prisma migrate deploy && npm run start"]
+# Start script: push schema to database and start the web server
+CMD ["sh", "-c", "cd masar-web && npx prisma db push --accept-data-loss && npm run start"]
