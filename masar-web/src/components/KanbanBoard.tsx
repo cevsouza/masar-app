@@ -287,12 +287,20 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                             <ArrowLeft size={14} />
                           </button>
 
-                          <Link
-                            href={`/financeiro/${project.id}`}
-                            className="flex items-center gap-1 px-2.5 py-1 text-[10px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded border border-indigo-500/20 transition font-bold"
-                          >
-                            DRE Contábil
-                          </Link>
+                          <div className="flex gap-1.5 items-center">
+                            <Link
+                              href={`/financeiro/${project.id}`}
+                              className="flex items-center gap-1 px-2 py-1 text-[9px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded border border-indigo-500/20 transition font-bold"
+                            >
+                              DRE
+                            </Link>
+                            <Link
+                              href={`/empreendimentos/${project.id}/ficha-tecnica`}
+                              className="flex items-center gap-1 px-2 py-1 text-[9px] bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded border border-blue-500/20 transition font-bold"
+                            >
+                              Ficha
+                            </Link>
+                          </div>
                           
                           {isLoading && <Loader2 size={14} className="animate-spin text-slate-500" />}
 

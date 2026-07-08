@@ -122,6 +122,18 @@ model Empreendimento {
   orcamento              Float?
   temSondagemSolo        Boolean             @default(false)
   temInfraestruturaBasica Boolean             @default(false)
+  endereco               String?
+  cep                    String?
+  bairro                 String?
+  cidade                 String?
+  estado                 String?
+  latitude               Float?
+  longitude              Float?
+  areaTotalTerreno       Decimal?
+  quantidadeCasasPrevistas Int?
+  proprietarioAnteriorTerreno String?
+  valorCompraTerreno     Decimal?
+  amenidades             String[]
   dataCriacao            DateTime            @default(now())
   dataAtualizacao        DateTime            @updatedAt
   casas                  Casa[]
@@ -188,6 +200,14 @@ model Casa {
   prazoFisico      DateTime?
   prazoFinanceiro  DateTime?
   obstaculos       String?
+  areaConstruida   Decimal?
+  areaLote         Decimal?
+  quantidadeQuartos Int                    @default(0)
+  quantidadeSuites  Int                    @default(0)
+  quantidadeBanheiros Int                    @default(0)
+  vagasGaragem     Int                    @default(0)
+  possuiQuintal    Boolean                @default(false)
+  salaConjugada    Boolean                @default(false)
   dataCriacao      DateTime               @default(now())
   dataAtualizacao  DateTime               @updatedAt
   medicoes         MedicaoCaixa[]
@@ -365,18 +385,19 @@ model LogAuditoria {
 }
 
 model DocumentoAnexo {
-  id               String          @id @default(uuid())
+  id               String              @id @default(uuid())
   nome             String
   caminhoArquivo   String          
   dataVencimento   DateTime?
-  status           String          @default("ATIVO") // ATIVO, VENCIDO
+  status           String              @default("ATIVO") // ATIVO, VENCIDO
+  tipo             TipoDocumentoAnexo?
   casaId           String?
-  casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  casa             Casa?               @relation(fields: [casaId], references: [id], onDelete: Cascade)
   clienteId        String?
-  cliente          Cliente?        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente          Cliente?            @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   empreendimentoId String?
-  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
-  dataCriacao      DateTime        @default(now())
+  empreendimento   Empreendimento?     @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  dataCriacao      DateTime            @default(now())
 }
 
 model Notificacao {
@@ -500,4 +521,14 @@ model MovimentacaoEstoque {
   casaId           String?
   casa             Casa?        @relation(fields: [casaId], references: [id], onDelete: SetNull)
   dataMovimentacao DateTime     @default(now())
+}
+
+enum TipoDocumentoAnexo {
+  PROJETO_ARQUITETONICO
+  PROJETO_ESTRUTURAL
+  PROJETO_HIDRAULICO
+  PROJETO_ELETRICO
+  MATRICULA_TERRENO
+  ALVARA_LOTEAMENTO
+  OUTRO
 }

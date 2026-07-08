@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     const casaId = formData.get('casaId') as string;
     const clienteId = formData.get('clienteId') as string;
     const empreendimentoId = formData.get('empreendimentoId') as string;
+    const tipo = formData.get('tipo') as string;
 
     if (!file || !nome) {
       return NextResponse.json({ error: 'Arquivo e nome do documento são obrigatórios' }, { status: 400 });
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
         caminhoArquivo: filePath,
         dataVencimento: dataVencimentoStr ? new Date(dataVencimentoStr) : null,
         status: 'ATIVO',
+        tipo: tipo ? (tipo as any) : null,
         casaId: casaId || null,
         clienteId: clienteId || null,
         empreendimentoId: empreendimentoId || null

@@ -253,6 +253,57 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
       {activeTab === 'geral' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-5 space-y-6">
+            {/* Card Comercial / Ficha de Tipologia da Unidade */}
+            <div className="glassmorphism p-5 rounded-2xl border border-slate-800/60 bg-[#0f1422]/20">
+              <h2 className="text-base font-bold text-white mb-3.5 flex items-center gap-2">
+                <Home size={18} className="text-blue-400" /> Ficha Técnica & Tipologia
+              </h2>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="p-3 bg-[#0f1422]/60 rounded-xl border border-slate-850">
+                    <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">Área Construída</span>
+                    <span className="text-slate-200 font-bold font-mono text-sm mt-0.5 block">
+                      {initialCasa.areaConstruida ? `${initialCasa.areaConstruida} m²` : '---'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-[#0f1422]/60 rounded-xl border border-slate-850">
+                    <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">Área do Lote</span>
+                    <span className="text-slate-200 font-bold font-mono text-sm mt-0.5 block">
+                      {initialCasa.areaLote ? `${initialCasa.areaLote} m²` : '---'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <div className="p-2.5 bg-[#0f1422]/40 rounded-lg border border-slate-850">
+                    <span className="text-slate-500 block text-[9px] font-bold uppercase">Quartos</span>
+                    <span className="text-white font-extrabold text-sm block mt-0.5">{initialCasa.quantidadeQuartos || 0}</span>
+                  </div>
+                  <div className="p-2.5 bg-[#0f1422]/40 rounded-lg border border-slate-850">
+                    <span className="text-slate-500 block text-[9px] font-bold uppercase">Suítes</span>
+                    <span className="text-white font-extrabold text-sm block mt-0.5">{initialCasa.quantidadeSuites || 0}</span>
+                  </div>
+                  <div className="p-2.5 bg-[#0f1422]/40 rounded-lg border border-slate-850">
+                    <span className="text-slate-500 block text-[9px] font-bold uppercase">Banh.</span>
+                    <span className="text-white font-extrabold text-sm block mt-0.5">{initialCasa.quantidadeBanheiros || 0}</span>
+                  </div>
+                  <div className="p-2.5 bg-[#0f1422]/40 rounded-lg border border-slate-850">
+                    <span className="text-slate-500 block text-[9px] font-bold uppercase">Vagas</span>
+                    <span className="text-white font-extrabold text-sm block mt-0.5">{initialCasa.vagasGaragem || 0}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${initialCasa.possuiQuintal ? 'bg-emerald-950/20 border-emerald-900/30 text-emerald-400' : 'bg-slate-900/40 border-slate-850 text-slate-500'}`}>
+                    {initialCasa.possuiQuintal ? '✓ Possui Quintal' : '✗ Sem Quintal'}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${initialCasa.salaConjugada ? 'bg-blue-950/20 border-blue-900/30 text-blue-400' : 'bg-slate-900/40 border-slate-850 text-slate-500'}`}>
+                    {initialCasa.salaConjugada ? '✓ Sala Conjugada' : '✗ Sala Separada'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div className="glassmorphism p-5 rounded-2xl border border-slate-800/60">
               <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
                 <Hammer size={18} className="text-indigo-400" /> Evolução Física da Obra

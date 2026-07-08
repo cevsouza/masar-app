@@ -4,7 +4,26 @@ import { db } from '@/lib/db';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { nome, localizacao, statusLegal, dataInicio, dataFim, orcamento } = body;
+    const { 
+      nome, 
+      localizacao, 
+      statusLegal, 
+      dataInicio, 
+      dataFim, 
+      orcamento,
+      endereco,
+      cep,
+      bairro,
+      cidade,
+      estado,
+      latitude,
+      longitude,
+      areaTotalTerreno,
+      quantidadeCasasPrevistas,
+      proprietarioAnteriorTerreno,
+      valorCompraTerreno,
+      amenidades
+    } = body;
 
     if (!nome || !localizacao) {
       return NextResponse.json({ error: 'Nome e localização são obrigatórios' }, { status: 400 });
@@ -18,6 +37,13 @@ export async function POST(request: NextRequest) {
     const orcamentoFloat = orcamento ? parseFloat(orcamento) : null;
     const inicioDate = dataInicio ? new Date(dataInicio) : null;
     const fimDate = dataFim ? new Date(dataFim) : null;
+    
+    const latFloat = latitude ? parseFloat(latitude) : null;
+    const lngFloat = longitude ? parseFloat(longitude) : null;
+    const areaDecimal = areaTotalTerreno ? parseFloat(areaTotalTerreno) : null;
+    const casasPrevistasInt = quantidadeCasasPrevistas ? parseInt(quantidadeCasasPrevistas, 10) : null;
+    const valorCompraFloat = valorCompraTerreno ? parseFloat(valorCompraTerreno) : null;
+    const amenidadesArray = Array.isArray(amenidades) ? amenidades : [];
 
     const empreendimento = await db.empreendimento.create({
       data: {
@@ -27,8 +53,32 @@ export async function POST(request: NextRequest) {
         dataInicio: inicioDate,
         dataFim: fimDate,
         orcamento: orcamentoFloat,
+        endereco,
+        cep,
+        bairro,
+        cidade,
+        estado,
+        latitude: latFloat,
+        longitude: lngFloat,
+        areaTotalTerreno: areaDecimal,
+        quantidadeCasasPrevistas: casasPrevistasInt,
+        proprietarioAnteriorTerreno,
+        valorCompraTerreno: valorCompraFloat,
+        amenidades: amenidadesArray
       },
     });
+
+    // Gatilho de Custo do Terreno
+    if (valorCompraFloat && valorCompraFloat > 0) {
+      const desc = `Aquisição do Terreno - ${nome}`;
+      await db.custoGlobal.create({
+        data: {
+          descricao: desc,
+          tipo: 'TERRENO',
+          valor: valorCompraFloat
+        }
+      });
+    }
 
     return NextResponse.json(empreendimento, { status: 201 });
   } catch (error) {
