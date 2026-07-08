@@ -27,5 +27,5 @@ COPY --from=builder /app/masar-web/prisma ./masar-web/prisma
 
 EXPOSE 3000
 
-# Start script: push schema to database and start the web server
-CMD ["sh", "-c", "cd masar-web && npx prisma db push --accept-data-loss && npm run start"]
+# Start script: push schema to database and start the web server (failsafe)
+CMD ["sh", "-c", "cd masar-web && (npx prisma db push --accept-data-loss || true) && npm run start"]
