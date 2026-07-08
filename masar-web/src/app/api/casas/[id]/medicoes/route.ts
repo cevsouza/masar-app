@@ -3,10 +3,11 @@ import { db } from '@/lib/db';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ casaId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { casaId } = await params;
+    const { id } = await params;
+    const casaId = id;
     const body = await request.json();
     const { percentualMedido, valorLiberado, status } = body;
 
