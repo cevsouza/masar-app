@@ -341,6 +341,7 @@ export default function Sidebar() {
             <div className="overflow-hidden">
               <p className="text-xs font-semibold text-white truncate leading-tight">{user.nome}</p>
               <span className="text-[9px] text-slate-400 block truncate mt-0.5">{user.email}</span>
+              <span className="text-[8px] text-indigo-400 font-extrabold tracking-wider uppercase block mt-0.5 font-sans">{user.role}</span>
             </div>
           </div>
 
