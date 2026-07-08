@@ -8,63 +8,164 @@ import {
   BadgeDollarSign, 
   Building2, 
   AlertTriangle,
-  LogOut
+  LogOut,
+  Settings,
+  KeyRound,
+  Sun,
+  Moon,
+  X,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+
+const MENU_ITEMS = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Projetos (Kanban)', href: '/empreendimentos', icon: KanbanSquare },
+  { name: 'Comercial (CRM)', href: '/comercial', icon: BadgeDollarSign },
+];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const menuRef = useRef<HTMLDivElement>(null);
+  
   const [hasGlosa, setHasGlosa] = useState(false);
+  const [user, setUser] = useState({ nome: 'Carregando...', email: 'gestor@masar.com' });
+  
+  // Theme state
+  const [theme, setTheme] = useState('dark');
+  
+  // Dropdown/Modal states
+  const [showMenu, setShowMenu] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  
+  // Change password form state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSuccess, setPwdSuccess] = useState<string | null>(null);
+  const [isChangingPwd, setIsChangingPwd] = useState(false);
 
   // Check if there are glosed measurements to show a pulsing warning icon in the sidebar
   useEffect(() => {
     fetch('/api/medicoes/status')
       .then(res => res.json())
       .then(data => {
-        if (data && data.hasGlosa) {
-          setHasGlosa(true);
-        } else {
-          setHasGlosa(false);
+        setHasGlosa(data.hasGlosa);
+      })
+      .catch(err => console.error(err));
+
+    // Get dynamic user details
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          setUser({ nome: data.nome, email: data.email });
         }
       })
-      .catch(() => {});
-  }, [pathname]); // Refresh on navigation
+      .catch(err => console.error(err));
 
-  const menuItems = [
-    {
-      name: 'Dashboard Executivo',
-      href: '/',
-      icon: LayoutDashboard,
-    },
-    {
-      name: 'Kanban de Projetos',
-      href: '/empreendimentos',
-      icon: KanbanSquare,
-    },
-    {
-      name: 'Comercial & CRM',
-      href: '/comercial',
-      icon: BadgeDollarSign,
-    },
-  ];
+    // Get saved theme preference
+    const savedTheme = localStorage.getItem('masar_theme') || 'dark';
+    setTheme(savedTheme);
+    if (savedTheme === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+  }, []);
+
+  // Close profile menu on clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('masar_theme', nextTheme);
+    if (nextTheme === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdError(null);
+    setPwdSuccess(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPwdError('Preencha todos os campos.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPwdError('As novas senhas não coincidem.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPwdError('A nova senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+
+    setIsChangingPwd(true);
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Erro ao alterar senha');
+
+      setPwdSuccess('Senha alterada com sucesso!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      
+      setTimeout(() => {
+        setIsPasswordModalOpen(false);
+        setPwdSuccess(null);
+      }, 2000);
+    } catch (err: any) {
+      setPwdError(err.message);
+    } finally {
+      setIsChangingPwd(false);
+    }
+  };
+
+  const getUserInitials = (name: string) => {
+    if (!name || name === 'Carregando...') return 'U';
+    return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  };
 
   return (
-    <aside className="w-64 bg-[#151b2c] border-r border-[#1e293b] flex flex-col h-screen fixed left-0 top-0 text-slate-200 z-30">
-      {/* Logo */}
+    <aside className="w-64 bg-[#0f1422] border-r border-[#1e293b] flex flex-col h-screen fixed left-0 top-0 z-40 text-slate-300">
+      {/* Brand Header */}
       <div className="p-6 border-b border-[#1e293b] flex items-center gap-3">
-        <div className="p-2 bg-blue-600 rounded-lg text-white">
-          <Building2 size={24} />
+        <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
+          <Building2 size={20} />
         </div>
         <div>
-          <h1 className="font-bold text-lg leading-none text-white">MASAR</h1>
-          <span className="text-[10px] text-slate-400 font-medium tracking-wider">EMPREENDIMENTOS</span>
+          <span className="font-extrabold text-base text-white tracking-wide block font-sans">MASAR</span>
+          <span className="text-[10px] text-blue-400 font-semibold tracking-wider uppercase">Empreendimentos</span>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => {
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {MENU_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
 
@@ -73,7 +174,7 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium",
+                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium cursor-pointer",
                 isActive 
                   ? "bg-blue-600/10 text-blue-400 border border-blue-500/20" 
                   : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
@@ -105,31 +206,163 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* User info */}
-      <div className="p-4 border-t border-[#1e293b] flex items-center justify-between bg-[#0f1422]">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-xs text-white shrink-0">
-            EV
+      {/* User info / Settings Dropdown menu wrapper */}
+      <div className="relative p-4 border-t border-[#1e293b] bg-[#0f1422]" ref={menuRef}>
+        
+        {/* Settings Dropdown popover */}
+        {showMenu && (
+          <div className="absolute bottom-18 left-4 right-4 bg-[#151b2c] border border-slate-800 rounded-xl shadow-2xl p-2.5 space-y-1.5 z-50">
+            <button
+              onClick={() => {
+                setIsPasswordModalOpen(true);
+                setShowMenu(false);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition text-left cursor-pointer"
+            >
+              <KeyRound size={14} className="text-slate-400" />
+              Trocar Senha
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition text-left cursor-pointer"
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun size={14} className="text-amber-500" />
+                  Tema Claro
+                </>
+              ) : (
+                <>
+                  <Moon size={14} className="text-indigo-400" />
+                  Tema Escuro
+                </>
+              )}
+            </button>
+            <div className="h-px bg-slate-800 my-1" />
+            <button
+              onClick={async () => {
+                if (confirm('Deseja realmente sair?')) {
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                  window.location.href = '/login';
+                }
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 rounded-lg transition text-left cursor-pointer"
+            >
+              <LogOut size={14} />
+              Sair do Sistema
+            </button>
           </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-semibold text-white truncate">Sócio Empreiteiro</p>
-            <span className="text-[10px] text-slate-400 block truncate">MCMV Gestor</span>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div 
+            onClick={() => setShowMenu(!showMenu)}
+            className="flex items-center gap-3 overflow-hidden cursor-pointer hover:bg-slate-800/20 p-1.5 rounded-lg transition grow"
+            title="Menu do usuário"
+          >
+            <div className="w-8.5 h-8.5 rounded-full bg-slate-700 flex items-center justify-center font-bold text-xs text-white shrink-0">
+              {getUserInitials(user.nome)}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-semibold text-white truncate leading-tight">{user.nome}</p>
+              <span className="text-[9px] text-slate-400 block truncate mt-0.5">{user.email}</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition shrink-0 cursor-pointer"
+            title="Configurações do usuário"
+          >
+            <Settings size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Modal: Troca de Senha */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#000000]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-sm rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button
+              onClick={() => setIsPasswordModalOpen(false)}
+              className="absolute right-4 top-4 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2 font-sans">
+              <KeyRound className="text-blue-500" size={18} /> Trocar Minha Senha
+            </h3>
+
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              {pwdError && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-xs">
+                  {pwdError}
+                </div>
+              )}
+              {pwdSuccess && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-lg text-xs">
+                  {pwdSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">Senha Atual</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">Nova Senha</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Mínimo 6 caracteres"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">Confirmar Nova Senha</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Repetir nova senha"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-3 border-t border-slate-800 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isChangingPwd}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 flex items-center gap-1 cursor-pointer"
+                >
+                  {isChangingPwd && <Loader2 size={12} className="animate-spin" />}
+                  Alterar Senha
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        <button 
-          onClick={async () => {
-            if (confirm('Deseja realmente sair?')) {
-              await fetch('/api/auth/logout', { method: 'POST' });
-              window.location.href = '/login';
-            }
-          }}
-          className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-red-400 transition shrink-0"
-          title="Sair do sistema"
-        >
-          <LogOut size={16} />
-        </button>
-      </div>
+      )}
     </aside>
   );
 }
