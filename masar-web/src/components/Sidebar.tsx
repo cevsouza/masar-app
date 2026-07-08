@@ -32,7 +32,12 @@ const MENU_ITEMS = [
   { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
   
@@ -181,17 +186,39 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-[#0f1422] border-r border-[#1e293b] flex flex-col h-screen fixed left-0 top-0 z-40 text-slate-300">
-      {/* Brand Header */}
-      <div className="p-6 border-b border-[#1e293b] flex items-center gap-3">
-        <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
-          <Building2 size={20} />
+    <>
+      {/* Backdrop de fundo no mobile */}
+      {isOpen && (
+        <div 
+          onClick={onClose} 
+          className="fixed inset-0 z-45 bg-black/60 backdrop-blur-xs md:hidden"
+        />
+      )}
+
+      <aside className={cn(
+        "w-64 bg-[#0f1422] border-r border-[#1e293b] flex flex-col h-screen fixed left-0 top-0 bottom-0 z-50 text-slate-300 transition-transform duration-300 ease-in-out md:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        {/* Brand Header */}
+        <div className="p-6 border-b border-[#1e293b] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
+              <Building2 size={20} />
+            </div>
+            <div>
+              <span className="font-extrabold text-base text-white tracking-wide block font-sans">MASAR</span>
+              <span className="text-[10px] text-blue-400 font-semibold tracking-wider uppercase">Empreendimentos</span>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="md:hidden p-1.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-700/60 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+            title="Fechar Menu"
+          >
+            <X size={16} />
+          </button>
         </div>
-        <div>
-          <span className="font-extrabold text-base text-white tracking-wide block font-sans">MASAR</span>
-          <span className="text-[10px] text-blue-400 font-semibold tracking-wider uppercase">Empreendimentos</span>
-        </div>
-      </div>
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
@@ -461,5 +488,6 @@ export default function Sidebar() {
         </div>
       )}
     </aside>
+    </>
   );
 }
