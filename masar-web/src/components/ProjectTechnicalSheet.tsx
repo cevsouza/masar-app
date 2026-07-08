@@ -18,7 +18,8 @@ import {
   Sparkles,
   Info,
   Calendar,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -74,6 +75,60 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState('PROJETO_ARQUITETONICO');
   const [isUploading, setIsUploading] = useState(false);
+
+  // Edit States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editEndereco, setEditEndereco] = useState(project.endereco || '');
+  const [editCep, setEditCep] = useState(project.cep || '');
+  const [editBairro, setEditBairro] = useState(project.bairro || '');
+  const [editCidade, setEditCidade] = useState(project.cidade || '');
+  const [editEstado, setEditEstado] = useState(project.estado || '');
+  const [editLatitude, setEditLatitude] = useState(project.latitude ? project.latitude.toString() : '');
+  const [editLongitude, setEditLongitude] = useState(project.longitude ? project.longitude.toString() : '');
+  const [editAreaTotalTerreno, setEditAreaTotalTerreno] = useState(project.areaTotalTerreno ? project.areaTotalTerreno.toString() : '');
+  const [editQuantidadeCasasPrevistas, setEditQuantidadeCasasPrevistas] = useState(project.quantidadeCasasPrevistas ? project.quantidadeCasasPrevistas.toString() : '');
+  const [editProprietarioAnteriorTerreno, setEditProprietarioAnteriorTerreno] = useState(project.proprietarioAnteriorTerreno || '');
+  const [editValorCompraTerreno, setEditValorCompraTerreno] = useState(project.valorCompraTerreno ? project.valorCompraTerreno.toString() : '');
+  const [editAmenidades, setEditAmenidades] = useState(project.amenidades.join(', '));
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingEdit(true);
+    try {
+      const res = await fetch(`/api/empreendimentos/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endereco: editEndereco || null,
+          cep: editCep || null,
+          bairro: editBairro || null,
+          cidade: editCidade || null,
+          estado: editEstado || null,
+          latitude: editLatitude ? parseFloat(editLatitude) : null,
+          longitude: editLongitude ? parseFloat(editLongitude) : null,
+          areaTotalTerreno: editAreaTotalTerreno ? parseFloat(editAreaTotalTerreno) : null,
+          quantidadeCasasPrevistas: editQuantidadeCasasPrevistas ? parseInt(editQuantidadeCasasPrevistas, 10) : null,
+          proprietarioAnteriorTerreno: editProprietarioAnteriorTerreno || null,
+          valorCompraTerreno: editValorCompraTerreno ? parseFloat(editValorCompraTerreno) : null,
+          amenidades: editAmenidades.split(',').map(a => a.trim()).filter(Boolean)
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao salvar alterações.');
+      }
+
+      setIsEditModalOpen(false);
+      alert('✓ Ficha técnica atualizada com sucesso!');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -154,22 +209,31 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
           </p>
         </div>
 
-        <div className="flex border border-slate-800 bg-[#101625]/30 p-1 rounded-xl">
-          <button 
-            onClick={() => setActiveTab('ficha')} 
-            className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
-              activeTab === 'ficha' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
-            }`}
+        <div className="flex items-center gap-3">
+          <div className="flex border border-slate-800 bg-[#101625]/30 p-1 rounded-xl">
+            <button 
+              onClick={() => setActiveTab('ficha')} 
+              className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
+                activeTab === 'ficha' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Ficha Técnica
+            </button>
+            <button 
+              onClick={() => setActiveTab('cofre')} 
+              className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
+                activeTab === 'cofre' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Cofre de Projetos
+            </button>
+          </div>
+
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg uppercase tracking-wider transition cursor-pointer flex items-center gap-1 shadow-lg shadow-blue-500/10"
           >
-            Ficha Técnica
-          </button>
-          <button 
-            onClick={() => setActiveTab('cofre')} 
-            className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
-              activeTab === 'cofre' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Cofre de Projetos
+            Editar Ficha
           </button>
         </div>
       </div>
@@ -473,6 +537,192 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Modal: Editar Ficha Técnica */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#000000]/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glassmorphism w-full max-w-2xl rounded-2xl border border-slate-800 shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto my-8">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="absolute right-4 top-4 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-base font-bold text-white mb-5 flex items-center gap-2 font-sans uppercase tracking-wide border-b border-slate-850 pb-2">
+              <Building2 className="text-blue-550" size={18} /> Editar Ficha Técnica do Empreendimento
+            </h3>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-slate-300">
+              
+              {/* Seção 1: Dados do Terreno */}
+              <div>
+                <h4 className="font-bold text-white text-[10px] uppercase tracking-wider mb-2 text-blue-400">1. Dados de Aquisição do Terreno</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Área do Terreno (m²)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ex: 5000.00"
+                      value={editAreaTotalTerreno}
+                      onChange={(e) => setEditAreaTotalTerreno(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Valor de Compra (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ex: 350000.00"
+                      value={editValorCompraTerreno}
+                      onChange={(e) => setEditValorCompraTerreno(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Proprietário Anterior</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Espólio Silva"
+                      value={editProprietarioAnteriorTerreno}
+                      onChange={(e) => setEditProprietarioAnteriorTerreno(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 2: Engenharia e Obras */}
+              <div>
+                <h4 className="font-bold text-white text-[10px] uppercase tracking-wider mb-2 text-blue-400">2. Planejamento de Obras</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Quantidade de Casas Previstas</label>
+                    <input
+                      type="number"
+                      placeholder="Ex: 24"
+                      value={editQuantidadeCasasPrevistas}
+                      onChange={(e) => setEditQuantidadeCasasPrevistas(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Amenidades (Separadas por vírgula)</label>
+                    <input
+                      type="text"
+                      placeholder="Muro, Pavimentação, Iluminação"
+                      value={editAmenidades}
+                      onChange={(e) => setEditAmenidades(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 3: Localização Exata e Geolocalização */}
+              <div>
+                <h4 className="font-bold text-white text-[10px] uppercase tracking-wider mb-2 text-blue-400">3. Endereço e Coordenadas</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-[10px] text-slate-400 font-medium">Endereço (Rua, Número)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Rodovia BR-101, Km 12"
+                      value={editEndereco}
+                      onChange={(e) => setEditEndereco(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">CEP</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 59000-000"
+                      value={editCep}
+                      onChange={(e) => setEditCep(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Bairro</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Centro"
+                      value={editBairro}
+                      onChange={(e) => setEditBairro(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Cidade</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Natal"
+                      value={editCidade}
+                      onChange={(e) => setEditCidade(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Estado (UF)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: RN"
+                      value={editEstado}
+                      onChange={(e) => setEditEstado(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Latitude</label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      placeholder="Ex: -5.79448"
+                      value={editLatitude}
+                      onChange={(e) => setEditLatitude(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-medium">Longitude</label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      placeholder="Ex: -35.211"
+                      value={editLongitude}
+                      onChange={(e) => setEditLongitude(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 hover:text-white font-bold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-lg shadow-blue-500/10"
+                >
+                  {isSavingEdit && <Loader2 size={12} className="animate-spin" />}
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
