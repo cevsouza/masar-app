@@ -111,6 +111,45 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
   const [replicarTipologia, setReplicarTipologia] = useState(false);
 
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [userRole, setUserRole] = useState('COMERCIAL');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          setUserRole(data.role || 'COMERCIAL');
+        }
+      })
+      .catch(err => console.error('Erro ao buscar role:', err));
+  }, []);
+
+  const handleDeleteProject = async () => {
+    if (!confirm(`Tem certeza absoluta que deseja excluir o empreendimento "${project.nome}"?\nEsta ação é irreversível e excluirá todas as casas e documentos associados.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/empreendimentos/${project.id}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao excluir empreendimento.');
+      }
+
+      alert('✓ Empreendimento excluído com sucesso!');
+      router.push('/empreendimentos');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,6 +296,16 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
               Cofre de Projetos
             </button>
           </div>
+
+          {userRole === 'ADMIN' && (
+            <button
+              onClick={handleDeleteProject}
+              disabled={isDeleting}
+              className="px-4 py-2 bg-red-650 hover:bg-red-600 text-white font-bold rounded-lg uppercase tracking-wider transition cursor-pointer flex items-center gap-1 shadow-lg shadow-red-500/10 disabled:opacity-50"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </button>
+          )}
 
           <button
             onClick={() => setIsEditModalOpen(true)}

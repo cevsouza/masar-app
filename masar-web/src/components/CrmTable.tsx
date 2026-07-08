@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Search, 
@@ -56,6 +56,85 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
   const [newClientCredit, setNewClientCredit] = useState('DOCUMENTACAO_PENDENTE');
   const [selectedHouseId, setSelectedHouseId] = useState('');
   const [isCreatingClient, setIsCreatingClient] = useState(false);
+
+  // Edit Client modal state
+  const [userRole, setUserRole] = useState('COMERCIAL');
+  const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
+  const [editingClientId, setEditingClientId] = useState('');
+  const [editClientName, setEditClientName] = useState('');
+  const [editClientCpf, setEditClientCpf] = useState('');
+  const [editClientIncome, setEditClientIncome] = useState('');
+  const [editClientCredit, setEditClientCredit] = useState('DOCUMENTACAO_PENDENTE');
+  const [isSavingClient, setIsSavingClient] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          setUserRole(data.role || 'COMERCIAL');
+        }
+      })
+      .catch(err => console.error(err));
+  }, []);
+
+  const handleOpenEditClient = (client: any) => {
+    setEditingClientId(client.id);
+    setEditClientName(client.nome);
+    setEditClientCpf(client.cpf);
+    setEditClientIncome(client.rendaComprovada.toString());
+    setEditClientCredit(client.statusCredito);
+    setIsEditClientModalOpen(true);
+  };
+
+  const handleDeleteClient = async (clientId: string, clientNome: string) => {
+    if (!confirm(`Deseja realmente excluir o cliente "${clientNome}" permanentemente do CRM?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/clientes/${clientId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao excluir cliente.');
+      }
+      alert('✓ Cliente excluído com sucesso!');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleSaveClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingClient(true);
+    try {
+      const res = await fetch(`/api/clientes/${editingClientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: editClientName,
+          cpf: editClientCpf,
+          rendaComprovada: parseFloat(editClientIncome),
+          statusCredito: editClientCredit
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao salvar cliente.');
+      }
+
+      setIsEditClientModalOpen(false);
+      alert('✓ Dados do cliente atualizados com sucesso!');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSavingClient(false);
+    }
+  };
 
   // Filter available houses (without adquirente) for the dropdown list
   const availableHouses = initialHouses.filter(h => h.cliente === null);
@@ -235,12 +314,32 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                           <h4 className="text-xs font-bold text-white leading-tight">{client.nome}</h4>
                           <span className="text-[10px] text-slate-500 font-mono">CPF: {client.cpf}</span>
                         </div>
-                        <Link 
-                          href={`/casas/${house.id}`}
-                          className="p-1.5 bg-[#0f1422] hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition border border-slate-800"
-                        >
-                          <Eye size={12} />
-                        </Link>
+                        <div className="flex items-center gap-1">
+                          {['ADMIN', 'COMERCIAL'].includes(userRole) && (
+                            <>
+                              <button
+                                onClick={() => handleOpenEditClient(client)}
+                                className="px-1.5 py-0.5 bg-[#0f1422] hover:bg-slate-800 text-blue-400 border border-slate-800 rounded transition text-[9px] font-bold cursor-pointer"
+                                title="Editar Cliente"
+                              >
+                                Ed
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClient(client.id, client.nome)}
+                                className="px-1.5 py-0.5 bg-red-950/20 hover:bg-red-900/60 text-red-400 border border-red-900/30 rounded transition text-[9px] font-bold cursor-pointer"
+                                title="Excluir Cliente"
+                              >
+                                Ex
+                              </button>
+                            </>
+                          )}
+                          <Link 
+                            href={`/casas/${house.id}`}
+                            className="p-1.5 bg-[#0f1422] hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition border border-slate-800"
+                          >
+                            <Eye size={12} />
+                          </Link>
+                        </div>
                       </div>
 
                       <div className="p-2.5 bg-[#0f1422]/80 border border-slate-850 rounded-lg text-[10px] text-slate-300">
@@ -415,6 +514,94 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer"
                 >
                   {isCreatingClient ? 'Cadastrando...' : 'Cadastrar e Vincular'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Cliente (Admin ou Comercial) */}
+      {isEditClientModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#000000]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button
+              onClick={() => setIsEditClientModalOpen(false)}
+              className="absolute right-4 top-4 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-base font-bold text-white mb-5 flex items-center gap-2 font-sans">
+              Editar Dados do Comprador
+            </h3>
+
+            <form onSubmit={handleSaveClient} className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Nome Completo</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nome do cliente"
+                  value={editClientName}
+                  onChange={(e) => setEditClientName(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">CPF</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: 000.000.000-00"
+                  value={editClientCpf}
+                  onChange={(e) => setEditClientCpf(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Renda Mensal Comprovada (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="Ex: 3500.00"
+                  value={editClientIncome}
+                  onChange={(e) => setEditClientIncome(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Status de Crédito Caixa</label>
+                <select
+                  value={editClientCredit}
+                  onChange={(e) => setEditClientCredit(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-350 focus:outline-none focus:border-blue-500/50"
+                >
+                  <option value="DOCUMENTACAO_PENDENTE">Documentação Pendente</option>
+                  <option value="EM_ANALISE_CAIXA">Em Análise na Caixa</option>
+                  <option value="APROVADO_CONDICIONADO">Aprovado Condicionado</option>
+                  <option value="APROVADO">Crédito Aprovado</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-800 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setIsEditClientModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingClient}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                >
+                  {isSavingClient ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
+import { verifySession } from '@/lib/auth';
 
 export async function PATCH(
   request: NextRequest,
@@ -140,6 +141,48 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error('Erro ao atualizar empreendimento:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const sessionToken = request.cookies.get('masar_session')?.value;
+    const session = sessionToken ? await verifySession(sessionToken) : null;
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Acesso negado: Apenas administradores podem excluir empreendimentos.' }, { status: 403 });
+    }
+
+    const emp = await db.empreendimento.findUnique({
+      where: { id }
+    });
+
+    if (!emp) {
+      return NextResponse.json({ error: 'Empreendimento não encontrado.' }, { status: 404 });
+    }
+
+    // Excluir empreendimento
+    await db.empreendimento.delete({
+      where: { id }
+    });
+
+    await logMutation({
+      usuarioId: session.userId,
+      usuarioNome: session.nome,
+      acao: 'DELETE',
+      tabela: 'Empreendimento',
+      registroId: id,
+      valoresAntigos: emp,
+      valoresNovos: null
+    });
+
+    return NextResponse.json({ success: true, message: 'Empreendimento excluído com sucesso.' });
+  } catch (error: any) {
+    console.error('Erro ao excluir empreendimento:', error);
     return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
   }
 }

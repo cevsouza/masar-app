@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Home, 
@@ -24,7 +24,8 @@ import {
   Smartphone,
   ShieldCheck,
   Activity,
-  FileText
+  FileText,
+  X
 } from 'lucide-react';
 import GedManager from '@/components/GedManager';
 import {
@@ -75,6 +76,90 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
   // Status updating state
   const [updatingMedicaoId, setUpdatingMedicaoId] = useState<string | null>(null);
+
+  // Admin Edit/Delete House States
+  const [userRole, setUserRole] = useState('COMERCIAL');
+  const [isDeletingHouse, setIsDeletingHouse] = useState(false);
+  const [isEditHouseModalOpen, setIsEditHouseModalOpen] = useState(false);
+  const [editNumero, setEditNumero] = useState(initialCasa.numero);
+  const [editQuadra, setEditQuadra] = useState(initialCasa.quadra);
+  const [editAreaConstruida, setEditAreaConstruida] = useState(initialCasa.areaConstruida ? initialCasa.areaConstruida.toString() : '');
+  const [editAreaLote, setEditAreaLote] = useState(initialCasa.areaLote ? initialCasa.areaLote.toString() : '');
+  const [editQuartos, setEditQuartos] = useState(initialCasa.quantidadeQuartos.toString());
+  const [editSuites, setEditSuites] = useState(initialCasa.quantidadeSuites.toString());
+  const [editBanheiros, setEditBanheiros] = useState(initialCasa.quantidadeBanheiros.toString());
+  const [editVagas, setEditVagas] = useState(initialCasa.vagasGaragem.toString());
+  const [editQuintal, setEditQuintal] = useState(initialCasa.possuiQuintal);
+  const [editSalaConjugada, setEditSalaConjugada] = useState(initialCasa.salaConjugada);
+  const [isSavingHouse, setIsSavingHouse] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          setUserRole(data.role || 'COMERCIAL');
+        }
+      })
+      .catch(err => console.error(err));
+  }, []);
+
+  const handleDeleteHouse = async () => {
+    if (!confirm(`Tem certeza que deseja excluir a Casa ${initialCasa.numero} da Quadra ${initialCasa.quadra}?\nEsta ação excluirá todos os lançamentos financeiros, diários e apropriações vinculados.`)) {
+      return;
+    }
+    setIsDeletingHouse(true);
+    try {
+      const res = await fetch(`/api/casas/${initialCasa.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao excluir casa.');
+      }
+      alert('✓ Casa excluída com sucesso!');
+      router.push(`/empreendimentos`);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsDeletingHouse(false);
+    }
+  };
+
+  const handleSaveHouse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingHouse(true);
+    try {
+      const res = await fetch(`/api/casas/${initialCasa.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          numero: editNumero,
+          quadra: editQuadra,
+          areaConstruida: editAreaConstruida ? parseFloat(editAreaConstruida) : null,
+          areaLote: editAreaLote ? parseFloat(editAreaLote) : null,
+          quantidadeQuartos: parseInt(editQuartos, 10) || 0,
+          quantidadeSuites: parseInt(editSuites, 10) || 0,
+          quantidadeBanheiros: parseInt(editBanheiros, 10) || 0,
+          vagasGaragem: parseInt(editVagas, 10) || 0,
+          possuiQuintal: editQuintal === true,
+          salaConjugada: editSalaConjugada === true
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao salvar alterações.');
+      }
+
+      setIsEditHouseModalOpen(false);
+      alert('✓ Dados da casa atualizados com sucesso!');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSavingHouse(false);
+    }
+  };
 
   // Budget stats
   const totalOrado = initialCasa.orcamento?.itens.reduce((acc: number, item: any) => acc + (item.quantidadePlanejada * item.custoUnitarioPrevisto), 0) || 0;
@@ -215,6 +300,23 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           <p className="text-sm text-slate-400 mt-1">
             Projeto: <strong>{initialCasa.empreendimento.nome}</strong>
           </p>
+          {userRole === 'ADMIN' && (
+            <div className="flex gap-2 items-center mt-3">
+              <button
+                onClick={() => setIsEditHouseModalOpen(true)}
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 border border-blue-500/20 text-white font-bold rounded-lg text-[9px] uppercase tracking-wider transition cursor-pointer flex items-center gap-1"
+              >
+                Editar Unidade
+              </button>
+              <button
+                onClick={handleDeleteHouse}
+                disabled={isDeletingHouse}
+                className="px-2.5 py-1 bg-red-650 hover:bg-red-600 border border-red-500/20 text-white font-bold rounded-lg text-[9px] uppercase tracking-wider transition cursor-pointer flex items-center gap-1 disabled:opacity-50"
+              >
+                {isDeletingHouse ? 'Excluindo...' : 'Excluir Unidade'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="glassmorphism py-3 px-4.5 rounded-xl border border-slate-800/80 flex items-center gap-3 max-w-sm self-start md:self-auto">
@@ -693,6 +795,153 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           </h2>
           <p className="text-xs text-slate-400 mb-6">Mapeamento de laudos, alvarás, relatórios de vistoria e documentações do adquirente.</p>
           <GedManager casaId={initialCasa.id} clienteId={initialCasa.clienteId} />
+        </div>
+      )}
+
+      {/* Modal: Editar Casa (Admin) */}
+      {isEditHouseModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#000000]/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glassmorphism w-full max-w-lg rounded-2xl border border-slate-800 shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto my-8">
+            <button
+              type="button"
+              onClick={() => setIsEditHouseModalOpen(false)}
+              className="absolute right-4 top-4 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-base font-bold text-white mb-5 flex items-center gap-2 font-sans uppercase tracking-wide border-b border-slate-850 pb-2">
+              <Home className="text-blue-555" size={18} /> Editar Unidade Habitacional
+            </h3>
+
+            <form onSubmit={handleSaveHouse} className="space-y-4 text-slate-350 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Número da Casa</label>
+                  <input
+                    type="text"
+                    required
+                    value={editNumero}
+                    onChange={(e) => setEditNumero(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Quadra</label>
+                  <input
+                    type="text"
+                    required
+                    value={editQuadra}
+                    onChange={(e) => setEditQuadra(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Área Construída (m²)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editAreaConstruida}
+                    onChange={(e) => setEditAreaConstruida(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Área do Lote (m²)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editAreaLote}
+                    onChange={(e) => setEditAreaLote(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Quartos</label>
+                  <input
+                    type="number"
+                    value={editQuartos}
+                    onChange={(e) => setEditQuartos(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Suítes</label>
+                  <input
+                    type="number"
+                    value={editSuites}
+                    onChange={(e) => setEditSuites(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Banheiros</label>
+                  <input
+                    type="number"
+                    value={editBanheiros}
+                    onChange={(e) => setEditBanheiros(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Vagas Garagem</label>
+                  <input
+                    type="number"
+                    value={editVagas}
+                    onChange={(e) => setEditVagas(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="editQuintal"
+                    checked={editQuintal}
+                    onChange={(e) => setEditQuintal(e.target.checked)}
+                    className="rounded bg-[#0f1422] border-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="editQuintal" className="text-[10px] text-slate-400 cursor-pointer select-none">Possui Quintal</label>
+                </div>
+
+                <div className="flex items-center gap-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="editSalaConjugada"
+                    checked={editSalaConjugada}
+                    onChange={(e) => setEditSalaConjugada(e.target.checked)}
+                    className="rounded bg-[#0f1422] border-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="editSalaConjugada" className="text-[10px] text-slate-400 cursor-pointer select-none">Sala Conjugada</label>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-850 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setIsEditHouseModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 hover:text-white font-bold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingHouse}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-lg shadow-blue-500/10"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
