@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, ShieldAlert, ShieldCheck, Clock, UserMinus, Eye } from 'lucide-react';
+import { Search, Filter, ShieldAlert, ShieldCheck, Clock, UserMinus, Eye, Plus, X, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 
 interface Client {
@@ -31,6 +31,18 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  // New Client modal state
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientCpf, setNewClientCpf] = useState('');
+  const [newClientIncome, setNewClientIncome] = useState('');
+  const [newClientCredit, setNewClientCredit] = useState('DOCUMENTACAO_PENDENTE');
+  const [selectedHouseId, setSelectedHouseId] = useState('');
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+
+  // Filter available houses (without adquirente) for the dropdown list
+  const availableHouses = initialHouses.filter(h => h.cliente === null);
+
   const handleStatusChange = async (clientId: string, newStatus: string) => {
     setUpdatingId(clientId);
     try {
@@ -50,6 +62,48 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
       alert('Erro ao atualizar status de crédito.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName || !newClientCpf || !newClientIncome) {
+      alert('Nome, CPF e renda comprovada são obrigatórios');
+      return;
+    }
+
+    setIsCreatingClient(true);
+    try {
+      const response = await fetch('/api/clientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: newClientName,
+          cpf: newClientCpf,
+          rendaComprovada: parseFloat(newClientIncome),
+          statusCredito: newClientCredit,
+          casaId: selectedHouseId || null,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Erro ao cadastrar cliente');
+
+      // Clear state
+      setNewClientName('');
+      setNewClientCpf('');
+      setNewClientIncome('');
+      setNewClientCredit('DOCUMENTACAO_PENDENTE');
+      setSelectedHouseId('');
+      setIsClientModalOpen(false);
+
+      router.refresh();
+      alert('Adquirente cadastrado e associado com sucesso!');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Erro ao criar cliente.');
+    } finally {
+      setIsCreatingClient(false);
     }
   };
 
@@ -110,6 +164,17 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
 
   return (
     <div className="space-y-4">
+      {/* Top action header */}
+      <div className="flex justify-between items-center bg-[#151b2c] p-4 rounded-xl border border-slate-800/80">
+        <span className="text-xs text-slate-400 font-medium">Gestão e vinculação de adquirentes e aprovação de crédito na CEF</span>
+        <button
+          onClick={() => setIsClientModalOpen(true)}
+          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-blue-500/10 cursor-pointer"
+        >
+          <UserPlus size={14} /> Novo Cliente
+        </button>
+      </div>
+
       {/* Search & Filter Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-80">
@@ -240,6 +305,109 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
           </table>
         </div>
       </div>
+
+      {/* Modal: Novo Cliente */}
+      {isClientModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#000000]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button
+              onClick={() => setIsClientModalOpen(false)}
+              className="absolute right-4 top-4 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2 font-sans">
+              <UserPlus className="text-blue-500" size={20} /> Cadastrar Novo Adquirente
+            </h3>
+
+            <form onSubmit={handleCreateClient} className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Nome do Cliente</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nome Completo"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">CPF</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="000.000.000-00"
+                  value={newClientCpf}
+                  onChange={(e) => setNewClientCpf(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Renda Comprovada Mensal (R$)</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="Ex: 4500"
+                  value={newClientIncome}
+                  onChange={(e) => setNewClientIncome(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Status de Crédito Inicial</label>
+                <select
+                  value={newClientCredit}
+                  onChange={(e) => setNewClientCredit(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50"
+                >
+                  <option value="DOCUMENTACAO_PENDENTE">Documentação Pendente</option>
+                  <option value="EM_ANALISE_CAIXA">Em Análise na Caixa</option>
+                  <option value="APROVADO">Crédito Aprovado</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Vincular Unidade Disponível (Estoque)</label>
+                <select
+                  value={selectedHouseId}
+                  onChange={(e) => setSelectedHouseId(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50"
+                >
+                  <option value="">-- Deixar em Estoque (Sem Vínculo) --</option>
+                  {availableHouses.map(house => (
+                    <option key={house.id} value={house.id}>
+                      Qd {house.quadra}, Casa {house.numero} ({house.empreendimento.nome})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsClientModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingClient}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                >
+                  {isCreatingClient ? 'Cadastrando...' : 'Cadastrar e Vincular'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

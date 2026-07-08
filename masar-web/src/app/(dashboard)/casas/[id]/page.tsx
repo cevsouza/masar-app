@@ -27,6 +27,8 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
     ...casa,
     dataCriacao: casa.dataCriacao.toISOString(),
     dataAtualizacao: casa.dataAtualizacao.toISOString(),
+    prazoFisico: casa.prazoFisico ? casa.prazoFisico.toISOString() : null,
+    prazoFinanceiro: casa.prazoFinanceiro ? casa.prazoFinanceiro.toISOString() : null,
     medicoes: casa.medicoes.map(m => ({
       ...m,
       dataMedicao: m.dataMedicao.toISOString(),

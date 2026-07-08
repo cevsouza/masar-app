@@ -7,7 +7,8 @@ import {
   KanbanSquare, 
   BadgeDollarSign, 
   Building2, 
-  AlertTriangle 
+  AlertTriangle,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -105,14 +106,29 @@ export default function Sidebar() {
       )}
 
       {/* User info */}
-      <div className="p-4 border-t border-[#1e293b] flex items-center gap-3 bg-[#0f1422]">
-        <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-xs text-white">
-          EV
+      <div className="p-4 border-t border-[#1e293b] flex items-center justify-between bg-[#0f1422]">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-xs text-white shrink-0">
+            EV
+          </div>
+          <div className="overflow-hidden">
+            <p className="text-xs font-semibold text-white truncate">Sócio Empreiteiro</p>
+            <span className="text-[10px] text-slate-400 block truncate">MCMV Gestor</span>
+          </div>
         </div>
-        <div className="overflow-hidden">
-          <p className="text-xs font-semibold text-white truncate">Sócio Empreiteiro</p>
-          <span className="text-[10px] text-slate-400 block truncate">MCMV Gestor</span>
-        </div>
+
+        <button 
+          onClick={async () => {
+            if (confirm('Deseja realmente sair?')) {
+              await fetch('/api/auth/logout', { method: 'POST' });
+              window.location.href = '/login';
+            }
+          }}
+          className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-red-400 transition shrink-0"
+          title="Sair do sistema"
+        >
+          <LogOut size={16} />
+        </button>
       </div>
     </aside>
   );

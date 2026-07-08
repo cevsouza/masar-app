@@ -40,6 +40,9 @@ interface House {
   quadra: string;
   statusObra: string;
   percentualObra: number;
+  prazoFisico?: string | null;
+  prazoFinanceiro?: string | null;
+  obstaculos?: string | null;
   empreendimento: {
     id: string;
     nome: string;
@@ -63,6 +66,9 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
   // Physical form state
   const [statusObra, setStatusObra] = useState(initialCasa.statusObra);
   const [percentualObra, setPercentualObra] = useState(initialCasa.percentualObra);
+  const [prazoFisico, setPrazoFisico] = useState(initialCasa.prazoFisico ? initialCasa.prazoFisico.split('T')[0] : '');
+  const [prazoFinanceiro, setPrazoFinanceiro] = useState(initialCasa.prazoFinanceiro ? initialCasa.prazoFinanceiro.split('T')[0] : '');
+  const [obstaculos, setObstaculos] = useState(initialCasa.obstaculos || '');
   const [isUpdatingObra, setIsUpdatingObra] = useState(false);
 
   // Financial form state
@@ -87,13 +93,16 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
         body: JSON.stringify({
           statusObra,
           percentualObra,
+          prazoFisico: prazoFisico || null,
+          prazoFinanceiro: prazoFinanceiro || null,
+          obstaculos: obstaculos || null,
         }),
       });
 
       if (!response.ok) throw new Error('Falha ao atualizar obra');
       
       router.refresh();
-      alert('Evolução física da obra salva!');
+      alert('Evolução física da obra e cronogramas salvos!');
     } catch (err) {
       console.error(err);
       alert('Erro ao atualizar obra.');
@@ -201,6 +210,16 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
 
   return (
     <div className="space-y-6">
+      {/* Pitfall alert banner */}
+      {initialCasa.obstaculos && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl flex items-start gap-3 animate-pulse">
+          <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={18} />
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider">Atenção: Impedimento / Gargalo (Pitfall) Detectado</h4>
+            <p className="text-xs text-red-200/90 mt-1 leading-relaxed">{initialCasa.obstaculos}</p>
+          </div>
+        </div>
+      )}
       {/* Header Info */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1e293b] pb-6">
         <div>
@@ -243,6 +262,22 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
             <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
               <Hammer size={18} className="text-indigo-400" /> Evolução Física da Obra
             </h2>
+
+            {/* Deadlines Box */}
+            <div className="grid grid-cols-2 gap-4 bg-[#0f1422] p-3 rounded-xl border border-slate-800 mb-5 text-xs">
+              <div>
+                <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">Prazo Físico Obra</span>
+                <span className="text-slate-200 font-semibold mt-1 block">
+                  {initialCasa.prazoFisico ? formatDate(initialCasa.prazoFisico) : 'Não definido'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">Prazo Liberação CEF</span>
+                <span className="text-slate-200 font-semibold mt-1 block">
+                  {initialCasa.prazoFinanceiro ? formatDate(initialCasa.prazoFinanceiro) : 'Não definido'}
+                </span>
+              </div>
+            </div>
 
             {/* Visual Progress Bar */}
             <div className="space-y-2 mb-6">
@@ -323,6 +358,37 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
                     className="w-full bg-[#0f1422] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 font-mono"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Prazo Físico de Entrega</label>
+                <input
+                  type="date"
+                  value={prazoFisico}
+                  onChange={(e) => setPrazoFisico(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Prazo Financeiro Liberação CEF</label>
+                <input
+                  type="date"
+                  value={prazoFinanceiro}
+                  onChange={(e) => setPrazoFinanceiro(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Obstáculos / Impedimentos (Pitfalls)</label>
+                <textarea
+                  placeholder="Ex: Atraso na liberação da prefeitura..."
+                  value={obstaculos}
+                  onChange={(e) => setObstaculos(e.target.value)}
+                  rows={2}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                />
               </div>
 
               <button

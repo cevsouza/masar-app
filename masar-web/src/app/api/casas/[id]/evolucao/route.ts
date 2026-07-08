@@ -8,7 +8,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { statusObra, percentualObra } = body;
+    const { statusObra, percentualObra, prazoFisico, prazoFinanceiro, obstaculos } = body;
 
     const validStatuses = ['SEM_INICIO', 'FUNDACAO', 'ALVENARIA', 'COBERTURA', 'ACABAMENTO', 'CONCLUIDA'];
     if (!statusObra || !validStatuses.includes(statusObra)) {
@@ -20,12 +20,22 @@ export async function PATCH(
       return NextResponse.json({ error: 'Percentual da obra inválido (deve ser entre 0 e 100)' }, { status: 400 });
     }
 
+    const updateData: any = {
+      statusObra,
+      percentualObra: percentualFloat,
+      obstaculos: obstaculos !== undefined ? obstaculos : undefined,
+    };
+
+    if (prazoFisico !== undefined) {
+      updateData.prazoFisico = prazoFisico ? new Date(prazoFisico) : null;
+    }
+    if (prazoFinanceiro !== undefined) {
+      updateData.prazoFinanceiro = prazoFinanceiro ? new Date(prazoFinanceiro) : null;
+    }
+
     const casa = await db.casa.update({
       where: { id },
-      data: {
-        statusObra,
-        percentualObra: percentualFloat,
-      },
+      data: updateData,
     });
 
     return NextResponse.json(casa);
