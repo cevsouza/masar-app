@@ -7,13 +7,18 @@ import {
   AlertTriangle, 
   TrendingUp, 
   XCircle,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert,
+  CalendarCheck2,
+  FileWarning
 } from 'lucide-react';
 import Link from 'next/link';
 
 export const revalidate = 0; // Disable server component caching to reflect real-time updates
 
 export default async function DashboardPage() {
+  const today = new Date();
+
   // 1. Queries de leitura rápida direta no Prisma
   const totalCasas = await db.casa.count();
   const casasEmObra = await db.casa.count({
@@ -44,7 +49,64 @@ export default async function DashboardPage() {
   // Verificar se existe glosa ativa para alerta geral
   const hasGlosaAtiva = valorGlosado > 0;
 
-  // 2. Gráfico de Fluxo de Caixa (Realizado vs. Previsto)
+  // 2. Leitura detalhada de Empreendimentos, Marcos Burocráticos e Casas
+  const projectsWithMarcos = await db.empreendimento.findMany({
+    include: {
+      marcos: true,
+      casas: {
+        include: {
+          medicoes: true
+        }
+      }
+    }
+  });
+
+  const allCasas = await db.casa.findMany({
+    include: {
+      medicoes: true,
+      empreendimento: true,
+      cliente: true
+    }
+  });
+
+  // RADAR 1: Empreendimentos ativos sem Alvará de Prefeitura aprovado
+  const semAlvara = projectsWithMarcos.filter(p => {
+    const isAtivo = p.statusLegal === 'EM_OBRA' || p.statusLegal === 'APROVACAO_CAIXA';
+    const temAlvaraAprovado = p.marcos.some(m => m.tipo === 'ALVARA_PREFEITURA' && m.dataAprovacaoReal !== null);
+    return isAtivo && !temAlvaraAprovado;
+  });
+
+  // RADAR 2: Casas com descompasso físico-financeiro superior a 10%
+  const casasDescompasso = allCasas.filter(casa => {
+    const totalMedido = casa.medicoes
+      .filter(m => m.status === 'PAGA')
+      .reduce((acc, m) => acc + m.percentualMedido, 0);
+    return Math.abs(casa.percentualObra - totalMedido) > 10;
+  });
+
+  // RADAR 3: Casas prontas sem Habite-se aprovado (risco Juros de Obra CEF)
+  const casasSemHabiteSe = allCasas.filter(casa => {
+    const isPronta = casa.statusObra === 'CONCLUIDA';
+    const projectMarcos = projectsWithMarcos.find(p => p.id === casa.empreendimentoId)?.marcos || [];
+    const temHabiteseAprovado = projectMarcos.some(m => m.tipo === 'HABITESE' && m.dataAprovacaoReal !== null);
+    return isPronta && !temHabiteseAprovado;
+  });
+
+  // Motor de SLA: Marcos Burocráticos Atrasados (protocolo + prazo esperado < hoje)
+  const allMarcos = await db.marcoBurocratico.findMany({
+    include: {
+      empreendimento: true
+    }
+  });
+
+  const marcosAtrasados = allMarcos.filter(m => {
+    if (m.dataAprovacaoReal) return false;
+    const dataLimite = new Date(m.dataProtocolo);
+    dataLimite.setDate(dataLimite.getDate() + m.prazoEsperadoDias);
+    return dataLimite < today;
+  });
+
+  // 3. Gráfico de Fluxo de Caixa (Realizado vs. Previsto)
   const medicoes = await db.medicaoCaixa.findMany({
     orderBy: { dataMedicao: 'asc' },
   });
@@ -74,7 +136,7 @@ export default async function DashboardPage() {
     realizado: valores.realizado,
   }));
 
-  // 3. Casas com problemas/gargalos (Glosadas ou Aguardando)
+  // Casas com problemas/gargalos (Glosadas ou Aguardando)
   const casasGargalo = await db.casa.findMany({
     where: {
       medicoes: {
@@ -99,6 +161,10 @@ export default async function DashboardPage() {
     }).format(val);
   };
 
+  const formatDate = (dateStr: string | Date) => {
+    return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -111,6 +177,74 @@ export default async function DashboardPage() {
         </div>
         <div className="text-xs text-slate-500 font-medium bg-[#151b2c] border border-[#1e293b] px-3.5 py-1.5 rounded-full self-start md:self-auto">
           Dados atualizados em tempo real
+        </div>
+      </div>
+
+      {/* RADARES DE RISCO (PREVENÇÃO DE PREJUÍZOS) */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Radares de Risco & Prevenção</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          
+          {/* Radar 1: Projetos sem Alvará */}
+          <div className={`glassmorphism p-5 rounded-2xl border ${semAlvara.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}>
+            <div className="flex items-center gap-3">
+              <span className={`p-2 rounded-xl ${semAlvara.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                <ShieldAlert size={20} />
+              </span>
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Alvarás Pendentes</h4>
+                <p className="text-xl font-extrabold text-white mt-1">
+                  {semAlvara.length} <span className="text-[10px] text-slate-400 font-normal">projetos</span>
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mt-3 leading-relaxed">
+              {semAlvara.length > 0 
+                ? `Projetos ativos em CAIXA/OBRA sem Alvará de Prefeitura aprovado: ${semAlvara.map(p => p.nome).join(', ')}.`
+                : 'Todos os projetos ativos possuem Alvarás de Prefeitura deferidos.'}
+            </p>
+          </div>
+
+          {/* Radar 2: Descompasso Físico-Financeiro */}
+          <div className={`glassmorphism p-5 rounded-2xl border ${casasDescompasso.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}>
+            <div className="flex items-center gap-3">
+              <span className={`p-2 rounded-xl ${casasDescompasso.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                <FileWarning size={20} />
+              </span>
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Descompasso Obra</h4>
+                <p className="text-xl font-extrabold text-white mt-1">
+                  {casasDescompasso.length} <span className="text-[10px] text-slate-400 font-normal">casas</span>
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mt-3 leading-relaxed">
+              {casasDescompasso.length > 0 
+                ? 'Casas com desvio físico vs financeiro atestado CEF superior a 10% (Risco alto de glosa de vistoria).'
+                : 'Todas as unidades estão com o cronograma físico alinhado às medições pagas.'}
+            </p>
+          </div>
+
+          {/* Radar 3: Casas prontas sem Habite-se */}
+          <div className={`glassmorphism p-5 rounded-2xl border ${casasSemHabiteSe.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}>
+            <div className="flex items-center gap-3">
+              <span className={`p-2 rounded-xl ${casasSemHabiteSe.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                <CalendarCheck2 size={20} />
+              </span>
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Habite-se Atrasado</h4>
+                <p className="text-xl font-extrabold text-white mt-1">
+                  {casasSemHabiteSe.length} <span className="text-[10px] text-slate-400 font-normal">unidades</span>
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mt-3 leading-relaxed">
+              {casasSemHabiteSe.length > 0 
+                ? 'Casas prontas sem Habite-se emitido (cobrança continuada de juros de obra CEF aos adquirentes).'
+                : 'Nenhum risco de juros de obra estendido por falta de Habite-se.'}
+            </p>
+          </div>
+
         </div>
       </div>
 
@@ -129,10 +263,36 @@ export default async function DashboardPage() {
             <div className="mt-3.5 flex gap-3">
               <Link 
                 href="#gargalos" 
-                className="text-xs font-semibold bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg transition-all"
+                className="text-xs font-semibold bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg transition-all cursor-pointer"
               >
                 Ver Gargalos
               </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SLA Burocrático Alert */}
+      {marcosAtrasados.length > 0 && (
+        <div className="bg-amber-950/40 border border-amber-500/30 rounded-2xl p-5 flex items-start gap-4">
+          <div className="p-3 bg-amber-900/40 border border-amber-500/20 text-amber-500 rounded-xl">
+            <Clock size={24} />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-amber-400 leading-tight">Atrasos de SLAs Detectados (Gargalos Burocráticos)</h3>
+            <div className="text-sm text-amber-200/80 mt-1.5 space-y-1.5 leading-relaxed">
+              <p>Os seguintes marcos burocráticos estouraram o prazo limite estabelecido e necessitam de ação imediata:</p>
+              <ul className="list-disc pl-5 mt-1 space-y-1">
+                {marcosAtrasados.map(m => {
+                  const dataLimite = new Date(m.dataProtocolo);
+                  dataLimite.setDate(dataLimite.getDate() + m.prazoEsperadoDias);
+                  return (
+                    <li key={m.id}>
+                      <strong>{m.tipo.replace('_', ' ')}</strong> do projeto <em>{m.empreendimento.nome}</em> (Vencido em {formatDate(dataLimite)})
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </div>
         </div>
@@ -253,7 +413,7 @@ export default async function DashboardPage() {
 
                     <Link 
                       href={`/casas/${casa.id}`}
-                      className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition border border-slate-700/50"
+                      className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition border border-slate-700/50 cursor-pointer"
                     >
                       <ChevronRight size={18} />
                     </Link>

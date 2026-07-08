@@ -9,7 +9,7 @@ export async function POST(
     const { id } = await params;
     const casaId = id;
     const body = await request.json();
-    const { percentualMedido, valorLiberado, status } = body;
+    const { percentualMedido, valorLiberado, status, checklistSeguranca } = body;
 
     const percentualFloat = parseFloat(percentualMedido);
     if (isNaN(percentualFloat) || percentualFloat < 0 || percentualFloat > 100) {
@@ -31,6 +31,7 @@ export async function POST(
         percentualMedido: percentualFloat,
         valorLiberado: valorFloat,
         status: statusValido,
+        checklistSeguranca: checklistSeguranca || null,
         dataMedicao: new Date(),
       },
     });

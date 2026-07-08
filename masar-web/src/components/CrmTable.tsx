@@ -72,6 +72,12 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
       return;
     }
 
+    // UI validation block
+    if (selectedHouseId && !['APROVADO_CONDICIONADO', 'APROVADO'].includes(newClientCredit)) {
+      alert('Bloqueio Comercial: O cliente selecionado deve possuir crédito Aprovado ou Aprovado Condicionado para ser vinculado a uma unidade em estoque.');
+      return;
+    }
+
     setIsCreatingClient(true);
     try {
       const response = await fetch('/api/clientes', {
@@ -145,6 +151,12 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
             <ShieldCheck size={14} /> Aprovado
           </span>
         );
+      case 'APROVADO_CONDICIONADO':
+        return (
+          <span className="flex items-center gap-1.5 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full font-semibold w-fit">
+            <Clock size={14} /> Aprovado Condic.
+          </span>
+        );
       case 'EM_ANALISE_CAIXA':
         return (
           <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full font-semibold w-fit">
@@ -197,6 +209,7 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
           >
             <option value="ALL">Todos os Status</option>
             <option value="APROVADO">Crédito Aprovado</option>
+            <option value="APROVADO_CONDICIONADO">Crédito Aprovado Condic.</option>
             <option value="EM_ANALISE_CAIXA">Em Análise Caixa</option>
             <option value="DOCUMENTACAO_PENDENTE">Pendência de Doc</option>
             <option value="ESTOQUE">Em Estoque (Sem Cliente)</option>
@@ -282,6 +295,7 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                             >
                               <option value="DOCUMENTACAO_PENDENTE">Pendente</option>
                               <option value="EM_ANALISE_CAIXA">Em Análise</option>
+                              <option value="APROVADO_CONDICIONADO">Aprovado Condic.</option>
                               <option value="APROVADO">Aprovado</option>
                             </select>
                           ) : (
@@ -368,6 +382,7 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                 >
                   <option value="DOCUMENTACAO_PENDENTE">Documentação Pendente</option>
                   <option value="EM_ANALISE_CAIXA">Em Análise na Caixa</option>
+                  <option value="APROVADO_CONDICIONADO">Aprovado Condicionado</option>
                   <option value="APROVADO">Crédito Aprovado</option>
                 </select>
               </div>

@@ -10,7 +10,7 @@ export async function PATCH(
     const body = await request.json();
     const { statusCredito } = body;
 
-    const validStatuses = ['DOCUMENTACAO_PENDENTE', 'EM_ANALISE_CAIXA', 'APROVADO'];
+    const validStatuses = ['DOCUMENTACAO_PENDENTE', 'EM_ANALISE_CAIXA', 'APROVADO_CONDICIONADO', 'APROVADO'];
     if (!statusCredito || !validStatuses.includes(statusCredito)) {
       return NextResponse.json({ error: 'Status de crédito inválido' }, { status: 400 });
     }

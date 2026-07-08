@@ -20,10 +20,17 @@ export async function POST(request: NextRequest) {
     }
 
     const rendaFloat = parseFloat(rendaComprovada);
-    const validCreditos = ['DOCUMENTACAO_PENDENTE', 'EM_ANALISE_CAIXA', 'APROVADO'];
+    const validCreditos = ['DOCUMENTACAO_PENDENTE', 'EM_ANALISE_CAIXA', 'APROVADO_CONDICIONADO', 'APROVADO'];
     const statusCreditoValido = statusCredito && validCreditos.includes(statusCredito) 
       ? statusCredito 
       : 'DOCUMENTACAO_PENDENTE';
+
+    // Trava de Venda Comercial: Bloqueia se o status de crédito não for APROVADO ou APROVADO_CONDICIONADO
+    if (casaId && !['APROVADO_CONDICIONADO', 'APROVADO'].includes(statusCreditoValido)) {
+      return NextResponse.json({ 
+        error: 'Bloqueio de Venda: O cliente selecionado deve possuir crédito Aprovado ou Aprovado Condicionado na Caixa.' 
+      }, { status: 400 });
+    }
 
     // Create client
     const cliente = await db.cliente.create({

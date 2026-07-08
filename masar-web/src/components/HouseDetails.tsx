@@ -75,6 +75,9 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
   const [percentualMedido, setPercentualMedido] = useState('');
   const [valorLiberado, setValorLiberado] = useState('');
   const [statusMedicao, setStatusMedicao] = useState('AGUARDANDO');
+  const [checkSondagem, setCheckSondagem] = useState(false);
+  const [checkEpis, setCheckEpis] = useState(false);
+  const [checkMateriais, setCheckMateriais] = useState(false);
   const [isCreatingMedicao, setIsCreatingMedicao] = useState(false);
 
   // Status updating state
@@ -117,6 +120,10 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
       alert('Preencha todos os campos da medição.');
       return;
     }
+    if (!checkSondagem || !checkEpis || !checkMateriais) {
+      alert('Certifique todos os itens de segurança da obra antes de registrar.');
+      return;
+    }
     
     setIsCreatingMedicao(true);
     try {
@@ -129,6 +136,11 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
           percentualMedido,
           valorLiberado,
           status: statusMedicao,
+          checklistSeguranca: {
+            sondagemSolo: checkSondagem,
+            episObra: checkEpis,
+            materiaisConforme: checkMateriais
+          }
         }),
       });
 
@@ -137,6 +149,9 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
       setPercentualMedido('');
       setValorLiberado('');
       setStatusMedicao('AGUARDANDO');
+      setCheckSondagem(false);
+      setCheckEpis(false);
+      setCheckMateriais(false);
       router.refresh();
       alert('Medição cadastrada com sucesso!');
     } catch (err) {
@@ -522,10 +537,44 @@ export default function HouseDetails({ initialCasa }: { initialCasa: House }) {
                 </select>
               </div>
 
+              {/* Checklist de Segurança Mandatório */}
+              <div className="md:col-span-2 bg-[#0b0f19]/80 border border-slate-800 rounded-xl p-3.5 space-y-2 mt-2">
+                <p className="text-[10px] text-amber-500 uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> Checklist Mandatório de Vistoria
+                </p>
+                <label className="flex items-start gap-2.5 text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={checkSondagem}
+                    onChange={(e) => setCheckSondagem(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>A sondagem do solo deste lote foi validada e está em conformidade?</span>
+                </label>
+                <label className="flex items-start gap-2.5 text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={checkEpis}
+                    onChange={(e) => setCheckEpis(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>Todos os operários em campo utilizam os EPIs regulamentares?</span>
+                </label>
+                <label className="flex items-start gap-2.5 text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={checkMateriais}
+                    onChange={(e) => setCheckMateriais(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>Os materiais aplicados estão em perfeita conformidade com o memorial descritivo aprovado?</span>
+                </label>
+              </div>
+
               <button
                 type="submit"
-                disabled={isCreatingMedicao}
-                className="md:col-span-2 py-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl text-xs transition disabled:opacity-50 mt-2"
+                disabled={isCreatingMedicao || !(checkSondagem && checkEpis && checkMateriais)}
+                className="md:col-span-2 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-30 disabled:hover:bg-amber-600 text-white font-semibold rounded-xl text-xs transition disabled:opacity-50 mt-2 cursor-pointer"
               >
                 {isCreatingMedicao ? 'Registrando...' : 'Registrar Medição da Caixa'}
               </button>

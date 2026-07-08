@@ -17,6 +17,7 @@ enum StatusLegal {
 enum StatusCredito {
   DOCUMENTACAO_PENDENTE
   EM_ANALISE_CAIXA
+  APROVADO_CONDICIONADO
   APROVADO
 }
 
@@ -35,6 +36,13 @@ enum StatusMedicao {
   GLOSADA_REPROVADA
 }
 
+enum TipoMarco {
+  ALVARA_PREFEITURA
+  PROJETO_CAIXA
+  HABITESE
+  CND_RECEITA
+}
+
 model User {
   id          String   @id @default(uuid())
   email       String   @unique
@@ -44,16 +52,31 @@ model User {
 }
 
 model Empreendimento {
-  id              String      @id @default(uuid())
-  nome            String
-  localizacao     String
-  statusLegal     StatusLegal @default(ESTUDO_VIABILIDADE)
-  dataInicio      DateTime?
-  dataFim         DateTime?
-  orcamento       Float?
-  dataCriacao     DateTime    @default(now())
-  dataAtualizacao DateTime    @updatedAt
-  casas           Casa[]
+  id                     String             @id @default(uuid())
+  nome                   String
+  localizacao            String
+  statusLegal            StatusLegal        @default(ESTUDO_VIABILIDADE)
+  dataInicio             DateTime?
+  dataFim                DateTime?
+  orcamento              Float?
+  temSondagemSolo        Boolean            @default(false)
+  temInfraestruturaBasica Boolean            @default(false)
+  dataCriacao            DateTime           @default(now())
+  dataAtualizacao        DateTime           @updatedAt
+  casas                  Casa[]
+  marcos                 MarcoBurocratico[]
+}
+
+model MarcoBurocratico {
+  id                String         @id @default(uuid())
+  empreendimentoId  String
+  empreendimento    Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  tipo              TipoMarco
+  dataProtocolo     DateTime
+  prazoEsperadoDias Int
+  dataAprovacaoReal DateTime?
+  dataCriacao       DateTime       @default(now())
+  dataAtualizacao   DateTime       @updatedAt
 }
 
 model Cliente {
@@ -86,13 +109,14 @@ model Casa {
 }
 
 model MedicaoCaixa {
-  id               String        @id @default(uuid())
-  casaId           String
-  casa             Casa          @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  percentualMedido Float
-  valorLiberado    Float
-  status           StatusMedicao @default(AGUARDANDO)
-  dataMedicao      DateTime      @default(now())
-  dataCriacao      DateTime      @default(now())
-  dataAtualizacao  DateTime      @updatedAt
+  id                String        @id @default(uuid())
+  casaId            String
+  casa              Casa          @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  percentualMedido  Float
+  valorLiberado     Float
+  status            StatusMedicao @default(AGUARDANDO)
+  checklistSeguranca Json?
+  dataMedicao       DateTime      @default(now())
+  dataCriacao       DateTime      @default(now())
+  dataAtualizacao   DateTime      @updatedAt
 }
