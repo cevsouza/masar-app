@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
     if (status === 'signed') {
       // 1. Atualizar contrato e registro de assinatura eletrônica
       await db.$transaction(async (tx) => {
-        // Atualizar status do ContratoVenda para CONTRATO_ASSINADO
-        await tx.contratoVenda.update({
+        // Atualizar status do ContratoVenda para ASSINADO_CAIXA
+        const contrato = await tx.contratoVenda.update({
           where: { id: assinatura.contratoId },
           data: { status: 'ASSINADO_CAIXA' }
         });
@@ -45,15 +45,37 @@ export async function POST(request: NextRequest) {
           }
         });
 
+        // Avançar etapa de jornada do cliente para PAGAMENTO_ENTRADA
+        await tx.cliente.update({
+          where: { id: contrato.clienteId },
+          data: { etapaAtual: 'PAGAMENTO_ENTRADA' }
+        });
+
+        // Gerar o boleto de sinal/entrada (Parcela 0) se houver valor de entrada
+        if (contrato.entrada > 0) {
+          const vencimentoSinal = new Date();
+          vencimentoSinal.setDate(vencimentoSinal.getDate() + 3); // 3 dias de prazo
+          
+          await tx.contasAReceberCliente.create({
+            data: {
+              contratoId: contrato.id,
+              numeroParcela: 0, // Parcela 0 representa o Sinal/Entrada
+              valor: contrato.entrada,
+              dataVencimento: vencimentoSinal,
+              pago: false
+            }
+          });
+        }
+
         // Registrar log de auditoria
         await logMutation({
           usuarioId: 'ZAP_SIGN_WEBHOOK',
-          usuarioNome: 'ZapSign Assinatura Digital',
-          acao: 'ELECTRONIC_SIGNATURE_COMPLETED',
+          usuarioNome: 'ZapSign Webhook',
+          acao: 'ELECTRONIC_SIGNATURE_COMPLETED_JORNADA_ADVANCE',
           tabela: 'ContratoVenda',
           registroId: assinatura.contratoId,
           valoresAntigos: { status: assinatura.contrato.status },
-          valoresNovos: { status: 'ASSINADO_CAIXA' }
+          valoresNovos: { status: 'ASSINADO_CAIXA', etapaAtual: 'PAGAMENTO_ENTRADA' }
         });
       });
 

@@ -18,7 +18,8 @@ import {
   Smartphone,
   PiggyBank,
   Users,
-  Bell
+  Bell,
+  ShoppingBag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -28,6 +29,7 @@ const MENU_ITEMS = [
   { name: 'Projetos (Kanban)', href: '/empreendimentos', icon: KanbanSquare },
   { name: 'Comercial (CRM)', href: '/comercial', icon: BadgeDollarSign },
   { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
+  { name: 'Suprimentos', href: '/suprimentos', icon: ShoppingBag },
   { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank },
   { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users },
 ];
@@ -233,6 +235,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           if (item.href === '/empreendimentos' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           if (item.href === '/comercial' && !['ADMIN', 'FINANCEIRO', 'COMERCIAL'].includes(role)) return false;
           if (item.href === '/canteiro' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
+          if (item.href === '/suprimentos' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
           if (item.href === '/socios/caixa' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
           if (item.href === '/usuarios' && role !== 'ADMIN') return false;
           return true;

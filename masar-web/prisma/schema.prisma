@@ -22,6 +22,16 @@ enum StatusCredito {
   APROVADO
 }
 
+enum EtapaJornada {
+  CAPTACAO
+  SIMULACAO_SICAQ
+  UPLOAD_DOCUMENTOS
+  APROVACAO_BANCARIA
+  ASSINATURA_DIGITAL
+  PAGAMENTO_ENTRADA
+  CHAVES_ENTREGUES
+}
+
 enum StatusObra {
   SEM_INICIO
   FUNDACAO
@@ -119,6 +129,7 @@ model Empreendimento {
   movimentacoesSocios    MovimentacaoSocio[]
   documentos             DocumentoAnexo[]
   cotacoes               CotacaoMaterial[]
+  solicitacoesCompra     SolicitacaoCompra[]
 }
 
 model MarcoBurocratico {
@@ -134,17 +145,23 @@ model MarcoBurocratico {
 }
 
 model Cliente {
-  id              String          @id @default(uuid())
-  nome            String
-  cpf             String          @unique
-  rendaComprovada Float
-  statusCredito   StatusCredito   @default(DOCUMENTACAO_PENDENTE)
-  dataCriacao     DateTime        @default(now())
-  dataAtualizacao DateTime        @updatedAt
-  casas           Casa[]
-  contratos       ContratoVenda[]
-  documentos      DocumentoAnexo[]
-  usuarioCliente  UsuarioCliente?
+  id                 String          @id @default(uuid())
+  nome               String
+  cpf                String          @unique
+  rg                 String?
+  contrachequeUrl    String?
+  email              String?         @unique
+  telefone           String?
+  rendaComprovada    Float
+  statusCredito      StatusCredito   @default(DOCUMENTACAO_PENDENTE)
+  tokenAcessoPortal  String?         @unique
+  etapaAtual         EtapaJornada    @default(CAPTACAO)
+  dataCriacao        DateTime        @default(now())
+  dataAtualizacao    DateTime        @updatedAt
+  casas              Casa[]
+  contratos          ContratoVenda[]
+  documentos         DocumentoAnexo[]
+  usuarioCliente     UsuarioCliente?
 }
 
 model InsumoPadrao {
@@ -154,6 +171,8 @@ model InsumoPadrao {
   categoria      CategoriaInsumo
   itensOrcamento ItemOrcamento[]
   apropriacoes   ApropriacaoCusto[]
+  solicitacoes   SolicitacaoCompra[]
+  movimentacoesEstoque MovimentacaoEstoque[]
 }
 
 model Casa {
@@ -179,6 +198,8 @@ model Casa {
   contrato         ContratoVenda?
   documentos       DocumentoAnexo[]
   pontos           PontoTrabalhador[]
+  solicitacoesCompra SolicitacaoCompra[]
+  movimentacoesEstoque MovimentacaoEstoque[]
 }
 
 model OrcamentoCasa {
@@ -430,4 +451,53 @@ model UsuarioCliente {
   email       String   @unique
   password    String
   dataCriacao DateTime @default(now())
+}
+
+model SolicitacaoCompra {
+  id                   String              @id @default(uuid())
+  casaId               String?
+  casa                 Casa?               @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  empreendimentoId     String?
+  empreendimento       Empreendimento?     @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  insumoId             String
+  insumo               InsumoPadrao        @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+  quantidadeSolicitada Float
+  status               String              @default("PENDENTE") // PENDENTE, EM_COTACAO, APROVADA, REJEITADA
+  dataNecessidade      DateTime
+  tokenCotacao         String              @unique
+  cotacoes             CotacaoFornecedor[]
+  dataCriacao          DateTime            @default(now())
+}
+
+model CotacaoFornecedor {
+  id               String            @id @default(uuid())
+  solicitacaoId    String
+  solicitacao      SolicitacaoCompra @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  fornecedorNome   String
+  valorUnitario    Float
+  prazoEntregaDias Int
+  comprovanteUrl   String?
+  ordemCompra      OrdemCompra?
+  dataCriacao      DateTime          @default(now())
+}
+
+model OrdemCompra {
+  id                  String            @id @default(uuid())
+  cotacaoId           String            @unique
+  cotacao             CotacaoFornecedor @relation(fields: [cotacaoId], references: [id], onDelete: Cascade)
+  usuarioAprovadorId  String?
+  statusEntrega       String            @default("PENDENTE") // PENDENTE, ENTREGUE
+  excepcionalAprovado Boolean           @default(false)
+  dataCriacao         DateTime          @default(now())
+}
+
+model MovimentacaoEstoque {
+  id               String       @id @default(uuid())
+  insumoId         String
+  insumo           InsumoPadrao @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+  quantidade       Float
+  tipo             String       // ENTRADA, SAIDA, PERDA
+  casaId           String?
+  casa             Casa?        @relation(fields: [casaId], references: [id], onDelete: SetNull)
+  dataMovimentacao DateTime     @default(now())
 }
