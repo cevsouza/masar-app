@@ -17,15 +17,45 @@ export async function GET(request: NextRequest) {
     // Buscar a role diretamente do banco para compatibilidade com cookies antigos
     const user = await db.user.findUnique({
       where: { id: session.userId },
-      select: { role: true }
+      select: { id: true, role: true, email: true }
     });
 
-    return NextResponse.json({
+    if (user && ['cevsouza@hotmail.com', 'cevsouza@hotmail'].includes(user.email.toLowerCase().trim()) && user.role !== 'ADMIN') {
+      await db.user.update({
+        where: { id: user.id },
+        data: { role: 'ADMIN' }
+      });
+      user.role = 'ADMIN';
+    }
+
+    const userRole = user?.role || session.role || 'COMERCIAL';
+
+    const response = NextResponse.json({
       authenticated: true,
       nome: session.nome,
       email: session.email,
-      role: user?.role || session.role || 'COMERCIAL',
+      role: userRole,
     });
+
+    // Se o cookie antigo não tinha a role gravada, atualiza re-assinando o token
+    if (!session.role && user) {
+      const { signSession } = await import('@/lib/auth');
+      const newToken = await signSession({
+        userId: session.userId,
+        email: session.email,
+        nome: session.nome,
+        role: userRole,
+      });
+      response.cookies.set('masar_session', newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 1 semana
+        path: '/',
+      });
+    }
+
+    return response;
   } catch (error) {
     return NextResponse.json({ authenticated: false }, { status: 500 });
   }
