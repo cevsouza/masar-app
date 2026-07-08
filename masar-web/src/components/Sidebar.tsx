@@ -14,7 +14,8 @@ import {
   Sun,
   Moon,
   X,
-  Loader2
+  Loader2,
+  Smartphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -23,6 +24,7 @@ const MENU_ITEMS = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Projetos (Kanban)', href: '/empreendimentos', icon: KanbanSquare },
   { name: 'Comercial (CRM)', href: '/comercial', icon: BadgeDollarSign },
+  { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
 ];
 
 export default function Sidebar() {

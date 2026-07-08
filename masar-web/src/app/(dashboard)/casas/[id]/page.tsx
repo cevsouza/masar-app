@@ -12,6 +12,25 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
     include: {
       empreendimento: true,
       cliente: true,
+      infraestrutura: true,
+      orcamento: {
+        include: {
+          itens: {
+            include: {
+              insumo: true
+            }
+          }
+        }
+      },
+      apropriacoes: {
+        include: {
+          insumo: true
+        },
+        orderBy: { dataAplicacao: 'desc' }
+      },
+      diarios: {
+        orderBy: { data: 'desc' }
+      },
       medicoes: {
         orderBy: { dataMedicao: 'desc' }
       }
@@ -21,6 +40,11 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
   if (!casa) {
     notFound();
   }
+
+  // Load all standard insumos for the budgeting forms
+  const allInsumos = await db.insumoPadrao.findMany({
+    orderBy: { nome: 'asc' }
+  });
 
   // Convert Date objects to string for simple prop serialization
   const serializedCasa = {
@@ -34,8 +58,16 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
       dataMedicao: m.dataMedicao.toISOString(),
       dataCriacao: m.dataCriacao.toISOString(),
       dataAtualizacao: m.dataAtualizacao.toISOString(),
+    })),
+    apropriacoes: casa.apropriacoes.map(ap => ({
+      ...ap,
+      dataAplicacao: ap.dataAplicacao.toISOString(),
+    })),
+    diarios: casa.diarios.map(d => ({
+      ...d,
+      data: d.data.toISOString(),
     }))
   };
 
-  return <HouseDetails initialCasa={serializedCasa} />;
+  return <HouseDetails initialCasa={serializedCasa} allInsumos={allInsumos} />;
 }

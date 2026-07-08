@@ -43,6 +43,27 @@ enum TipoMarco {
   CND_RECEITA
 }
 
+enum UnidadeMedida {
+  KG
+  SC
+  M3
+  HORA
+  EMPREITADA
+}
+
+enum CategoriaInsumo {
+  MATERIAL
+  EQUIPAMENTO
+  MAO_DE_OBRA
+  TAXA
+}
+
+enum Clima {
+  BOM
+  CHUVA
+  IMPRATICAVEL
+}
+
 model User {
   id          String   @id @default(uuid())
   email       String   @unique
@@ -90,22 +111,87 @@ model Cliente {
   casas           Casa[]
 }
 
+model InsumoPadrao {
+  id             String             @id @default(uuid())
+  nome           String             @unique
+  unidadeMedida  UnidadeMedida
+  categoria      CategoriaInsumo
+  itensOrcamento ItemOrcamento[]
+  apropriacoes   ApropriacaoCusto[]
+}
+
 model Casa {
-  id               String         @id @default(uuid())
+  id               String                 @id @default(uuid())
   numero           String
   quadra           String
   empreendimentoId String
-  empreendimento   Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  empreendimento   Empreendimento         @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
   clienteId        String?
-  cliente          Cliente?       @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  statusObra       StatusObra     @default(SEM_INICIO)
-  percentualObra   Float          @default(0.0)
+  cliente          Cliente?               @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  statusObra       StatusObra             @default(SEM_INICIO)
+  percentualObra   Float                  @default(0.0)
   prazoFisico      DateTime?
   prazoFinanceiro  DateTime?
   obstaculos       String?
-  dataCriacao      DateTime       @default(now())
-  dataAtualizacao  DateTime       @updatedAt
+  dataCriacao      DateTime               @default(now())
+  dataAtualizacao  DateTime               @updatedAt
   medicoes         MedicaoCaixa[]
+  orcamento        OrcamentoCasa?
+  apropriacoes     ApropriacaoCusto[]
+  diarios          DiarioDeObra[]
+  infraestrutura   InfraestruturaUnidade?
+}
+
+model OrcamentoCasa {
+  id        String          @id @default(uuid())
+  casaId    String          @unique
+  casa      Casa            @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  itens     ItemOrcamento[]
+}
+
+model ItemOrcamento {
+  id                    String        @id @default(uuid())
+  orcamentoCasaId       String
+  orcamentoCasa         OrcamentoCasa @relation(fields: [orcamentoCasaId], references: [id], onDelete: Cascade)
+  insumoId              String
+  insumo                InsumoPadrao  @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+  quantidadePlanejada   Float
+  custoUnitarioPrevisto Float
+}
+
+model ApropriacaoCusto {
+  id             String       @id @default(uuid())
+  casaId         String
+  casa           Casa         @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  insumoId       String
+  insumo         InsumoPadrao @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+  quantidadeReal Float
+  custoTotal     Float
+  dataAplicacao  DateTime     @default(now())
+  comprovanteUrl String?
+  aprovado       Boolean      @default(true)
+}
+
+model DiarioDeObra {
+  id                   String   @id @default(uuid())
+  casaId               String
+  casa                 Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  data                 DateTime @default(now())
+  clima                Clima
+  efetivoTrabalhadores Int
+  atividadesExecutadas String
+  ocorrencias          String
+}
+
+model InfraestruturaUnidade {
+  id                     String   @id @default(uuid())
+  casaId                 String   @unique
+  casa                   Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  padraoEnergiaInstalado Boolean  @default(false)
+  ligacaoAguaConcluida   Boolean  @default(false)
+  fossaFiltroEsgotoConcluido Boolean @default(false)
+  numeroMedidorLuz       String?
+  numeroMedidorAgua      String?
 }
 
 model MedicaoCaixa {
