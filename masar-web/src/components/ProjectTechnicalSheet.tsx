@@ -193,8 +193,18 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
   useEffect(() => {
     fetch('/api/insumos')
       .then(res => res.json())
-      .then(data => setInsumosList(data))
-      .catch(err => console.error('Erro ao buscar insumos:', err));
+      .then(data => {
+        if (Array.isArray(data)) {
+          setInsumosList(data);
+        } else {
+          console.error('Insumos data is not an array:', data);
+          setInsumosList([]);
+        }
+      })
+      .catch(err => {
+        console.error('Erro ao buscar insumos:', err);
+        setInsumosList([]);
+      });
   }, []);
 
   const handleAddViabItem = () => {
@@ -285,13 +295,15 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
     setDreInputDate(new Date().toISOString().split('T')[0]);
     setDreInputRealizado(false);
     
-    if (project.casas && project.casas.length > 0) {
+    if (project.casas && Array.isArray(project.casas) && project.casas.length > 0) {
       setDreInputCasaId(project.casas[0].id);
     } else {
       setDreInputCasaId('');
     }
 
-    let matchedInsumo = insumosList.find(ins => {
+    const safeInsumos = Array.isArray(insumosList) ? insumosList : [];
+    let matchedInsumo = safeInsumos.find(ins => {
+      if (!ins || !ins.categoria) return false;
       if (category.includes('MATERIAIS')) return ins.categoria === 'MATERIAIS';
       if (category.includes('MAODEOBRA')) return ins.categoria === 'MAO_DE_OBRA';
       if (category.includes('LOGISTICA')) return ins.categoria === 'LOGISTICA';
@@ -305,8 +317,8 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
     });
     if (matchedInsumo) {
       setDreInputInsumoId(matchedInsumo.id);
-    } else if (insumosList.length > 0) {
-      setDreInputInsumoId(insumosList[0].id);
+    } else if (safeInsumos.length > 0) {
+      setDreInputInsumoId(safeInsumos[0].id);
     } else {
       setDreInputInsumoId('');
     }
@@ -1443,6 +1455,210 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
             </div>
           </div>
 
+          {/* Modal de Lançamento Direto do DRE */}
+          {isDreModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 text-xs">
+              <div className="bg-[#0b0f19] border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 animate-fade-in text-slate-350">
+                <div className="flex items-center justify-between border-b border-slate-850 pb-3">
+                  <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-sans">
+                    Lançamento Rápido no DRE
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsDreModalOpen(false)}
+                    className="text-slate-500 hover:text-white font-bold text-sm cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">
+                  Linha Selecionada: {dreModalLabel}
+                </p>
+
+                <form onSubmit={handleSaveDreInput} className="space-y-4">
+                  
+                  {/* Form Option 1: VGV / Batch Price update */}
+                  {dreModalCategory === 'VGV' && (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-slate-400 font-medium">Preço de Venda Médio das Casas (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          placeholder="Ex: 220000.00"
+                          value={dreInputValue}
+                          onChange={(e) => setDreInputValue(e.target.value)}
+                          className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                        />
+                        <span className="text-[10px] text-slate-500 mt-1 block">
+                          Ao salvar, o preço de venda projetado será replicado para todas as casas do empreendimento.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Form Option 2: Global Costs (Terreno, Projetos, Marketing, Outro) */}
+                  {['TERRENO', 'PROJETOS', 'MARKETING', 'OUTRO'].includes(dreModalCategory) && (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-slate-400 font-medium">Descrição do Lançamento</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder={`Ex: Pagamento ${dreModalLabel}`}
+                          value={dreInputDesc}
+                          onChange={(e) => setDreInputDesc(e.target.value)}
+                          className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-slate-400 font-medium">Valor (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          placeholder="Ex: 50000.00"
+                          value={dreInputValue}
+                          onChange={(e) => setDreInputValue(e.target.value)}
+                          className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-slate-400 font-medium">Data</label>
+                          <input
+                            type="date"
+                            required
+                            value={dreInputDate}
+                            onChange={(e) => setDreInputDate(e.target.value)}
+                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-slate-400 font-medium">Tipo</label>
+                          <select
+                            value={dreInputRealizado ? 'REALIZADO' : 'ORCADO'}
+                            onChange={(e) => setDreInputRealizado(e.target.value === 'REALIZADO')}
+                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2.5 text-slate-350 focus:outline-none"
+                          >
+                            <option value="ORCADO">Orçado / Planejado</option>
+                            <option value="REALIZADO">Realizado / Pago</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Form Option 3: House Budget & Appropriations (Fixo/Variável Obras) */}
+                  {!['VGV', 'TERRENO', 'PROJETOS', 'MARKETING', 'OUTRO'].includes(dreModalCategory) && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-slate-400 font-medium">Selecionar Unidade (Casa)</label>
+                          <select
+                            required
+                            value={dreInputCasaId}
+                            onChange={(e) => setDreInputCasaId(e.target.value)}
+                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-350 focus:outline-none"
+                          >
+                            <option value="">-- Selecione o Lote --</option>
+                            {(project.casas && Array.isArray(project.casas)) ? project.casas.map((casa: any) => (
+                              <option key={casa.id} value={casa.id}>Lote Qd {casa.quadra}, Casa {casa.numero}</option>
+                            )) : null}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-slate-400 font-medium">Natureza</label>
+                          <select
+                            value={dreInputRealizado ? 'REALIZADO' : 'ORCADO'}
+                            onChange={(e) => setDreInputRealizado(e.target.value === 'REALIZADO')}
+                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2.5 text-slate-350 focus:outline-none"
+                          >
+                            <option value="ORCADO">Orçado (Planejado)</option>
+                            <option value="REALIZADO">Realizado (Efetivo/Pago)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-slate-400 font-medium">Insumo correspondente</label>
+                        <select
+                          required
+                          value={dreInputInsumoId}
+                          onChange={(e) => setDreInputInsumoId(e.target.value)}
+                          className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-350 focus:outline-none"
+                        >
+                          <option value="">-- Selecione o Insumo --</option>
+                          {(Array.isArray(insumosList) ? insumosList : [])
+                            .filter(ins => {
+                              if (dreModalCategory.includes('MATERIAIS')) return ins.categoria === 'MATERIAIS';
+                              if (dreModalCategory.includes('MAODEOBRA')) return ins.categoria === 'MAO_DE_OBRA';
+                              if (dreModalCategory.includes('LOGISTICA')) return ins.categoria === 'LOGISTICA';
+                              if (dreModalCategory.includes('MAQUINAS')) return ins.categoria === 'MAQUINAS';
+                              if (dreModalCategory.includes('EQUIPE')) return ins.categoria === 'EQUIPE_GESTAO';
+                              if (dreModalCategory.includes('CANTEIRO')) return ins.categoria === 'CANTEIRO_OBRA';
+                              if (dreModalCategory.includes('CONSUMO')) return ins.categoria === 'CONSUMO_DIARIO';
+                              if (dreModalCategory.includes('LOCACAO')) return ins.categoria === 'LOCACAO_EQUIPAMENTOS';
+                              if (dreModalCategory.includes('TAXAS')) return ins.categoria === 'TAXAS_ALVARAS';
+                              return true;
+                            })
+                            .map((ins: any) => (
+                              <option key={ins.id} value={ins.id}>{ins.nome} ({ins.unidadeMedida})</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-slate-400 font-medium">Quantidade</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            value={dreInputQtd}
+                            onChange={(e) => setDreInputQtd(e.target.value)}
+                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-slate-400 font-medium">
+                            {dreInputRealizado ? 'Custo Total (R$)' : 'Custo Unitário Previsto (R$)'}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            value={dreInputValue}
+                            onChange={(e) => setDreInputValue(e.target.value)}
+                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                      
+                      {dreInputRealizado && (
+                        <span className="text-[10px] text-amber-500 block">
+                          Nota: O lançamento de despesa realizada debitará o caixa geral automaticamente na Tesouraria.
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSavingDreInput}
+                    className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-xl transition cursor-pointer shadow-lg shadow-indigo-600/10 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {isSavingDreInput ? 'Salvando...' : '✓ Confirmar e Atualizar DRE'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
