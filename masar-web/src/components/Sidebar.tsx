@@ -23,24 +23,29 @@ import {
   ClipboardList,
   Home,
   FileText,
-  TrendingUp
+  TrendingUp,
+  ChevronDown,
+  Sliders
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
 import ModalNovoLancamento from './ModalNovoLancamento';
 
-const MENU_ITEMS = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Fase Legal (Projetos)', href: '/empreendimentos', icon: KanbanSquare },
-  { name: 'Vendas (Comercial)', href: '/comercial', icon: BadgeDollarSign },
-  { name: 'Suprimentos (Compras)', href: '/suprimentos', icon: ShoppingBag },
-  { name: 'Obras (Casas/Lotes)', href: '/casas', icon: Home },
-  { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
-  { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList },
-  { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank },
-  { name: 'Central Financeira', href: '/financeiro', icon: TrendingUp },
-  { name: 'Relatórios Gerenciais', href: '/relatorios', icon: FileText },
-  { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users },
+const PROCESS_MENU_ITEMS = [
+  { name: 'Fase Legal (Projetos)', href: '/empreendimentos', icon: KanbanSquare, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+  { name: 'Vendas (Comercial)', href: '/comercial', icon: BadgeDollarSign, roles: ['ADMIN', 'FINANCEIRO', 'COMERCIAL'] },
+  { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
+  { name: 'Suprimentos (Compras)', href: '/suprimentos', icon: ShoppingBag, roles: ['ADMIN', 'FINANCEIRO'] },
+  { name: 'Obras (Casas/Lotes)', href: '/casas', icon: Home, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+  { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+  { name: 'Central Financeira', href: '/financeiro', icon: TrendingUp, roles: ['ADMIN', 'FINANCEIRO'] },
+];
+
+const GERENCIAL_ITEMS = [
+  { name: 'Dashboard Executivo', href: '/', icon: LayoutDashboard, roles: ['ADMIN'] },
+  { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank, roles: ['ADMIN', 'FINANCEIRO'] },
+  { name: 'Relatórios Gerenciais', href: '/relatorios', icon: FileText, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+  { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users, roles: ['ADMIN'] },
 ];
 
 interface SidebarProps {
@@ -63,6 +68,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isLancamentoModalOpen, setIsLancamentoModalOpen] = useState(false);
+  const [isGerencialOpen, setIsGerencialOpen] = useState(false);
   
   // Notifications states
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -121,6 +127,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const interval = setInterval(fetchNotifications, 20000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (['/', '/socios/caixa', '/relatorios', '/usuarios'].includes(pathname)) {
+      setIsGerencialOpen(true);
+    }
+  }, [pathname]);
 
   // Close profile and notification menu on clicking outside
   useEffect(() => {
@@ -252,19 +264,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         )}
 
-        {MENU_ITEMS.filter((item) => {
+        {/* Process Flow Menu Items */}
+        {PROCESS_MENU_ITEMS.filter((item) => {
           const role = user.role || 'COMERCIAL';
-          if (item.href === '/' && role !== 'ADMIN') return false;
-          if (item.href === '/empreendimentos' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
-          if (item.href === '/comercial' && !['ADMIN', 'FINANCEIRO', 'COMERCIAL'].includes(role)) return false;
-          if (item.href === '/canteiro' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
-          if (item.href === '/casas' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
-          if (item.href === '/suprimentos' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
-          if (item.href === '/socios/caixa' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
-          if (item.href === '/financeiro' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
-          if (item.href === '/relatorios' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
-          if (item.href === '/usuarios' && role !== 'ADMIN') return false;
-          return true;
+          return item.roles.includes(role);
         }).map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -273,6 +276,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium cursor-pointer",
                 isActive 
@@ -291,6 +295,80 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Visão Gerencial Accordion Section */}
+        {(() => {
+          const role = user.role || 'COMERCIAL';
+          const allowedGerencial = GERENCIAL_ITEMS.filter(item => item.roles.includes(role));
+          if (allowedGerencial.length === 0) return null;
+
+          const isSubActive = allowedGerencial.some(item => pathname === item.href);
+
+          return (
+            <div className="space-y-1.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsGerencialOpen(!isGerencialOpen)}
+                className={cn(
+                  "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium cursor-pointer",
+                  isSubActive && !isGerencialOpen
+                    ? "bg-slate-800/30 text-slate-300 border border-slate-850"
+                    : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Sliders 
+                    size={18} 
+                    className={cn(
+                      "transition-colors duration-200",
+                      isSubActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200"
+                    )}
+                  />
+                  <span>Visão Gerencial</span>
+                </div>
+                <ChevronDown 
+                  size={14} 
+                  className={cn(
+                    "transition-transform duration-200 text-slate-500 group-hover:text-slate-400",
+                    isGerencialOpen ? "rotate-180 text-blue-400" : ""
+                  )} 
+                />
+              </button>
+
+              {isGerencialOpen && (
+                <div className="pl-4 space-y-1 border-l border-slate-805/50 ml-6">
+                  {allowedGerencial.map((item) => {
+                    const isActive = pathname === item.href;
+                    const Icon = item.icon;
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onClose}
+                        className={cn(
+                          "flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg transition-all duration-150 group text-xs font-medium cursor-pointer",
+                          isActive 
+                            ? "bg-blue-600/10 text-blue-400 border border-blue-500/15" 
+                            : "text-slate-450 hover:bg-slate-800/30 hover:text-slate-350"
+                        )}
+                      >
+                        <Icon 
+                          size={15} 
+                          className={cn(
+                            "transition-colors duration-150",
+                            isActive ? "text-blue-400" : "text-slate-500 group-hover:text-slate-350"
+                          )}
+                        />
+                        <span>{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </nav>
 
       {/* Warning Footer if there's a glosed measurement */}
