@@ -19,7 +19,8 @@ import {
   PiggyBank,
   Users,
   Bell,
-  ShoppingBag
+  ShoppingBag,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -30,6 +31,7 @@ const MENU_ITEMS = [
   { name: 'Comercial (CRM)', href: '/comercial', icon: BadgeDollarSign },
   { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
   { name: 'Suprimentos', href: '/suprimentos', icon: ShoppingBag },
+  { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList },
   { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank },
   { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users },
 ];

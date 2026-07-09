@@ -123,12 +123,12 @@ export async function GET() {
       },
     });
 
-    // 4. Criar Insumos Padrão (Catálogo Global)
+    // 4. Criar Insumos Padrão (Catálogo Global - Engenharia Civil MCMV)
     const cimento = await db.insumoPadrao.create({
-      data: { nome: 'Cimento CP-II (Votoran)', unidadeMedida: 'SC', categoria: 'MATERIAL' }
+      data: { nome: 'Cimento CP-II (Saco 50kg)', unidadeMedida: 'SC', categoria: 'MATERIAL' }
     });
     const aco = await db.insumoPadrao.create({
-      data: { nome: 'Aço CA-50 10mm (Gerdau)', unidadeMedida: 'KG', categoria: 'MATERIAL' }
+      data: { nome: 'Aço CA-50 10.0mm (Vara 12m)', unidadeMedida: 'KG', categoria: 'MATERIAL' }
     });
     const areia = await db.insumoPadrao.create({
       data: { nome: 'Areia Média Lavada', unidadeMedida: 'M3', categoria: 'MATERIAL' }
@@ -137,13 +137,61 @@ export async function GET() {
       data: { nome: 'Hora de Retroescavadeira JCB', unidadeMedida: 'HORA', categoria: 'EQUIPAMENTO' }
     });
     const maoFundacao = await db.insumoPadrao.create({
-      data: { nome: 'Mão de Obra Fundação', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' }
+      data: { nome: 'Mão de Obra de Fundação/Base', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' }
     });
     const maoAlvenaria = await db.insumoPadrao.create({
-      data: { nome: 'Mão de Obra Alvenaria', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' }
+      data: { nome: 'Mão de Obra de Alvenaria e Estrutura', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' }
     });
     const maoTelhado = await db.insumoPadrao.create({
-      data: { nome: 'Mão de Obra Cobertura/Telhado', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' }
+      data: { nome: 'Mão de Obra de Cobertura/Telhado', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' }
+    });
+
+    // Demais insumos básicos
+    await db.insumoPadrao.createMany({
+      data: [
+        // MATERIAIS
+        { nome: 'Pedra Brita nº 1', unidadeMedida: 'M3', categoria: 'MATERIAL' },
+        { nome: 'Aço CA-50 8.0mm (Vara 12m)', unidadeMedida: 'KG', categoria: 'MATERIAL' },
+        { nome: 'Tijolo Baiano 8 Furos (9x19x19cm)', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Bloco de Concreto Estrutural (14x19x39cm)', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Argamassa AC-II (Saco 20kg)', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Concreto Usinado Fck 25 MPa', unidadeMedida: 'M3', categoria: 'MATERIAL' },
+        { nome: 'Piso Cerâmico PEI-4', unidadeMedida: 'M3', categoria: 'MATERIAL' },
+        { nome: 'Azulejo de Parede 30x40', unidadeMedida: 'M3', categoria: 'MATERIAL' },
+        { nome: 'Argamassa de Assentamento', unidadeMedida: 'KG', categoria: 'MATERIAL' },
+        { nome: 'Tubo Esgoto PVC 100mm (Barra 6m)', unidadeMedida: 'KG', categoria: 'MATERIAL' },
+        { nome: 'Tubo Água Fria PVC 25mm (Barra 6m)', unidadeMedida: 'KG', categoria: 'MATERIAL' },
+        { nome: 'Fio Cobre Flexível 2.5mm² (Rolo 100m)', unidadeMedida: 'KG', categoria: 'MATERIAL' },
+        { nome: 'Eletroduto Corrugado 3/4 (Bobina 50m)', unidadeMedida: 'KG', categoria: 'MATERIAL' },
+        { nome: 'Telha Cerâmica Portuguesa', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Telha de Fibrocimento 6mm', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Porta de Madeira Interna Completa', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Janela de Alumínio de Correr 1.20x1.00m', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Tinta Acrílica Látex Branca (Lata 18L)', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Caixa d\'Água Polietileno 500L', unidadeMedida: 'SC', categoria: 'MATERIAL' },
+        { nome: 'Argamassa de Rejunte', unidadeMedida: 'KG', categoria: 'MATERIAL' },
+        { nome: 'Gesso Liso para Gesso Acartonado', unidadeMedida: 'KG', categoria: 'MATERIAL' },
+
+        // MÃO DE OBRA
+        { nome: 'Mão de Obra de Terraplenagem', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
+        { nome: 'Mão de Obra de Instalações Elétricas', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
+        { nome: 'Mão de Obra de Instalações Hidrossanitárias', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
+        { nome: 'Mão de Obra de Acabamentos e Revestimentos', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
+        { nome: 'Mão de Obra de Pintura e Textura', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
+        { nome: 'Mão de Obra de Limpeza de Obra', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
+
+        // EQUIPAMENTOS
+        { nome: 'Locação de Betoneira 400L (Mensal)', unidadeMedida: 'EMPREITADA', categoria: 'EQUIPAMENTO' },
+        { nome: 'Locação de Andaime Metálico (Mensal)', unidadeMedida: 'EMPREITADA', categoria: 'EQUIPAMENTO' },
+        { nome: 'Locação de Container para Ferramentas (Mensal)', unidadeMedida: 'EMPREITADA', categoria: 'EQUIPAMENTO' },
+        { nome: 'Locação de Banheiro Químico (Mensal)', unidadeMedida: 'EMPREITADA', categoria: 'EQUIPAMENTO' },
+
+        // TAXAS
+        { nome: 'Alvará de Construção (Prefeitura)', unidadeMedida: 'EMPREITADA', categoria: 'TAXA' },
+        { nome: 'Taxa de Registro e Emolumentos de Cartório', unidadeMedida: 'EMPREITADA', categoria: 'TAXA' },
+        { nome: 'CREA/ART de Execução de Obra', unidadeMedida: 'EMPREITADA', categoria: 'TAXA' },
+        { nome: 'Seguro de Engenharia (Obra)', unidadeMedida: 'EMPREITADA', categoria: 'TAXA' }
+      ]
     });
 
     // 5. Criar Casas
