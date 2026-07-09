@@ -28,7 +28,8 @@ import {
   X,
   Edit2,
   Trash2,
-  Loader2
+  Loader2,
+  Layers
 } from 'lucide-react';
 import GedManager from '@/components/GedManager';
 import {
@@ -162,6 +163,94 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   const [editSalaConjugada, setEditSalaConjugada] = useState(initialCasa.salaConjugada);
   const [editLiberadaVenda, setEditLiberadaVenda] = useState(initialCasa.liberadaVenda || false);
   const [isSavingHouse, setIsSavingHouse] = useState(false);
+
+  // Concessionaire utilities (infra) state
+  const [padraoEnergia, setPadraoEnergia] = useState(initialCasa.infraestrutura?.padraoEnergiaInstalado || false);
+  const [ligacaoAgua, setLigacaoAgua] = useState(initialCasa.infraestrutura?.ligacaoAguaConcluida || false);
+  const [fossaFiltro, setFossaFiltro] = useState(initialCasa.infraestrutura?.fossaFiltroEsgotoConcluido || false);
+  const [medidorLuz, setMedidorLuz] = useState(initialCasa.infraestrutura?.numeroMedidorLuz || '');
+  const [medidorAgua, setMedidorAgua] = useState(initialCasa.infraestrutura?.numeroMedidorAgua || '');
+  const [updatingInfra, setUpdatingInfra] = useState(false);
+
+  // Daily diary state
+  const [isDiarioModalOpen, setIsDiarioModalOpen] = useState(false);
+  const [diarioClima, setDiarioClima] = useState<'BOM' | 'CHUVA' | 'IMPRATICAVEL'>('BOM');
+  const [diarioEfetivo, setDiarioEfetivo] = useState('1');
+  const [diarioAtividades, setDiarioAtividades] = useState('');
+  const [diarioOcorrencias, setDiarioOcorrencias] = useState('');
+  const [savingDiario, setSavingDiario] = useState(false);
+
+  useEffect(() => {
+    if (initialCasa.infraestrutura) {
+      setPadraoEnergia(initialCasa.infraestrutura.padraoEnergiaInstalado || false);
+      setLigacaoAgua(initialCasa.infraestrutura.ligacaoAguaConcluida || false);
+      setFossaFiltro(initialCasa.infraestrutura.fossaFiltroEsgotoConcluido || false);
+      setMedidorLuz(initialCasa.infraestrutura.numeroMedidorLuz || '');
+      setMedidorAgua(initialCasa.infraestrutura.numeroMedidorAgua || '');
+    }
+  }, [initialCasa.infraestrutura]);
+
+  const handleSaveInfra = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setUpdatingInfra(true);
+      const res = await fetch(`/api/casas/${initialCasa.id}/infra`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          padraoEnergiaInstalado: padraoEnergia,
+          ligacaoAguaConcluida: ligacaoAgua,
+          fossaFiltroEsgotoConcluido: fossaFiltro,
+          numeroMedidorLuz: medidorLuz,
+          numeroMedidorAgua: medidorAgua,
+        })
+      });
+      if (res.ok) {
+        alert('✓ Infraestrutura e utilidades salvas!');
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Erro ao salvar infraestrutura.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Erro de rede.');
+    } finally {
+      setUpdatingInfra(false);
+    }
+  };
+
+  const handleSaveDiario = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingDiario(true);
+      const res = await fetch(`/api/casas/${initialCasa.id}/diarios`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clima: diarioClima,
+          efetivoTrabalhadores: diarioEfetivo,
+          atividadesExecutadas: diarioAtividades,
+          ocorrencias: diarioOcorrencias,
+        })
+      });
+      if (res.ok) {
+        alert('✓ Diário de Obra registrado com sucesso!');
+        setIsDiarioModalOpen(false);
+        setDiarioAtividades('');
+        setDiarioOcorrencias('');
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Erro ao registrar diário.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Erro de rede.');
+    } finally {
+      setSavingDiario(false);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -1244,31 +1333,152 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-5 space-y-6">
             <div className="glassmorphism p-5 rounded-2xl border border-slate-800/60">
-              <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2 font-sans">
                 <Lightbulb size={18} className="text-yellow-400" /> Ligações de Concessionárias
               </h2>
-              <div className="p-4 bg-[#0f1422] border border-slate-800 rounded-xl space-y-3.5">
+              <form onSubmit={handleSaveInfra} className="space-y-4">
+                {/* Padrão Energia */}
+                <div className="p-4 bg-[#0f1422] border border-slate-800 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5"><Lightbulb size={14}/> Padrão Energia:</span>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${initialCasa.infraestrutura?.padraoEnergiaInstalado ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'}`}>{initialCasa.infraestrutura?.padraoEnergiaInstalado ? 'Instalado' : 'Pendente'}</span>
+                    <label className="text-xs text-slate-350 font-semibold flex items-center gap-1.5 cursor-pointer">
+                      <Lightbulb size={14} className="text-yellow-500" /> Padrão Energia Instalado
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={padraoEnergia}
+                      onChange={(e) => setPadraoEnergia(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-[#0f1422] border-slate-800 cursor-pointer"
+                    />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-medium">Número do Medidor de Luz (Cemig/Concessionária)</label>
+                    <input
+                      type="text"
+                      value={medidorLuz}
+                      onChange={(e) => setMedidorLuz(e.target.value)}
+                      placeholder="Ex: 1234567-8"
+                      className="w-full bg-[#070b13] border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Ligação de Água */}
+                <div className="p-4 bg-[#0f1422] border border-slate-800 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5"><Droplet size={14}/> Ligação Água:</span>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${initialCasa.infraestrutura?.ligacaoAguaConcluida ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'}`}>{initialCasa.infraestrutura?.ligacaoAguaConcluida ? 'Concluída' : 'Pendente'}</span>
+                    <label className="text-xs text-slate-350 font-semibold flex items-center gap-1.5 cursor-pointer">
+                      <Droplet size={14} className="text-blue-400" /> Ligação de Água Concluída
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={ligacaoAgua}
+                      onChange={(e) => setLigacaoAgua(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-[#0f1422] border-slate-800 cursor-pointer"
+                    />
                   </div>
-              </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-medium">Número do Medidor de Água (Copasa/Concessionária)</label>
+                    <input
+                      type="text"
+                      value={medidorAgua}
+                      onChange={(e) => setMedidorAgua(e.target.value)}
+                      placeholder="Ex: H-123456"
+                      className="w-full bg-[#070b13] border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Fossa Filtro Esgoto */}
+                <div className="p-4 bg-[#0f1422] border border-slate-800 rounded-xl flex items-center justify-between">
+                  <label className="text-xs text-slate-350 font-semibold flex items-center gap-1.5 cursor-pointer">
+                    <Layers size={14} className="text-emerald-400" /> Fossa, Filtro e Sumidouro Concluídos
+                  </label>
+                  <input
+                    type="checkbox"
+                    checked={fossaFiltro}
+                    onChange={(e) => setFossaFiltro(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-[#0f1422] border-slate-800 cursor-pointer"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={updatingInfra}
+                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold py-2 px-4 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {updatingInfra ? (
+                    <>
+                      <Loader2 className="animate-spin" size={14} /> Salvando...
+                    </>
+                  ) : (
+                    'Salvar Ligações'
+                  )}
+                </button>
+              </form>
             </div>
           </div>
 
-          <div className="lg:col-span-7 glassmorphism p-5 rounded-2xl border border-slate-800/60">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-              <Activity size={18} className="text-amber-400" /> Histórico de Diários
-            </h3>
-            {initialCasa.diarios?.map((diario: any) => (
-              <div key={diario.id} className="p-4 bg-[#0f1422]/60 border border-slate-800/80 rounded-xl mb-4 text-xs text-slate-200">
-                <p><strong>Data:</strong> {formatDate(diario.data)} | <strong>Atividades:</strong> {diario.atividadesExecutadas}</p>
+          <div className="lg:col-span-7 space-y-4">
+            <div className="glassmorphism p-5 rounded-2xl border border-slate-800/60">
+              <div className="flex justify-between items-center mb-5 border-b border-slate-850 pb-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 font-sans">
+                  <Activity size={18} className="text-amber-400" /> Diários de Obra do Lote
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsDiarioModalOpen(true)}
+                  className="bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                >
+                  + Novo Diário
+                </button>
               </div>
-            ))}
+
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                {initialCasa.diarios?.map((diario: any) => (
+                  <div key={diario.id} className="p-4 bg-[#0f1422]/60 border border-slate-800/80 rounded-xl text-xs space-y-2">
+                    <div className="flex justify-between items-center border-b border-slate-850 pb-2">
+                      <span className="font-semibold text-slate-350 font-mono">{formatDate(diario.data)}</span>
+                      <div className="flex items-center gap-2">
+                        {/* Clima badge */}
+                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          diario.clima === 'BOM' ? 'bg-amber-500/10 text-amber-400' :
+                          diario.clima === 'CHUVA' ? 'bg-blue-500/10 text-blue-400' :
+                          'bg-red-500/10 text-red-400'
+                        }`}>
+                          {diario.clima === 'BOM' ? <Sun size={10} /> : <CloudRain size={10} />}
+                          {diario.clima}
+                        </span>
+
+                        {/* Efetivo Workers */}
+                        <span className="bg-slate-850 text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1">
+                          <User size={10} /> {diario.efetivoTrabalhadores} traba.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-slate-350">
+                      <p>
+                        <strong className="text-slate-400 font-semibold">Atividades executadas:</strong><br />
+                        <span className="text-slate-200">{diario.atividadesExecutadas}</span>
+                      </p>
+                      {diario.ocorrencias && (
+                        <div className="bg-red-500/5 border border-red-500/10 p-2.5 rounded-lg mt-2 text-rose-400">
+                          <strong className="flex items-center gap-1 text-[10px] uppercase font-bold text-rose-400 mb-0.5">
+                            <AlertTriangle size={12} /> Ocorrências:
+                          </strong>
+                          <span>{diario.ocorrencias}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {(!initialCasa.diarios || initialCasa.diarios.length === 0) && (
+                  <div className="py-12 text-center text-slate-500 italic">
+                    Nenhum diário de obra registrado para esta casa.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1279,6 +1489,100 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           </h2>
           <p className="text-xs text-slate-400 mb-6">Mapeamento de laudos, alvarás, relatórios de vistoria e documentações do adquirente.</p>
           <GedManager casaId={initialCasa.id} clienteId={initialCasa.clienteId} />
+        </div>
+      )}
+
+      {/* Modal: Novo Diário de Obra */}
+      {isDiarioModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#000000]/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto my-8">
+            <button
+              type="button"
+              onClick={() => setIsDiarioModalOpen(false)}
+              className="absolute right-4 top-4 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-base font-bold text-white mb-5 flex items-center gap-2 font-sans uppercase tracking-wide border-b border-slate-850 pb-2">
+              <Activity className="text-indigo-400" size={18} /> Registrar Diário de Obra
+            </h3>
+
+            <form onSubmit={handleSaveDiario} className="space-y-4 text-slate-350 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Clima predominante</label>
+                  <select
+                    value={diarioClima}
+                    onChange={(e: any) => setDiarioClima(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  >
+                    <option value="BOM">☀️ BOM</option>
+                    <option value="CHUVA">🌧️ CHUVA</option>
+                    <option value="IMPRATICAVEL">⛈️ IMPRATICÁVEL</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-medium">Efetivo de Trabalhadores</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={diarioEfetivo}
+                    onChange={(e) => setDiarioEfetivo(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-400 font-medium">Atividades Executadas (Mão de Obra / Frente de Trabalho)</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={diarioAtividades}
+                  onChange={(e) => setDiarioAtividades(e.target.value)}
+                  placeholder="Ex: Execução de alvenaria de vedação no primeiro pavimento e início do reboco interno..."
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50 resize-none font-sans"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-400 font-medium">Ocorrências / Observações (Opcional)</label>
+                <textarea
+                  rows={3}
+                  value={diarioOcorrencias}
+                  onChange={(e) => setDiarioOcorrencias(e.target.value)}
+                  placeholder="Ex: Atraso na entrega do cimento por parte do fornecedor X devido a trânsito..."
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50 resize-none font-sans"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsDiarioModalOpen(false)}
+                  className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingDiario}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                >
+                  {savingDiario ? (
+                    <>
+                      <Loader2 className="animate-spin" size={14} /> Salvando...
+                    </>
+                  ) : (
+                    'Registrar Diário'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
