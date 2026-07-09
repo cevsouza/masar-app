@@ -15,13 +15,22 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
     where: { id },
     include: {
       casas: {
-        select: {
-          id: true,
-          numero: true,
-          quadra: true,
-          statusObra: true,
-          percentualObra: true,
-          liberadaVenda: true
+        include: {
+          medicoes: true,
+          apropriacoes: {
+            include: {
+              insumo: true
+            }
+          },
+          orcamento: {
+            include: {
+              itens: {
+                include: {
+                  insumo: true
+                }
+              }
+            }
+          }
         },
         orderBy: [
           { quadra: 'asc' },
@@ -67,7 +76,45 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
     padraoVagasGaragem: project.padraoVagasGaragem,
     padraoPossuiQuintal: project.padraoPossuiQuintal,
     padraoSalaConjugada: project.padraoSalaConjugada,
-    casas: project.casas,
+    casas: project.casas.map(casa => ({
+      id: casa.id,
+      numero: casa.numero,
+      quadra: casa.quadra,
+      statusObra: casa.statusObra,
+      percentualObra: casa.percentualObra,
+      liberadaVenda: casa.liberadaVenda,
+      medicoes: casa.medicoes.map(m => ({
+        id: m.id,
+        percentualMedido: m.percentualMedido,
+        valorLiberado: m.valorLiberado,
+        status: m.status,
+        dataMedicao: m.dataMedicao.toISOString()
+      })),
+      apropriacoes: casa.apropriacoes.map(ap => ({
+        id: ap.id,
+        custoTotal: ap.custoTotal,
+        aprovado: ap.aprovado,
+        dataAplicacao: ap.dataAplicacao.toISOString(),
+        insumo: {
+          id: ap.insumo.id,
+          nome: ap.insumo.nome,
+          categoria: ap.insumo.categoria
+        }
+      })),
+      orcamento: casa.orcamento ? {
+        id: casa.orcamento.id,
+        itens: casa.orcamento.itens.map(item => ({
+          id: item.id,
+          quantidadePlanejada: item.quantidadePlanejada,
+          custoUnitarioPrevisto: item.custoUnitarioPrevisto,
+          insumo: {
+            id: item.insumo.id,
+            nome: item.insumo.nome,
+            categoria: item.insumo.categoria
+          }
+        }))
+      } : null
+    })),
     documentos: project.documentos.map(doc => ({
       id: doc.id,
       nome: doc.nome,

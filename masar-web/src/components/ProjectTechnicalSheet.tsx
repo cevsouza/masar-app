@@ -426,7 +426,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                 activeTab === 'financeiro' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Financeiro & DRE
+              Financeiro & Demonstração de Resultados
             </button>
             <button 
               onClick={() => setActiveTab('cofre')} 
@@ -804,7 +804,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
               <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 mb-5">
                 <div>
                   <h3 className="text-base font-bold text-white uppercase tracking-wider font-sans">
-                    DRE Real vs Projetado (Incorporação)
+                    Demonstração do Resultado do Exercício (DRE) - Real vs Projetado (Incorporação)
                   </h3>
                   <p className="text-[10px] text-slate-400 mt-1">Demonstração de resultados de loteamento e construção.</p>
                 </div>
@@ -814,19 +814,19 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                   disabled={isLoadingDre}
                   className="px-3 py-1.5 bg-[#0f1422] border border-slate-800 hover:bg-slate-800 rounded-lg text-[10px] text-slate-300 font-bold uppercase transition cursor-pointer"
                 >
-                  {isLoadingDre ? 'Atualizando...' : 'Atualizar DRE'}
+                  {isLoadingDre ? 'Atualizando...' : 'Atualizar Demonstração'}
                 </button>
               </div>
 
               {isLoadingDre && !dreData ? (
-                <div className="py-20 text-center text-slate-400 text-xs">Carregando dados da DRE corporativa...</div>
+                <div className="py-20 text-center text-slate-400 text-xs">Carregando dados da Demonstração do Resultado do Exercício...</div>
               ) : dreData ? (
                 <div className="space-y-6 text-xs text-slate-350">
                   <div className="overflow-x-auto border border-slate-850 rounded-xl">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-900/40 border-b border-slate-850 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                          <th className="py-3 px-4">Demonstração de Resultado (DRE)</th>
+                          <th className="py-3 px-4">Demonstração de Resultado do Exercício (DRE)</th>
                           <th className="py-3 px-4 text-right">Projetado (Orçado)</th>
                           <th className="py-3 px-4 text-right">Realizado (Fechado)</th>
                           <th className="py-3 px-4 text-right">Desvio</th>
@@ -835,7 +835,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                       <tbody className="divide-y divide-slate-850 text-slate-300">
                         {/* Receita Bruta */}
                         <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
-                          <td className="py-3 px-4">Receita Operacional Bruta (VGV)</td>
+                          <td className="py-3 px-4">Receita Operacional Bruta - Valor Geral de Vendas (VGV)</td>
                           <td className="py-3 px-4 text-right font-mono">{formatCurrency(dreData.totalVGVProjetado)}</td>
                           <td className="py-3 px-4 text-right font-mono text-emerald-400">{formatCurrency(dreData.totalVGVRealizado)}</td>
                           <td className={`py-3 px-4 text-right font-mono ${(dreData.totalVGVRealizado - dreData.totalVGVProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -845,7 +845,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
 
                         {/* Deduções */}
                         <tr className="hover:bg-slate-800/5 text-slate-400">
-                          <td className="py-2 px-4 pl-6">(-) Comissão de Vendas (5%)</td>
+                          <td className="py-2 px-4 pl-6">(-) Comissão de Vendas (Intermediação Imobiliária)</td>
                           <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoProjetada)}</td>
                           <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoRealizada)}</td>
                           <td className={`py-2 px-4 text-right font-mono ${dreData.totalComissaoRealizada > dreData.totalComissaoProjetada ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -853,7 +853,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           </td>
                         </tr>
                         <tr className="hover:bg-slate-800/5 text-slate-400">
-                          <td className="py-2 px-4 pl-6">(-) Impostos (RET)</td>
+                          <td className="py-2 px-4 pl-6">(-) Tributos sobre Faturamento - Regime Especial de Tributação (RET)</td>
                           <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalImpostoProjetado)}</td>
                           <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalImpostoRealizado)}</td>
                           <td className={`py-2 px-4 text-right font-mono ${dreData.totalImpostoRealizado > dreData.totalImpostoProjetado ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -863,7 +863,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
 
                         {/* Custos Globais */}
                         <tr className="hover:bg-slate-800/5 font-semibold text-slate-350">
-                          <td className="py-3 px-4">(-) Custos Globais de Loteamento / Infra</td>
+                          <td className="py-3 px-4">(-) Custos Globais do Empreendimento (Rateio Terreno / Projetos / Marketing)</td>
                           <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateio)}</td>
                           <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateio)}</td>
                           <td className="py-3 px-4 text-right font-mono text-slate-500">R$ 0,00</td>
@@ -887,45 +887,103 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           <td className="py-1 px-4 text-right font-mono">R$ 0,00</td>
                         </tr>
 
-                        {/* Custos Diretos de Obras */}
+                        {/* Custos Fixos (MCMV) */}
                         <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
-                          <td className="py-3 px-4">(-) Custos Diretos de Construção (Casas)</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalDiretoProjetado)}</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalDiretoRealizado)}</td>
-                          <td className={`py-3 px-4 text-right font-mono ${dreData.totalDiretoRealizado > dreData.totalDiretoProjetado ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(dreData.totalDiretoProjetado - dreData.totalDiretoRealizado)}
+                          <td className="py-3 px-4">(-) Custos Fixos de Construção (O Relógio Contra a Margem)</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalFixoProjetado || 0)}</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalFixoRealizado || 0)}</td>
+                          <td className={`py-3 px-4 text-right font-mono ${(dreData.totalFixoProjetado - dreData.totalFixoRealizado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.totalFixoProjetado || 0) - (dreData.totalFixoRealizado || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450">
-                          <td className="py-1.5 px-4 pl-8">Materiais de Construção</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projMaterial)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realMaterial)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${dreData.realMaterial > dreData.projMaterial ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(dreData.projMaterial - dreData.realMaterial)}
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Equipe de Gestão e Supervisão (Engenharia / Campo)</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoEquipeGestao || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoEquipeGestao || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoEquipeGestao - dreData.realFixoEquipeGestao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projFixoEquipeGestao || 0) - (dreData.realFixoEquipeGestao || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450">
-                          <td className="py-1.5 px-4 pl-8">Mão de Obra de Campo</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projMaoDeObra)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realMaoDeObra)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${dreData.realMaoDeObra > dreData.projMaoDeObra ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(dreData.projMaoDeObra - dreData.realMaoDeObra)}
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Instalação e Manutenção do Canteiro de Obras</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoCanteiro || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoCanteiro || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoCanteiro - dreData.realFixoCanteiro) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projFixoCanteiro || 0) - (dreData.realFixoCanteiro || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450">
-                          <td className="py-1.5 px-4 pl-8">Equipamentos / Maquinários</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projEquipamento)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realEquipamento)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${dreData.realEquipamento > dreData.projEquipamento ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(dreData.projEquipamento - dreData.realEquipamento)}
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Despesas de Consumo Contínuo (Concessionárias / Vigilância)</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoConsumo || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoConsumo || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoConsumo - dreData.realFixoConsumo) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projFixoConsumo || 0) - (dreData.realFixoConsumo || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450">
-                          <td className="py-1.5 px-4 pl-8">Taxas Diretamente Apropriadas</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projTaxa)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realTaxa)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${dreData.realTaxa > dreData.projTaxa ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(dreData.projTaxa - dreData.realTaxa)}
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Locação de Equipamentos Mensais (Andaimes / Betoneiras)</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoLocacao || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoLocacao || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoLocacao - dreData.realFixoLocacao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projFixoLocacao || 0) - (dreData.realFixoLocacao || 0))}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Taxas, Alvarás e Seguros de Engenharia</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoTaxasSeguros || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoTaxasSeguros || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoTaxasSeguros - dreData.realFixoTaxasSeguros) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projFixoTaxasSeguros || 0) - (dreData.realFixoTaxasSeguros || 0))}
+                          </td>
+                        </tr>
+
+                        {/* Custos Variáveis (MCMV) */}
+                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
+                          <td className="py-3 px-4">(-) Custos Variáveis de Construção (A Eficiência da Produção)</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalVariavelProjetado || 0)}</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalVariavelRealizado || 0)}</td>
+                          <td className={`py-3 px-4 text-right font-mono ${(dreData.totalVariavelProjetado - dreData.totalVariavelRealizado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.totalVariavelProjetado || 0) - (dreData.totalVariavelRealizado || 0))}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Materiais de Construção (Aço / Cimento / Blocos - Curva A)</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMateriais || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMateriais || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMateriais - dreData.realVariavelMateriais) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projVariavelMateriais || 0) - (dreData.realVariavelMateriais || 0))}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Mão de Obra Direta (Pedreiros / Carpinteiros / Medição de Produção)</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMaoDireta || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMaoDireta || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMaoDireta - dreData.realVariavelMaoDireta) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projVariavelMaoDireta || 0) - (dreData.realVariavelMaoDireta || 0))}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Logística e Fretes de Insumos</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelLogistica || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelLogistica || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelLogistica - dreData.realVariavelLogistica) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projVariavelLogistica || 0) - (dreData.realVariavelLogistica || 0))}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Consumo Específico de Máquinas (Terraplenagem / Fundações)</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMaquinas || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMaquinas || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMaquinas - dreData.realVariavelMaquinas) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projVariavelMaquinas || 0) - (dreData.realVariavelMaquinas || 0))}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
+                          <td className="py-1.5 px-4 pl-8">Impostos Incidentes sobre o Faturamento (Regime Especial de Tributação - RET)</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelImpostos || 0)}</td>
+                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelImpostos || 0)}</td>
+                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelImpostos - dreData.realVariavelImpostos) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((dreData.projVariavelImpostos || 0) - (dreData.realVariavelImpostos || 0))}
                           </td>
                         </tr>
 
@@ -967,7 +1025,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                   </div>
                 </div>
               ) : (
-                <div className="py-20 text-center text-slate-500 text-xs">Carregando dados da DRE corporativa... Clique em "Atualizar DRE" para forçar o recálculo.</div>
+                <div className="py-20 text-center text-slate-500 text-xs">Carregando dados da Demonstração do Resultado do Exercício... Clique em "Atualizar Demonstração" para forçar o recálculo.</div>
               )}
             </div>
           </div>
@@ -1007,74 +1065,146 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
 
                   {/* Lista de Cartões */}
                   <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[480px] pr-1">
-                    {housesInCol.map((house: any) => (
-                      <div 
-                        key={house.id} 
-                        className={`p-3 bg-[#0f1422] border ${movingHouseId === house.id ? 'border-blue-500/50 animate-pulse' : 'border-slate-800/80 hover:border-slate-700'} rounded-xl space-y-3 shadow-md transition`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <Link 
-                            href={`/casas/${house.id}`}
-                            className="font-bold text-white hover:text-blue-400 text-xs transition block"
-                          >
-                            Qd {house.quadra}, Casa {house.numero}
-                          </Link>
-                          {house.liberadaVenda ? (
-                            <span className="text-[7px] font-mono font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/15 uppercase">
-                              Venda
-                            </span>
-                          ) : (
-                            <span className="text-[7px] font-mono font-extrabold text-slate-500 bg-slate-550/5 px-1.5 py-0.5 rounded border border-slate-800 uppercase">
-                              Reserva
-                            </span>
-                          )}
-                        </div>
+                    {housesInCol.map((house: any) => {
+                      // Calcular KPIs financeiros do lote MCMV
+                      const receitaCaixaPaga = house.medicoes
+                        ? house.medicoes
+                            .filter((m: any) => m.status === 'PAGA')
+                            .reduce((acc: number, m: any) => acc + m.valorLiberado, 0)
+                        : 0;
 
-                        {/* Barra de Progresso Físico */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[9px] font-mono text-slate-450">
-                            <span>Progresso Físico</span>
-                            <span className="font-bold text-blue-400">{house.percentualObra.toFixed(1)}%</span>
+                      const custoRealizado = house.apropriacoes
+                        ? house.apropriacoes
+                            .filter((ap: any) => ap.aprovado)
+                            .reduce((acc: number, ap: any) => acc + ap.custoTotal, 0)
+                        : 0;
+
+                      const orcamentoTotal = house.orcamento && house.orcamento.itens
+                        ? house.orcamento.itens.reduce((acc: number, item: any) => acc + (item.quantidadePlanejada * item.custoUnitarioPrevisto), 0)
+                        : 0;
+
+                      const saldoCaixaLote = receitaCaixaPaga - custoRealizado;
+
+                      const percentualMedidoPago = house.medicoes
+                        ? house.medicoes
+                            .filter((m: any) => m.status === 'PAGA')
+                            .reduce((acc: number, m: any) => acc + m.percentualMedido, 0)
+                        : 0;
+
+                      const descompassoFisicoFinanceiro = house.percentualObra - percentualMedidoPago;
+                      const descompassoAlto = descompassoFisicoFinanceiro > 10;
+                      const temGlosa = house.medicoes ? house.medicoes.some((m: any) => m.status === 'GLOSADA_REPROVADA') : false;
+
+                      let borderClass = 'border-slate-800/80 hover:border-slate-700';
+                      if (movingHouseId === house.id) {
+                        borderClass = 'border-blue-500/50 animate-pulse';
+                      } else if (temGlosa) {
+                        borderClass = 'border-amber-500/50 shadow-md shadow-amber-500/5';
+                      } else if (saldoCaixaLote < 0 || descompassoAlto) {
+                        borderClass = 'border-red-500/50 shadow-md shadow-red-500/5';
+                      } else if (saldoCaixaLote > 0 && house.percentualObra > 0) {
+                        borderClass = 'border-emerald-500/50 shadow-md shadow-emerald-500/5';
+                      }
+
+                      return (
+                        <div 
+                          key={house.id} 
+                          className={`p-3 bg-[#0f1422] border ${borderClass} rounded-xl space-y-3 shadow-md transition`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <Link 
+                              href={`/casas/${house.id}`}
+                              className="font-bold text-white hover:text-blue-400 text-xs transition block"
+                            >
+                              Qd {house.quadra}, Casa {house.numero}
+                            </Link>
+                            {house.liberadaVenda ? (
+                              <span className="text-[7px] font-mono font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/15 uppercase">
+                                Venda
+                              </span>
+                            ) : (
+                              <span className="text-[7px] font-mono font-extrabold text-slate-500 bg-slate-550/5 px-1.5 py-0.5 rounded border border-slate-800 uppercase">
+                                Reserva
+                              </span>
+                            )}
                           </div>
-                          <div className="w-full bg-[#070a13] rounded-full h-1.5 overflow-hidden">
-                            <div 
-                              className="bg-gradient-to-r from-blue-600 to-indigo-500 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${house.percentualObra}%` }}
-                            />
+
+                          {/* Barra de Progresso Físico */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[9px] font-mono text-slate-450">
+                              <span>Progresso Físico</span>
+                              <span className="font-bold text-blue-400">{house.percentualObra.toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-[#070a13] rounded-full h-1.5 overflow-hidden">
+                              <div 
+                                className="bg-gradient-to-r from-blue-600 to-indigo-500 h-full rounded-full transition-all duration-300"
+                                style={{ width: `${house.percentualObra}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Micro-Painel Financeiro MCMV */}
+                          <div className="space-y-1.5 text-[9px] pt-1 bg-[#0b0f19]/30 p-2 rounded-lg border border-slate-850">
+                            {/* Saldo de Caixa */}
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-450 font-medium">Saldo de Caixa:</span>
+                              <span className={`font-mono font-bold ${saldoCaixaLote >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatCurrency(saldoCaixaLote)}
+                              </span>
+                            </div>
+
+                            {/* Descompasso Físico-Financeiro */}
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-450 font-medium">Descompasso:</span>
+                              <div className="flex items-center gap-1 font-mono">
+                                <span className={descompassoAlto ? 'text-red-400 font-bold' : 'text-slate-350'}>
+                                  {descompassoFisicoFinanceiro.toFixed(0)}%
+                                </span>
+                                {descompassoAlto && (
+                                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Descompasso superior a 10% (Alerta de capital de giro!)" />
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Orçado vs Realizado */}
+                            <div className="flex justify-between items-center text-[8px] text-slate-500 border-t border-slate-850/60 pt-1 mt-1">
+                              <span>Orçado: {formatCurrency(orcamentoTotal)}</span>
+                              <span className="text-slate-400 font-medium">Real: {formatCurrency(custoRealizado)}</span>
+                            </div>
+                          </div>
+
+                          {/* Ações de Movimentação Rápidas */}
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-850 text-[10px]">
+                            <button
+                              type="button"
+                              disabled={idx === 0 || movingHouseId !== null}
+                              onClick={() => handleMoveHouseStage(house.id, house.percentualObra, KANBAN_STAGES[idx - 1].id)}
+                              className="p-1 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-400 hover:text-white rounded border border-slate-800 transition cursor-pointer"
+                              title="Mover para etapa anterior"
+                            >
+                              ←
+                            </button>
+                            
+                            <Link 
+                              href={`/casas/${house.id}`}
+                              className="text-[9px] font-bold text-slate-400 hover:text-white px-2 py-0.5 bg-slate-850/40 rounded border border-slate-800 transition"
+                            >
+                              Acessar Ficha
+                            </Link>
+
+                            <button
+                              type="button"
+                              disabled={idx === KANBAN_STAGES.length - 1 || movingHouseId !== null}
+                              onClick={() => handleMoveHouseStage(house.id, house.percentualObra, KANBAN_STAGES[idx + 1].id)}
+                              className="p-1 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-400 hover:text-white rounded border border-slate-800 transition cursor-pointer"
+                              title="Mover para próxima etapa"
+                            >
+                              →
+                            </button>
                           </div>
                         </div>
-
-                        {/* Ações de Movimentação Rápidas */}
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-850 text-[10px]">
-                          <button
-                            type="button"
-                            disabled={idx === 0 || movingHouseId !== null}
-                            onClick={() => handleMoveHouseStage(house.id, house.percentualObra, KANBAN_STAGES[idx - 1].id)}
-                            className="p-1 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-400 hover:text-white rounded border border-slate-800 transition cursor-pointer"
-                            title="Mover para etapa anterior"
-                          >
-                            ←
-                          </button>
-                          
-                          <Link 
-                            href={`/casas/${house.id}`}
-                            className="text-[9px] font-bold text-slate-400 hover:text-white px-2 py-0.5 bg-slate-850/40 rounded border border-slate-800 transition"
-                          >
-                            Acessar Ficha
-                          </Link>
-
-                          <button
-                            type="button"
-                            disabled={idx === KANBAN_STAGES.length - 1 || movingHouseId !== null}
-                            onClick={() => handleMoveHouseStage(house.id, house.percentualObra, KANBAN_STAGES[idx + 1].id)}
-                            className="p-1 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-400 hover:text-white rounded border border-slate-800 transition cursor-pointer"
-                            title="Mover para próxima etapa"
-                          >
-                            →
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {housesInCol.length === 0 && (
                       <p className="text-[10px] text-slate-600 italic text-center py-8">Vazia</p>
