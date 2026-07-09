@@ -21,7 +21,8 @@ import {
   Bell,
   ShoppingBag,
   ClipboardList,
-  Home
+  Home,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -35,6 +36,7 @@ const MENU_ITEMS = [
   { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
   { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList },
   { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank },
+  { name: 'Relatórios Gerenciais', href: '/relatorios', icon: FileText },
   { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users },
 ];
 
@@ -242,6 +244,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           if (item.href === '/casas' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           if (item.href === '/suprimentos' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
           if (item.href === '/socios/caixa' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
+          if (item.href === '/relatorios' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           if (item.href === '/usuarios' && role !== 'ADMIN') return false;
           return true;
         }).map((item) => {
