@@ -23,6 +23,7 @@ import {
   Edit
 } from 'lucide-react';
 import Link from 'next/link';
+import ModalNovoLancamento from './ModalNovoLancamento';
 
 interface Documento {
   id: string;
@@ -275,6 +276,13 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
     }
   };
 
+  // Universal Financial Modal
+  const [isUniversalModalOpen, setIsUniversalModalOpen] = useState(false);
+  const [universalNatureza, setUniversalNatureza] = useState<'RECEITA' | 'DESPESA' | undefined>(undefined);
+  const [universalCategoria, setUniversalCategoria] = useState<string | undefined>(undefined);
+  const [universalDestino, setUniversalDestino] = useState<'GLOBAL' | 'CASA' | undefined>(undefined);
+  const [universalCasaId, setUniversalCasaId] = useState<string | undefined>(undefined);
+
   // DRE Interactive Input Modal States
   const [isDreModalOpen, setIsDreModalOpen] = useState(false);
   const [dreModalCategory, setDreModalCategory] = useState('');
@@ -289,42 +297,49 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
   const [isSavingDreInput, setIsSavingDreInput] = useState(false);
 
   const openDreModal = (category: string, label: string) => {
-    setDreModalCategory(category);
-    setDreModalLabel(label);
-    setDreInputValue('');
-    setDreInputDesc('');
-    setDreInputDate(new Date().toISOString().split('T')[0]);
-    setDreInputRealizado(false);
-    
-    if (project.casas && Array.isArray(project.casas) && project.casas.length > 0) {
-      setDreInputCasaId(project.casas[0].id);
-    } else {
-      setDreInputCasaId('');
+    if (category === 'VGV') {
+      setDreModalCategory('VGV');
+      setDreModalLabel(label);
+      setDreInputValue('');
+      setIsDreModalOpen(true);
+      return;
     }
 
-    const safeInsumos = Array.isArray(insumosList) ? insumosList : [];
-    let matchedInsumo = safeInsumos.find(ins => {
-      if (!ins || !ins.categoria) return false;
-      if (category.includes('MATERIAIS')) return ins.categoria === 'MATERIAIS';
-      if (category.includes('MAODEOBRA')) return ins.categoria === 'MAO_DE_OBRA';
-      if (category.includes('LOGISTICA')) return ins.categoria === 'LOGISTICA';
-      if (category.includes('MAQUINAS')) return ins.categoria === 'MAQUINAS';
-      if (category.includes('EQUIPE')) return ins.categoria === 'EQUIPE_GESTAO';
-      if (category.includes('CANTEIRO')) return ins.categoria === 'CANTEIRO_OBRA';
-      if (category.includes('CONSUMO')) return ins.categoria === 'CONSUMO_DIARIO';
-      if (category.includes('LOCACAO')) return ins.categoria === 'LOCACAO_EQUIPAMENTOS';
-      if (category.includes('TAXAS')) return ins.categoria === 'TAXAS_ALVARAS';
-      return false;
-    });
-    if (matchedInsumo) {
-      setDreInputInsumoId(matchedInsumo.id);
-    } else if (safeInsumos.length > 0) {
-      setDreInputInsumoId(safeInsumos[0].id);
+    // Map other categories to the single ledger categories
+    if (category === 'TERRENO') {
+      setUniversalNatureza('DESPESA');
+      setUniversalCategoria('TERRENO');
+      setUniversalDestino('GLOBAL');
+      setUniversalCasaId(undefined);
+    } else if (category === 'PROJETOS') {
+      setUniversalNatureza('DESPESA');
+      setUniversalCategoria('PROJETOS');
+      setUniversalDestino('GLOBAL');
+      setUniversalCasaId(undefined);
+    } else if (category === 'MARKETING' || category === 'OUTRO') {
+      setUniversalNatureza('DESPESA');
+      setUniversalCategoria('PROJETOS');
+      setUniversalDestino('GLOBAL');
+      setUniversalCasaId(undefined);
+    } else if (category.includes('TAXAS')) {
+      setUniversalNatureza('DESPESA');
+      setUniversalCategoria('IMPOSTOS');
+      setUniversalDestino('GLOBAL');
+      setUniversalCasaId(undefined);
     } else {
-      setDreInputInsumoId('');
+      setUniversalNatureza('DESPESA');
+      if (category.includes('MAODEOBRA')) {
+        setUniversalCategoria('MAO_DE_OBRA');
+      } else {
+        setUniversalCategoria('MATERIAL');
+      }
+      setUniversalDestino('CASA');
+      if (project.casas && project.casas.length > 0) {
+        setUniversalCasaId(project.casas[0].id);
+      }
     }
 
-    setIsDreModalOpen(true);
+    setIsUniversalModalOpen(true);
   };
 
   const handleSaveDreInput = async (e: React.FormEvent) => {
@@ -428,42 +443,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
     }
   }, [activeTab]);
 
-  const handleAddGlobalCost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cgDescricao || !cgValor) {
-      alert('Por favor, preencha a descrição e o valor do custo.');
-      return;
-    }
-    setIsSavingCg(true);
-    try {
-      const res = await fetch(`/api/empreendimentos/${project.id}/custos-globais`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          descricao: cgDescricao,
-          tipo: cgTipo,
-          valor: parseFloat(cgValor),
-          realizado: cgRealizado,
-          data: cgData
-        })
-      });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Erro ao adicionar custo global.');
-      }
-
-      setCgDescricao('');
-      setCgValor('');
-      alert('✓ Custo global adicionado com sucesso!');
-      router.refresh();
-      fetchDreData();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setIsSavingCg(false);
-    }
-  };
 
   const handleDeleteGlobalCost = async (costId: string) => {
     if (!confirm('Deseja realmente excluir este custo global do empreendimento?')) {
@@ -928,91 +908,37 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
 
         </div>
       )}
-
-      {/* Conteúdo Aba 2: Gestão Financeira Global (Custos Globais e DRE Comparativo) */}
+{/* Conteúdo Aba 2: Gestão Financeira Global (Custos Globais e DRE Comparativo) */}
       {activeTab === 'financeiro' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in text-xs text-slate-350">
           
           {/* Lado Esquerdo: Gestão de Custos Globais (Terreno, Impostos de Aquisição, Projetos Globais) */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 bg-[#0f1422]/20">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider block border-b border-slate-850 pb-2.5 mb-4 font-sans">
-                Adicionar Custo Terreno / Global
-              </h3>
-              <form onSubmit={handleAddGlobalCost} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-slate-400 font-medium">Descrição do Custo</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Imposto ITBI e Custos de Registro"
-                    value={cgDescricao}
-                    onChange={(e) => setCgDescricao(e.target.value)}
-                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-slate-400 font-medium">Categoria do Custo</label>
-                    <select
-                      value={cgTipo}
-                      onChange={(e) => setCgTipo(e.target.value)}
-                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-350 focus:outline-none focus:border-blue-500/50"
-                    >
-                      <option value="TERRENO">Terreno / Aquisição</option>
-                      <option value="PROJETOS">Projetos & Licenças</option>
-                      <option value="MARKETING">Marketing & Vendas</option>
-                      <option value="OUTRO">Outros Custos Globais</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-slate-400 font-medium">Valor Total (R$)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      placeholder="Ex: 15400.00"
-                      value={cgValor}
-                      onChange={(e) => setCgValor(e.target.value)}
-                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-slate-400 font-medium">Data de Pagamento</label>
-                    <input
-                      type="date"
-                      required
-                      value={cgData}
-                      onChange={(e) => setCgData(e.target.value)}
-                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-slate-400 font-medium">Tipo de Lançamento</label>
-                    <select
-                      value={cgRealizado ? 'REALIZADO' : 'ORCADO'}
-                      onChange={(e) => setCgRealizado(e.target.value === 'REALIZADO')}
-                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-slate-350 focus:outline-none focus:border-blue-500/50"
-                    >
-                      <option value="ORCADO">Orçado / Planejado</option>
-                      <option value="REALIZADO">Realizado / Pago</option>
-                    </select>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSavingCg}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-lg shadow-blue-500/10 disabled:opacity-50"
-                >
-                  {isSavingCg ? 'Salvando...' : '+ Cadastrar Custo'}
-                </button>
-              </form>
+            <div className="glassmorphism p-6 rounded-2xl border border-slate-800/80 bg-[#0f1422]/20 flex flex-col justify-center items-center text-center space-y-4">
+              <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400">
+                <DollarSign size={28} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-sans">
+                  Gestão Financeira Descentralizada
+                </h3>
+                <p className="text-[10px] text-slate-450 mt-1 max-w-xs mx-auto">
+                  Utilize o motor de Lançamento Universal para registrar custos globais do terreno, projetos, impostos e rateios operacionais.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setUniversalNatureza('DESPESA');
+                  setUniversalCategoria('TERRENO');
+                  setUniversalDestino('GLOBAL');
+                  setUniversalCasaId(undefined);
+                  setIsUniversalModalOpen(true);
+                }}
+                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10 text-xs"
+              >
+                + Registrar Custo Global / Terreno
+              </button>
             </div>
 
             {/* Listagem de custos globais cadastrados */}
@@ -1507,12 +1433,12 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
           </div>
 
           {/* Modal de Lançamento Direto do DRE */}
-          {isDreModalOpen && (
+          {isDreModalOpen && dreModalCategory === 'VGV' && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 text-xs">
               <div className="bg-[#0b0f19] border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 animate-fade-in text-slate-350">
                 <div className="flex items-center justify-between border-b border-slate-850 pb-3">
                   <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-sans">
-                    Lançamento Rápido no DRE
+                    Ajuste de VGV
                   </h3>
                   <button
                     type="button"
@@ -1528,209 +1454,49 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                 </p>
 
                 <form onSubmit={handleSaveDreInput} className="space-y-4">
-                  
-                  {/* Form Option 1: VGV / Batch Price update */}
-                  {dreModalCategory === 'VGV' && (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-slate-400 font-medium">Preço de Venda Médio das Casas (R$)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          placeholder="Ex: 220000.00"
-                          value={dreInputValue}
-                          onChange={(e) => setDreInputValue(e.target.value)}
-                          className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                        />
-                        <span className="text-[10px] text-slate-500 mt-1 block">
-                          Ao salvar, o preço de venda projetado será replicado para todas as casas do empreendimento.
-                        </span>
-                      </div>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-slate-400 font-medium">Preço de Venda Médio das Casas (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        placeholder="Ex: 220000.00"
+                        value={dreInputValue}
+                        onChange={(e) => setDreInputValue(e.target.value)}
+                        className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                      />
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Ao salvar, o preço de venda projetado será replicado para todas as casas do empreendimento.
+                      </span>
                     </div>
-                  )}
-
-                  {/* Form Option 2: Global Costs (Terreno, Projetos, Marketing, Outro) */}
-                  {['TERRENO', 'PROJETOS', 'MARKETING', 'OUTRO'].includes(dreModalCategory) && (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-slate-400 font-medium">Descrição do Lançamento</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Ex: Pagamento ${dreModalLabel}`}
-                          value={dreInputDesc}
-                          onChange={(e) => setDreInputDesc(e.target.value)}
-                          className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-slate-400 font-medium">Valor (R$)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          placeholder="Ex: 50000.00"
-                          value={dreInputValue}
-                          onChange={(e) => setDreInputValue(e.target.value)}
-                          className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className="text-slate-400 font-medium">Data</label>
-                          <input
-                            type="date"
-                            required
-                            value={dreInputDate}
-                            onChange={(e) => setDreInputDate(e.target.value)}
-                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-slate-400 font-medium">Tipo</label>
-                          <select
-                            value={dreInputRealizado ? 'REALIZADO' : 'ORCADO'}
-                            onChange={(e) => setDreInputRealizado(e.target.value === 'REALIZADO')}
-                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2.5 text-slate-350 focus:outline-none"
-                          >
-                            <option value="ORCADO">Orçado / Planejado</option>
-                            <option value="REALIZADO">Realizado / Pago</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Form Option 3: House Budget & Appropriations (Fixo/Variável Obras) */}
-                  {!['VGV', 'TERRENO', 'PROJETOS', 'MARKETING', 'OUTRO'].includes(dreModalCategory) && (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className="text-slate-400 font-medium">Selecionar Unidade (Casa)</label>
-                          <select
-                            required
-                            value={dreInputCasaId}
-                            onChange={(e) => setDreInputCasaId(e.target.value)}
-                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-350 focus:outline-none"
-                          >
-                            <option value="">-- Selecione o Lote --</option>
-                            {(project.casas && Array.isArray(project.casas)) ? project.casas.map((casa: any) => (
-                              <option key={casa.id} value={casa.id}>Lote Qd {casa.quadra}, Casa {casa.numero}</option>
-                            )) : null}
-                          </select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-slate-400 font-medium">Natureza</label>
-                          <select
-                            value={dreInputRealizado ? 'REALIZADO' : 'ORCADO'}
-                            onChange={(e) => setDreInputRealizado(e.target.value === 'REALIZADO')}
-                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2.5 text-slate-350 focus:outline-none"
-                          >
-                            <option value="ORCADO">Orçado (Planejado)</option>
-                            <option value="REALIZADO">Realizado (Efetivo/Pago)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-slate-400 font-medium">Insumo correspondente</label>
-                        <select
-                          required
-                          value={dreInputInsumoId}
-                          onChange={(e) => setDreInputInsumoId(e.target.value)}
-                          className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-350 focus:outline-none"
-                        >
-                          <option value="">-- Selecione o Insumo --</option>
-                          {(Array.isArray(insumosList) ? insumosList : [])
-                            .filter(ins => {
-                              if (dreModalCategory.includes('MATERIAIS')) return ins.categoria === 'MATERIAIS';
-                              if (dreModalCategory.includes('MAODEOBRA')) return ins.categoria === 'MAO_DE_OBRA';
-                              if (dreModalCategory.includes('LOGISTICA')) return ins.categoria === 'LOGISTICA';
-                              if (dreModalCategory.includes('MAQUINAS')) return ins.categoria === 'MAQUINAS';
-                              if (dreModalCategory.includes('EQUIPE')) return ins.categoria === 'EQUIPE_GESTAO';
-                              if (dreModalCategory.includes('CANTEIRO')) return ins.categoria === 'CANTEIRO_OBRA';
-                              if (dreModalCategory.includes('CONSUMO')) return ins.categoria === 'CONSUMO_DIARIO';
-                              if (dreModalCategory.includes('LOCACAO')) return ins.categoria === 'LOCACAO_EQUIPAMENTOS';
-                              if (dreModalCategory.includes('TAXAS')) return ins.categoria === 'TAXAS_ALVARAS';
-                              return true;
-                            })
-                            .map((ins: any) => (
-                              <option key={ins.id} value={ins.id}>{ins.nome} ({ins.unidadeMedida})</option>
-                            ))
-                          }
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className="text-slate-400 font-medium">Quantidade</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            required
-                            value={dreInputQtd}
-                            onChange={(e) => setDreInputQtd(e.target.value)}
-                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-slate-400 font-medium">
-                            {dreInputRealizado ? 'Custo Total (R$)' : 'Custo Unitário Previsto (R$)'}
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            required
-                            value={dreInputValue}
-                            onChange={(e) => setDreInputValue(e.target.value)}
-                            className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Real-time Math Display for Usability */}
-                      {dreInputQtd && dreInputValue && (
-                        <div className="p-2.5 bg-[#070a13]/60 border border-slate-850 rounded-xl font-mono text-[10px] flex items-center justify-between text-indigo-400 mt-2">
-                          {dreInputRealizado ? (
-                            <>
-                              <span>Custo Unitário Efetivo Calculado:</span>
-                              <span className="font-bold">
-                                {formatCurrency((parseFloat(dreInputValue) || 0) / (parseFloat(dreInputQtd) || 1))}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Custo Total Previsto Calculado (Qtd × Unitário):</span>
-                              <span className="font-bold">
-                                {formatCurrency((parseFloat(dreInputQtd) || 0) * (parseFloat(dreInputValue) || 0))}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                      
-                      {dreInputRealizado && (
-                        <span className="text-[10px] text-amber-500 block">
-                          Nota: O lançamento de despesa realizada debitará o caixa geral automaticamente na Tesouraria.
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  </div>
 
                   <button
                     type="submit"
                     disabled={isSavingDreInput}
                     className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-xl transition cursor-pointer shadow-lg shadow-indigo-600/10 disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {isSavingDreInput ? 'Salvando...' : '✓ Confirmar e Atualizar DRE'}
+                    {isSavingDreInput ? 'Salvando...' : '✓ Confirmar e Replicar VGV'}
                   </button>
                 </form>
               </div>
             </div>
           )}
+
+          <ModalNovoLancamento
+            isOpen={isUniversalModalOpen}
+            onClose={() => setIsUniversalModalOpen(false)}
+            defaultEmpreendimentoId={project.id}
+            defaultCasaId={universalCasaId}
+            defaultNatureza={universalNatureza}
+            defaultCategoria={universalCategoria}
+            defaultDestino={universalDestino}
+            onSuccess={() => {
+              router.refresh();
+              fetchDreData();
+            }}
+          />
         </div>
       )}
 

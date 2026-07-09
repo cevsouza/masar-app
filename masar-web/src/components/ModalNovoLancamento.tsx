@@ -21,6 +21,9 @@ interface ModalNovoLancamentoProps {
   // Pre-fill parameters
   defaultEmpreendimentoId?: string;
   defaultCasaId?: string;
+  defaultNatureza?: 'RECEITA' | 'DESPESA';
+  defaultCategoria?: string;
+  defaultDestino?: 'GLOBAL' | 'CASA';
 }
 
 export default function ModalNovoLancamento({
@@ -28,7 +31,10 @@ export default function ModalNovoLancamento({
   onClose,
   onSuccess,
   defaultEmpreendimentoId,
-  defaultCasaId
+  defaultCasaId,
+  defaultNatureza,
+  defaultCategoria,
+  defaultDestino
 }: ModalNovoLancamentoProps) {
   const [step, setStep] = useState(1);
   const [loadingData, setLoadingData] = useState(false);
@@ -66,6 +72,11 @@ export default function ModalNovoLancamento({
     // Reset wizard
     setStep(1);
     setErrorMsg(null);
+    setDescricao('');
+    setValor('');
+    setInsumoId('');
+    setQuantidade('1');
+    setClienteId('');
 
     const loadInitialData = async () => {
       setLoadingData(true);
@@ -90,8 +101,26 @@ export default function ModalNovoLancamento({
         if (defaultCasaId) {
           setCasaId(defaultCasaId);
           setDestino('CASA');
+        } else if (defaultDestino) {
+          setDestino(defaultDestino);
         } else {
           setDestino('CASA');
+        }
+
+        if (defaultNatureza) {
+          setNatureza(defaultNatureza);
+        }
+        if (defaultCategoria) {
+          setCategoria(defaultCategoria);
+        }
+
+        // Determine starting step
+        if (defaultNatureza && defaultEmpreendimentoId && (defaultDestino === 'GLOBAL' || defaultCasaId)) {
+          setStep(3);
+        } else if (defaultNatureza) {
+          setStep(2);
+        } else {
+          setStep(1);
         }
       } catch (err) {
         console.error('Erro ao carregar dados do modal:', err);
@@ -101,7 +130,7 @@ export default function ModalNovoLancamento({
     };
 
     loadInitialData();
-  }, [isOpen, defaultEmpreendimentoId, defaultCasaId]);
+  }, [isOpen, defaultEmpreendimentoId, defaultCasaId, defaultNatureza, defaultCategoria, defaultDestino]);
 
   // Load houses when empreendimento changes
   useEffect(() => {

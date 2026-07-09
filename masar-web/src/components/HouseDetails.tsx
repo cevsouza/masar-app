@@ -33,6 +33,7 @@ import {
   Calculator
 } from 'lucide-react';
 import GedManager from '@/components/GedManager';
+import ModalNovoLancamento from './ModalNovoLancamento';
 import {
   BarChart,
   Bar,
@@ -120,12 +121,8 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   const [budgetCustoUnitario, setBudgetCustoUnitario] = useState('');
   const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
 
-  // Direct Apropriacao Form State
-  const [isApropModalOpen, setIsApropModalOpen] = useState(false);
-  const [apropInsumoId, setApropInsumoId] = useState('');
-  const [apropQuantidade, setApropQuantidade] = useState('');
-  const [apropCustoUnitario, setApropCustoUnitario] = useState('');
-  const [isSubmittingAprop, setIsSubmittingAprop] = useState(false);
+  // Universal Financial Modal State
+  const [isUniversalModalOpen, setIsUniversalModalOpen] = useState(false);
 
   // Physical evolution state
   const [statusObra, setStatusObra] = useState(initialCasa.statusObra);
@@ -495,40 +492,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
     }
   };
 
-  const handleSaveApropDirect = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!apropInsumoId || !apropQuantidade || !apropCustoUnitario) return;
-    setIsSubmittingAprop(true);
-    try {
-      const computedCustoTotal = parseFloat(apropQuantidade) * parseFloat(apropCustoUnitario);
-      const res = await fetch(`/api/casas/${initialCasa.id}/apropriacoes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          insumoId: apropInsumoId,
-          quantidadeReal: parseFloat(apropQuantidade),
-          custoTotal: computedCustoTotal
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao lançar apropriação.');
-      
-      if (data.warning === 'OVERBUDGET_DETECTION') {
-        alert('⚠️ Alerta de Estouro: Esta despesa ultrapassou o orçamento planejado e ficou pendente de aprovação do sócio.');
-      } else {
-        alert('✓ Custo apropriado e lançado com sucesso!');
-      }
-      setIsApropModalOpen(false);
-      setApropInsumoId('');
-      setApropQuantidade('');
-      setApropCustoUnitario('');
-      router.refresh();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setIsSubmittingAprop(false);
-    }
-  };
+
 
   const handleDeleteApropriacao = async (apropId: string) => {
     if (!confirm('Deseja realmente estornar/excluir este custo apropriado?')) return;
@@ -1066,9 +1030,18 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
             {/* Extrato Ledger Table */}
             <div className="glassmorphism p-6 rounded-2xl border border-slate-850">
-              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-1.5 uppercase tracking-wider">
-                <FileSpreadsheet size={16} className="text-indigo-400" /> Extrato Financeiro Completo da Obra
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                <h3 className="text-sm font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
+                  <FileSpreadsheet size={16} className="text-indigo-400" /> Extrato Financeiro Completo da Obra
+                </h3>
+                <button
+                  onClick={() => setIsUniversalModalOpen(true)}
+                  className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 border border-indigo-500/25 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <DollarSign size={14} />
+                  + Lançar Custo / Receita do Lote
+                </button>
+              </div>
               
               <div className="overflow-x-auto border border-slate-900 rounded-xl">
                 <table className="w-full text-left border-collapse text-xs">
@@ -1719,112 +1692,18 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
         </div>
       )}
 
-      {/* MODAL: LANÇAR CUSTO REALIZADO (APROPRIAÇÃO) DIRECT */}
-      {isApropModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
-            <button 
-              onClick={() => setIsApropModalOpen(false)} 
-              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
-            >
-              <X size={16} />
-            </button>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-slate-850 pb-2 flex items-center gap-2">
-              <DollarSign size={16} className="text-emerald-400" /> Apropriar Custo Efetivo Realizado
-            </h4>
-            <form onSubmit={handleSaveApropDirect} className="space-y-4 text-xs">
-              <div>
-                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Insumo Utilizado *</label>
-                <select
-                  value={apropInsumoId}
-                  onChange={(e) => setApropInsumoId(e.target.value)}
-                  required
-                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                >
-                  <option value="">-- Escolha o Insumo --</option>
-                  {allInsumos.map(i => (
-                    <option key={i.id} value={i.id}>{i.nome} ({i.unidadeMedida})</option>
-                  ))}
-                </select>
-                {(() => {
-                  const selectedApropInsumo = allInsumos.find(i => i.id === apropInsumoId);
-                  if (!selectedApropInsumo) return null;
-                  const type = getInsumoMCMVType(selectedApropInsumo.nome, selectedApropInsumo.categoria);
-                  return type === 'FIXO' ? (
-                    <div className="mt-2 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded text-[9px] font-bold inline-block uppercase">
-                      Custo Fixo (Cronograma)
-                    </div>
-                  ) : (
-                    <div className="mt-2 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded text-[9px] font-bold inline-block uppercase">
-                      Custo Variável (Produção)
-                    </div>
-                  );
-                })()}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Quantidade Efetiva *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    placeholder="Ex: 5"
-                    value={apropQuantidade}
-                    onChange={(e) => setApropQuantidade(e.target.value)}
-                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Custo Unitário Efetivo *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    placeholder="Ex: 30.00"
-                    value={apropCustoUnitario}
-                    onChange={(e) => setApropCustoUnitario(e.target.value)}
-                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
-                  />
-                </div>
-              </div>
-
-              {(() => {
-                const calculatedCustoTotal = (parseFloat(apropQuantidade) || 0) * (parseFloat(apropCustoUnitario) || 0);
-                if (calculatedCustoTotal === 0) return null;
-                return (
-                  <div>
-                    <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Custo Total Efetivo (Calculado)</label>
-                    <div className="w-full bg-slate-900/40 border border-slate-800 rounded-xl px-3 py-2 text-emerald-400 font-bold font-mono">
-                      {formatCurrency(calculatedCustoTotal)}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="flex gap-2 justify-end pt-3 border-t border-slate-850">
-                <button
-                  type="button"
-                  onClick={() => setIsApropModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 font-bold rounded-xl cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingAprop}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-emerald-500/10"
-                >
-                  {isSubmittingAprop && <Loader2 size={12} className="animate-spin" />}
-                  Lançar Custo Real
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {isUniversalModalOpen && (
+        <ModalNovoLancamento
+          isOpen={isUniversalModalOpen}
+          onClose={() => setIsUniversalModalOpen(false)}
+          defaultEmpreendimentoId={initialCasa.empreendimentoId}
+          defaultCasaId={initialCasa.id}
+          defaultDestino="CASA"
+          defaultNatureza="DESPESA"
+          onSuccess={() => {
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );
