@@ -7,14 +7,18 @@ import {
   Clock, 
   MapPin, 
   Link as LinkIcon, 
-  Copy, 
   ArrowRight, 
   CheckCircle, 
   FileText, 
   AlertTriangle,
   Sparkles,
   ShieldAlert,
-  Loader2
+  Loader2,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  Upload
 } from 'lucide-react';
 
 interface Cotacao {
@@ -46,15 +50,47 @@ interface Solicitacao {
 
 interface SuprimentosInboxProps {
   initialSolicitacoes: any[];
+  casas?: any[];
+  insumos?: any[];
+  empreendimentos?: any[];
 }
 
-export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInboxProps) {
+export default function SuprimentosInbox({ 
+  initialSolicitacoes,
+  casas = [],
+  insumos = [],
+  empreendimentos = []
+}: SuprimentosInboxProps) {
   const router = useRouter();
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>(initialSolicitacoes);
   const [selectedId, setSelectedId] = useState<string>(initialSolicitacoes[0]?.id || '');
   
   const [loading, setLoading] = useState(false);
   const [overrunData, setOverrunData] = useState<{ message: string; cotacaoId: string } | null>(null);
+
+  // Modals state
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isManualQuoteOpen, setIsManualQuoteOpen] = useState(false);
+
+  // Create Requisition Form State
+  const [newEmpreendimentoId, setNewEmpreendimentoId] = useState('');
+  const [newCasaId, setNewCasaId] = useState('');
+  const [newInsumoId, setNewInsumoId] = useState('');
+  const [newQuantidade, setNewQuantidade] = useState('');
+  const [newDataNecessidade, setNewDataNecessidade] = useState('');
+
+  // Edit Requisition Form State
+  const [editQuantidade, setEditQuantidade] = useState('');
+  const [editDataNecessidade, setEditDataNecessidade] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+
+  // Manual Quote Form State
+  const [quoteFornecedor, setQuoteFornecedor] = useState('');
+  const [quoteValorUnitario, setQuoteValorUnitario] = useState('');
+  const [quotePrazoEntrega, setQuotePrazoEntrega] = useState('');
+  const [quoteFile, setQuoteFile] = useState<File | null>(null);
+  const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
 
   const selectedSol = solicitacoes.find(s => s.id === selectedId);
 
@@ -109,7 +145,7 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
 
       alert(force ? '✓ Ordem de Compra Excepcional emitida com sucesso (auditada).' : '✓ Ordem de Compra emitida e estoque movimentado com sucesso!');
       router.refresh();
-      // Atualiza estado local simplificado
+      
       setSolicitacoes(prev => prev.map(s => {
         if (s.id === selectedId) {
           return { ...s, status: 'APROVADA' };
@@ -120,6 +156,150 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
       alert(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateRequisition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newInsumoId || !newQuantidade || !newDataNecessidade) {
+      alert('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/suprimentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empreendimentoId: newEmpreendimentoId || null,
+          casaId: newCasaId || null,
+          insumoId: newInsumoId,
+          quantidadeSolicitada: parseFloat(newQuantidade),
+          dataNecessidade: newDataNecessidade
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao criar requisição.');
+
+      alert('✓ Requisição de compra criada com sucesso!');
+      setIsCreateOpen(false);
+      
+      // Reset form
+      setNewEmpreendimentoId('');
+      setNewCasaId('');
+      setNewInsumoId('');
+      setNewQuantidade('');
+      setNewDataNecessidade('');
+
+      // Refresh page to load updated data
+      router.refresh();
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditModal = () => {
+    if (!selectedSol) return;
+    setEditQuantidade(selectedSol.quantidadeSolicitada.toString());
+    setEditDataNecessidade(new Date(selectedSol.dataNecessidade).toISOString().split('T')[0]);
+    setEditStatus(selectedSol.status);
+    setIsEditOpen(true);
+  };
+
+  const handleEditRequisition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedId || !editQuantidade || !editDataNecessidade) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/suprimentos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedId,
+          quantidadeSolicitada: parseFloat(editQuantidade),
+          status: editStatus,
+          dataNecessidade: editDataNecessidade
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao editar requisição.');
+
+      alert('✓ Requisição de compra atualizada!');
+      setIsEditOpen(false);
+      router.refresh();
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRequisition = async () => {
+    if (!selectedId) return;
+    if (!confirm('Deseja realmente excluir esta requisição de compra?')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/suprimentos?id=${selectedId}`, {
+        method: 'DELETE'
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao excluir requisição.');
+
+      alert('✓ Requisição excluída com sucesso.');
+      setSelectedId('');
+      router.refresh();
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateManualQuote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedId || !quoteFornecedor || !quoteValorUnitario || !quotePrazoEntrega) {
+      alert('Preencha todos os campos obrigatórios.');
+      return;
+    }
+    setIsSubmittingQuote(true);
+    try {
+      const formData = new FormData();
+      formData.append('solicitacaoId', selectedId);
+      formData.append('fornecedorNome', quoteFornecedor);
+      formData.append('valorUnitario', quoteValorUnitario);
+      formData.append('prazoEntregaDias', quotePrazoEntrega);
+      if (quoteFile) {
+        formData.append('file', quoteFile);
+      }
+
+      const res = await fetch('/api/suprimentos/cotacao', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao lançar cotação.');
+
+      alert('✓ Cotação manual registrada!');
+      setIsManualQuoteOpen(false);
+      setQuoteFornecedor('');
+      setQuoteValorUnitario('');
+      setQuotePrazoEntrega('');
+      setQuoteFile(null);
+      router.refresh();
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSubmittingQuote(false);
     }
   };
 
@@ -138,12 +318,25 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
     }
   };
 
+  // Filter houses based on selected Empreendimento in form
+  const filteredCasasForForm = newEmpreendimentoId
+    ? casas.filter(c => c.empreendimento.id === newEmpreendimentoId)
+    : casas;
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-xs text-slate-300">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-xs text-slate-350 relative">
       
-      {/* Coluna Esquerda: Lista de Requisições (Caixa de Entrada) */}
+      {/* Coluna Esquerda: Lista de Requisições */}
       <div className="lg:col-span-5 space-y-4">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider block">Requisições de Compra</h3>
+        <div className="flex justify-between items-center">
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider block">Requisições de Compra</h3>
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-blue-500/15"
+          >
+            <Plus size={14} /> Nova Requisição
+          </button>
+        </div>
         
         <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1">
           {solicitacoes.map(s => {
@@ -174,7 +367,7 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
                     <MapPin size={10} /> {dest}
                   </p>
                   <p className="text-[10px] font-mono text-slate-500">
-                    Qtd: {s.quantidadeSolicitada} {s.insumo.unidadeMedida} | Data: {formatDate(s.dataCriacao)}
+                    Qtd: {s.quantidadeSolicitada} {s.insumo.unidadeMedida} | Necessidade: {formatDate(s.dataNecessidade)}
                   </p>
                 </div>
 
@@ -206,16 +399,36 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
               <div>
                 <h4 className="text-base font-bold text-white">{selectedSol.insumo.nome}</h4>
                 <p className="text-xs text-slate-400 mt-1">
-                  Quantidade total solicitada: <strong>{selectedSol.quantidadeSolicitada} {selectedSol.insumo.unidadeMedida}</strong>
+                  Quantidade solicitada: <strong>{selectedSol.quantidadeSolicitada} {selectedSol.insumo.unidadeMedida}</strong> | Status: <strong className="text-slate-350">{selectedSol.status}</strong>
                 </p>
               </div>
-              <button
-                onClick={() => handleCopyLink(selectedSol.tokenCotacao)}
-                className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1 transition cursor-pointer"
-                title="Copiar Link para Lojista preencher"
-              >
-                <LinkIcon size={12} /> Copiar Link Lojista
-              </button>
+              <div className="flex gap-2">
+                {selectedSol.status !== 'APROVADA' && (
+                  <>
+                    <button
+                      onClick={openEditModal}
+                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition cursor-pointer"
+                      title="Editar Requisição"
+                    >
+                      <Edit2 size={12} />
+                    </button>
+                    <button
+                      onClick={handleDeleteRequisition}
+                      className="p-2 bg-red-950/40 border border-red-500/10 hover:border-red-500/30 text-red-400 rounded-xl transition cursor-pointer"
+                      title="Excluir Requisição"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => handleCopyLink(selectedSol.tokenCotacao)}
+                  className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1 transition cursor-pointer"
+                  title="Copiar Link para Lojista preencher"
+                >
+                  <LinkIcon size={12} /> Link Lojista
+                </button>
+              </div>
             </div>
 
             {/* Trava de Orçamento (Excepcional) */}
@@ -250,9 +463,19 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
 
             {/* Lista de Cotações */}
             <div className="space-y-4">
-              <h5 className="font-bold text-white text-xs flex items-center gap-1.5">
-                <Sparkles size={14} className="text-amber-400" /> Respostas de Lojistas Recebidas
-              </h5>
+              <div className="flex justify-between items-center">
+                <h5 className="font-bold text-white text-xs flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-amber-400" /> Respostas de Lojistas Recebidas
+                </h5>
+                {selectedSol.status !== 'APROVADA' && (
+                  <button
+                    onClick={() => setIsManualQuoteOpen(true)}
+                    className="py-1 px-2.5 bg-indigo-650/40 hover:bg-indigo-650 text-indigo-400 hover:text-white border border-indigo-500/15 rounded-lg text-[10px] font-semibold transition cursor-pointer"
+                  >
+                    Lançar Cotação Manual
+                  </button>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selectedSol.cotacoes.map(c => {
@@ -282,7 +505,7 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
                         </p>
                       </div>
 
-                      <div className="flex justify-between items-baseline pt-2 border-t border-slate-800/60">
+                      <div className="flex justify-between items-baseline pt-2 border-t border-slate-888/10">
                         <div>
                           <span className="text-[9px] text-slate-500 uppercase block">Unitário</span>
                           <span className="font-mono text-xs text-slate-300 font-bold">{formatCurrency(c.valorUnitario)}</span>
@@ -312,7 +535,7 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
                     <AlertTriangle className="text-amber-500 mx-auto" size={24} />
                     <p className="font-bold text-white text-xs">Nenhuma cotação recebida para esta requisição.</p>
                     <p className="text-[10px] text-slate-500 max-w-xs mx-auto">
-                      Envie o link de cotação pública aos seus lojistas parceiros para que eles insiram seus preços diretamente no sistema.
+                      Envie o link de cotação pública aos seus lojistas parceiros ou registre uma cotação manual usando o botão acima.
                     </p>
                   </div>
                 )}
@@ -326,6 +549,310 @@ export default function SuprimentosInbox({ initialSolicitacoes }: SuprimentosInb
           </div>
         )}
       </div>
+
+      {/* MODAL 1: NOVA REQUISIÇÃO DE COMPRA */}
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button 
+              onClick={() => setIsCreateOpen(false)} 
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            >
+              <X size={16} />
+            </button>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-slate-850 pb-2 flex items-center gap-2">
+              <ShoppingBag size={16} className="text-blue-400" /> Nova Requisição de Compra
+            </h4>
+            <form onSubmit={handleCreateRequisition} className="space-y-4">
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Empreendimento (Opcional)</label>
+                <select
+                  value={newEmpreendimentoId}
+                  onChange={(e) => {
+                    setNewEmpreendimentoId(e.target.value);
+                    setNewCasaId('');
+                  }}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                >
+                  <option value="">-- Empreendimento Global --</option>
+                  {empreendimentos.map(e => (
+                    <option key={e.id} value={e.id}>{e.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Casa/Unidade (Opcional)</label>
+                <select
+                  value={newCasaId}
+                  onChange={(e) => {
+                    setNewCasaId(e.target.value);
+                    if (e.target.value) {
+                      const house = casas.find(c => c.id === e.target.value);
+                      if (house) setNewEmpreendimentoId(house.empreendimento.id);
+                    }
+                  }}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                >
+                  <option value="">-- Nenhuma (Geral do Projeto) --</option>
+                  {filteredCasasForForm.map(c => (
+                    <option key={c.id} value={c.id}>Qd {c.quadra}, Casa {c.numero} ({c.empreendimento.nome.split(' ')[0]})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Insumo Padrão *</label>
+                <select
+                  value={newInsumoId}
+                  onChange={(e) => setNewInsumoId(e.target.value)}
+                  required
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                >
+                  <option value="">-- Escolha o Insumo --</option>
+                  {insumos.map(i => (
+                    <option key={i.id} value={i.id}>{i.nome} ({i.unidadeMedida})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Quantidade Necessária *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  placeholder="Ex: 50.0"
+                  value={newQuantidade}
+                  onChange={(e) => setNewQuantidade(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Data Limite de Necessidade *</label>
+                <input
+                  type="date"
+                  required
+                  value={newDataNecessidade}
+                  onChange={(e) => setNewDataNecessidade(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-blue-500/10"
+                >
+                  {loading && <Loader2 size={12} className="animate-spin" />}
+                  Salvar Requisição
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: EDITAR REQUISIÇÃO */}
+      {isEditOpen && selectedSol && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button 
+              onClick={() => setIsEditOpen(false)} 
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            >
+              <X size={16} />
+            </button>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-slate-850 pb-2 flex items-center gap-2">
+              <Edit2 size={16} className="text-blue-400" /> Editar Requisição
+            </h4>
+            <form onSubmit={handleEditRequisition} className="space-y-4">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1 font-semibold uppercase">Insumo (Bloqueado)</label>
+                <input
+                  type="text"
+                  disabled
+                  value={selectedSol.insumo.nome}
+                  className="w-full bg-[#0b0f19] border border-slate-850 rounded-xl px-3 py-2 text-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Quantidade Solicitada *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={editQuantidade}
+                  onChange={(e) => setEditQuantidade(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Data Limite de Necessidade *</label>
+                <input
+                  type="date"
+                  required
+                  value={editDataNecessidade}
+                  onChange={(e) => setEditDataNecessidade(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Status de Aquisição</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                >
+                  <option value="PENDENTE">Pendente</option>
+                  <option value="EM_COTACAO">Em Cotação</option>
+                  <option value="APROVADA">Aprovada (Comprado)</option>
+                  <option value="REJEITADA">Rejeitada</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-blue-500/10"
+                >
+                  {loading && <Loader2 size={12} className="animate-spin" />}
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: LANÇAR COTAÇÃO MANUAL */}
+      {isManualQuoteOpen && selectedSol && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button 
+              onClick={() => setIsManualQuoteOpen(false)} 
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            >
+              <X size={16} />
+            </button>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-slate-850 pb-2 flex items-center gap-2">
+              <Sparkles size={16} className="text-indigo-400" /> Registrar Cotação de Lojista
+            </h4>
+            <form onSubmit={handleCreateManualQuote} className="space-y-4">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1 font-semibold uppercase">Insumo Requisitado</label>
+                <input
+                  type="text"
+                  disabled
+                  value={`${selectedSol.insumo.nome} (${selectedSol.quantidadeSolicitada} ${selectedSol.insumo.unidadeMedida})`}
+                  className="w-full bg-[#0b0f19] border border-slate-850 rounded-xl px-3 py-2 text-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Nome do Lojista/Fornecedor *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Leroy Merlin, Madeireira Silva"
+                  value={quoteFornecedor}
+                  onChange={(e) => setQuoteFornecedor(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Valor Unitário (R$) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    placeholder="Ex: 45.90"
+                    value={quoteValorUnitario}
+                    onChange={(e) => setQuoteValorUnitario(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Prazo de Entrega (Dias) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    placeholder="Ex: 3"
+                    value={quotePrazoEntrega}
+                    onChange={(e) => setQuotePrazoEntrega(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Comprovante de Cotação / PDF (Opcional)</label>
+                <div className="border border-dashed border-slate-800 hover:border-slate-700 rounded-xl p-4 text-center cursor-pointer transition relative">
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setQuoteFile(e.target.files[0]);
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-slate-500">
+                    <Upload size={18} />
+                    <span>{quoteFile ? quoteFile.name : 'Selecionar Orçamento / Proposta PDF'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsManualQuoteOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingQuote}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-indigo-650/15"
+                >
+                  {isSubmittingQuote && <Loader2 size={12} className="animate-spin" />}
+                  Registrar Cotação
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

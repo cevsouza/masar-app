@@ -105,28 +105,74 @@ export async function POST(
   }
 }
 
-// Support updating approval status (Partner/Office View)
+// Support updating cost appropriation details or approval status (Partner/Office View)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
-    const { apropriacaoId, aprovado } = body;
+    const { apropriacaoId, aprovado, quantidadeReal, custoTotal, comprovanteUrl } = body;
 
-    if (!apropriacaoId || aprovado === undefined) {
-      return NextResponse.json({ error: 'ID da apropriação e status de aprovação são obrigatórios' }, { status: 400 });
+    if (!apropriacaoId) {
+      return NextResponse.json({ error: 'ID da apropriação é obrigatório' }, { status: 400 });
     }
+
+    const current = await db.apropriacaoCusto.findUnique({
+      where: { id: apropriacaoId }
+    });
+
+    if (!current) {
+      return NextResponse.json({ error: 'Apropriação não encontrada' }, { status: 404 });
+    }
+
+    const updateData: any = {};
+    if (aprovado !== undefined) updateData.aprovado = Boolean(aprovado);
+    if (quantidadeReal !== undefined) updateData.quantidadeReal = parseFloat(quantidadeReal);
+    if (custoTotal !== undefined) updateData.custoTotal = parseFloat(custoTotal);
+    if (comprovanteUrl !== undefined) updateData.comprovanteUrl = comprovanteUrl;
 
     const apropriacao = await db.apropriacaoCusto.update({
       where: { id: apropriacaoId },
-      data: { aprovado: Boolean(aprovado) },
+      data: updateData,
       include: { insumo: true }
     });
 
     return NextResponse.json(apropriacao);
   } catch (error) {
-    console.error('Erro ao aprovar apropriação:', error);
+    console.error('Erro ao atualizar apropriação:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  }
+}
+
+// DELETE: Excluir uma apropriação de custo
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const apropriacaoId = searchParams.get('apropriacaoId');
+
+    if (!apropriacaoId) {
+      return NextResponse.json({ error: 'ID da apropriação é obrigatório' }, { status: 400 });
+    }
+
+    const current = await db.apropriacaoCusto.findUnique({
+      where: { id: apropriacaoId }
+    });
+
+    if (!current) {
+      return NextResponse.json({ error: 'Apropriação não encontrada' }, { status: 404 });
+    }
+
+    await db.apropriacaoCusto.delete({
+      where: { id: apropriacaoId }
+    });
+
+    return NextResponse.json({ success: true, message: 'Apropriação excluída com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir apropriação:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

@@ -17,6 +17,38 @@ export default async function SuprimentosPage() {
     orderBy: { dataCriacao: 'desc' }
   });
 
+  // Carregar dados de apoio para o modal de criação de requisição
+  const casas = await db.casa.findMany({
+    include: { empreendimento: true },
+    orderBy: { numero: 'asc' }
+  });
+
+  const insumos = await db.insumoPadrao.findMany({
+    orderBy: { nome: 'asc' }
+  });
+
+  const empreendimentos = await db.empreendimento.findMany({
+    orderBy: { nome: 'asc' }
+  });
+
+  // Serializar datas para componentes clientes com segurança
+  const serializedSolicitacoes = solicitacoes.map(s => ({
+    ...s,
+    dataNecessidade: s.dataNecessidade.toISOString(),
+    dataCriacao: s.dataCriacao.toISOString(),
+    cotacoes: s.cotacoes.map(c => ({
+      ...c,
+      dataCriacao: c.dataCriacao.toISOString()
+    }))
+  }));
+
+  const serializedCasas = casas.map(c => ({
+    id: c.id,
+    numero: c.numero,
+    quadra: c.quadra,
+    empreendimento: { nome: c.empreendimento.nome, id: c.empreendimento.id }
+  }));
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -26,7 +58,12 @@ export default async function SuprimentosPage() {
         </p>
       </div>
 
-      <SuprimentosInbox initialSolicitacoes={solicitacoes} />
+      <SuprimentosInbox 
+        initialSolicitacoes={serializedSolicitacoes} 
+        casas={serializedCasas}
+        insumos={insumos}
+        empreendimentos={empreendimentos}
+      />
     </div>
   );
 }

@@ -25,7 +25,10 @@ import {
   ShieldCheck,
   Activity,
   FileText,
-  X
+  X,
+  Edit2,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import GedManager from '@/components/GedManager';
 import {
@@ -60,6 +63,20 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'geral' | 'financeiro' | 'infra' | 'ged'>('geral');
   const [isUpdatingApproval, setIsUpdatingApproval] = useState<string | null>(null);
+
+  // Budget (Previsto) Form State
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [budgetInsumoId, setBudgetInsumoId] = useState('');
+  const [budgetQuantidade, setBudgetQuantidade] = useState('');
+  const [budgetCustoUnitario, setBudgetCustoUnitario] = useState('');
+  const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
+
+  // Direct Apropriacao Form State
+  const [isApropModalOpen, setIsApropModalOpen] = useState(false);
+  const [apropInsumoId, setApropInsumoId] = useState('');
+  const [apropQuantidade, setApropQuantidade] = useState('');
+  const [apropCustoTotal, setApropCustoTotal] = useState('');
+  const [isSubmittingAprop, setIsSubmittingAprop] = useState(false);
 
   // Physical evolution state
   const [statusObra, setStatusObra] = useState(initialCasa.statusObra);
@@ -269,13 +286,113 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   const handleApproveApropriacao = async (apropriacaoId: string, aprovado: boolean) => {
     setIsUpdatingApproval(apropriacaoId);
     try {
-      await fetch(`/api/casas/${initialCasa.id}/apropriacoes`, {
+      const res = await fetch(`/api/casas/${initialCasa.id}/apropriacoes`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apropriacaoId, aprovado })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao atualizar aprovação.');
+      alert(aprovado ? '✓ Apropriação aprovada!' : 'Apropriação rejeitada.');
       router.refresh();
-    } catch (err) { alert('Erro'); } finally { setIsUpdatingApproval(null); }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsUpdatingApproval(null);
+    }
+  };
+
+  const handleSaveBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!budgetInsumoId || !budgetQuantidade || !budgetCustoUnitario) return;
+    setIsSubmittingBudget(true);
+    try {
+      const res = await fetch(`/api/casas/${initialCasa.id}/orcamento`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insumoId: budgetInsumoId,
+          quantidadePlanejada: parseFloat(budgetQuantidade),
+          custoUnitarioPrevisto: parseFloat(budgetCustoUnitario)
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar item de orçamento.');
+      alert('✓ Item de orçamento planejado salvo!');
+      setIsBudgetModalOpen(false);
+      setBudgetInsumoId('');
+      setBudgetQuantidade('');
+      setBudgetCustoUnitario('');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSubmittingBudget(false);
+    }
+  };
+
+  const handleDeleteBudget = async (insumoId: string) => {
+    if (!confirm('Deseja realmente remover este insumo do orçamento planejado?')) return;
+    try {
+      const res = await fetch(`/api/casas/${initialCasa.id}/orcamento?insumoId=${insumoId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao remover item.');
+      alert('✓ Item removido do orçamento.');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleSaveApropDirect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!apropInsumoId || !apropQuantidade || !apropCustoTotal) return;
+    setIsSubmittingAprop(true);
+    try {
+      const res = await fetch(`/api/casas/${initialCasa.id}/apropriacoes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insumoId: apropInsumoId,
+          quantidadeReal: parseFloat(apropQuantidade),
+          custoTotal: parseFloat(apropCustoTotal)
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao lançar apropriação.');
+      
+      if (data.warning === 'OVERBUDGET_DETECTION') {
+        alert('⚠️ Alerta de Estouro: Esta despesa ultrapassou o orçamento planejado e ficou pendente de aprovação do sócio.');
+      } else {
+        alert('✓ Custo apropriado e lançado com sucesso!');
+      }
+      setIsApropModalOpen(false);
+      setApropInsumoId('');
+      setApropQuantidade('');
+      setApropCustoTotal('');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSubmittingAprop(false);
+    }
+  };
+
+  const handleDeleteApropriacao = async (apropId: string) => {
+    if (!confirm('Deseja realmente estornar/excluir este custo apropriado?')) return;
+    try {
+      const res = await fetch(`/api/casas/${initialCasa.id}/apropriacoes?apropriacaoId=${apropId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao excluir apropriação.');
+      alert('✓ Custo estornado com sucesso.');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    }
   };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -358,7 +475,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
       <div className="flex border-b border-slate-800/60 pb-px gap-1 bg-[#101625]/30 p-1.5 rounded-xl">
         <button onClick={() => setActiveTab('geral')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'geral' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
-          <Hammer size={14} /> Geral & Vistoria CEF
+          <Hammer size={14} /> Geral & Vistoria Caixa Econômica Federal (CEF)
         </button>
         <button onClick={() => setActiveTab('financeiro')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'financeiro' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
           <DollarSign size={14} /> Finanças & Custos
@@ -367,7 +484,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           <Lightbulb size={14} /> Diário & Utilidades
         </button>
         <button onClick={() => setActiveTab('ged')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'ged' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
-          <FileText size={14} /> Documentação (GED)
+          <FileText size={14} /> Documentação - Gestão Eletrônica de Documentos (GED)
         </button>
       </div>
 
@@ -688,83 +805,221 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
       {activeTab === 'financeiro' && (
         <div className="space-y-6">
+          {/* Top Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="glassmorphism p-5 rounded-2xl border border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Orçamento Previsto</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Orçamento Previsto (Planejado)</span>
               <h3 className="text-xl font-bold text-indigo-400 font-mono mt-1.5">{formatCurrency(totalOrado)}</h3>
             </div>
             <div className="glassmorphism p-5 rounded-2xl border border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Custo Efetivo Realizado</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Custo Efetivo Realizado</span>
               <h3 className="text-xl font-bold text-emerald-400 font-mono mt-1.5">{formatCurrency(totalRealAprovado)}</h3>
             </div>
             <div className="glassmorphism p-5 rounded-2xl border border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Bloqueado em Análise</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Bloqueado em Análise</span>
               <h3 className="text-xl font-bold text-amber-500 font-mono mt-1.5">{formatCurrency(totalRealPendente)}</h3>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-5 glassmorphism p-5 rounded-2xl border border-slate-800/80 flex flex-col justify-between min-h-[320px]">
-              <div>
-                <h3 className="text-sm font-bold text-white">Previsto vs Realizado</h3>
-              </div>
-              
-              {totalOrado === 0 && totalRealAprovado === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-10">Orçamento não cadastrado.</p>
-              ) : (
-                <div className="h-52 w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                      <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f1422', borderColor: '#1e293b' }} itemStyle={{ fontSize: '11px', color: '#fff' }} labelStyle={{ fontSize: '11px', fontWeight: 'bold' }} formatter={(val) => [formatCurrency(val as number), 'Valor']} />
-                      <Bar dataKey="valor" radius={[8, 8, 0, 0]}>
-                        {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+            {/* Coluna Esquerda: Gráfico & Ações */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 flex flex-col justify-between min-h-[320px]">
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Previsto vs Realizado</h3>
                 </div>
-              )}
+                
+                {totalOrado === 0 && totalRealAprovado === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-10">Orçamento não cadastrado.</p>
+                ) : (
+                  <div className="h-52 w-full mt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                        <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0f1422', borderColor: '#1e293b' }} itemStyle={{ fontSize: '11px', color: '#fff' }} labelStyle={{ fontSize: '11px', fontWeight: 'bold' }} formatter={(val) => [formatCurrency(val as number), 'Valor']} />
+                        <Bar dataKey="valor" radius={[8, 8, 0, 0]}>
+                          {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Painel de Ações Rápidas */}
+              <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 space-y-4">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Ações de Custos do Lote</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => {
+                      setApropInsumoId('');
+                      setApropQuantidade('');
+                      setApropCustoTotal('');
+                      setIsApropModalOpen(true);
+                    }}
+                    className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-center transition cursor-pointer shadow-lg shadow-emerald-555/10"
+                  >
+                    Lançar Custo Real
+                  </button>
+                  <button
+                    onClick={() => {
+                      setBudgetInsumoId('');
+                      setBudgetQuantidade('');
+                      setBudgetCustoUnitario('');
+                      setIsBudgetModalOpen(true);
+                    }}
+                    className="py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-center transition cursor-pointer shadow-lg shadow-blue-555/10"
+                  >
+                    Novo Item de Orçamento
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="lg:col-span-7 glassmorphism p-5 rounded-2xl border border-slate-800/80">
-              <h3 className="text-sm font-bold text-white mb-4">Curva ABC de Custos</h3>
-              <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-900/30 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Insumo</th>
-                      <th className="py-2.5 px-3">Categoria</th>
-                      <th className="py-2.5 px-3 text-right">Previsto</th>
-                      <th className="py-2.5 px-3 text-right">Realizado</th>
-                      <th className="py-2.5 px-3 text-right">Desvio</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                    {totalABC.map((abc, index) => {
-                      const desvioPercent = abc.previsto > 0 ? (abc.desvio / abc.previsto) * 100 : 100;
-                      const isOver = abc.desvio > 0;
-                      return (
-                        <tr key={index} className="hover:bg-slate-800/5">
-                          <td className="py-2.5 px-3 font-semibold text-slate-200">{abc.nome}</td>
-                          <td className="py-2.5 px-3 uppercase text-[9px] font-bold text-slate-400">{abc.categoria.replace('_', ' ')}</td>
-                          <td className="py-2.5 px-3 text-right font-mono">{formatCurrency(abc.previsto)}</td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-200">{formatCurrency(abc.realizado)}</td>
-                          <td className={`py-2.5 px-3 text-right font-mono font-bold ${isOver ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {abc.desvio === 0 ? '—' : `${isOver ? '+' : ''}${formatCurrency(abc.desvio)} (${desvioPercent.toFixed(0)}%)`}
+            {/* Coluna Direita: Tabelas de Orçamento e Custos Realizados */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* Orçamento Previsto */}
+              <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
+                <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider flex justify-between items-center">
+                  <span>Orçamento Previsto (Itens do Lote)</span>
+                </h3>
+                <div className="overflow-x-auto border border-slate-800/60 rounded-xl max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-900/40 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                        <th className="py-2 px-3">Insumo</th>
+                        <th className="py-2 px-3 text-right">Qtd Prevista</th>
+                        <th className="py-2 px-3 text-right">Unitário</th>
+                        <th className="py-2 px-3 text-right">Total Previsto</th>
+                        <th className="py-2 px-3 text-center">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50 text-slate-300">
+                      {initialCasa.orcamento?.itens.map((item: any) => (
+                        <tr key={item.id} className="hover:bg-slate-800/5">
+                          <td className="py-2 px-3 font-semibold text-slate-200">{item.insumo.nome}</td>
+                          <td className="py-2 px-3 text-right font-mono">{item.quantidadePlanejada} {item.insumo.unidadeMedida}</td>
+                          <td className="py-2 px-3 text-right font-mono">{formatCurrency(item.custoUnitarioPrevisto)}</td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-indigo-400">
+                            {formatCurrency(item.quantidadePlanejada * item.custoUnitarioPrevisto)}
+                          </td>
+                          <td className="py-2 px-3 text-center flex justify-center gap-1.5">
+                            <button
+                              onClick={() => {
+                                setBudgetInsumoId(item.insumoId);
+                                setBudgetQuantidade(item.quantidadePlanejada.toString());
+                                setBudgetCustoUnitario(item.custoUnitarioPrevisto.toString());
+                                setIsBudgetModalOpen(true);
+                              }}
+                              className="p-1 hover:bg-slate-800 text-blue-400 hover:text-blue-300 rounded transition cursor-pointer"
+                              title="Editar item"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBudget(item.insumoId)}
+                              className="p-1 hover:bg-slate-800 text-red-400 hover:text-red-300 rounded transition cursor-pointer"
+                              title="Excluir item"
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      ))}
+                      {(!initialCasa.orcamento || initialCasa.orcamento.itens.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-slate-500 italic">Nenhum item orçado para esta casa.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Custos Realizados */}
+              <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
+                <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Histórico de Custos Realizados (Aprovados)</h3>
+                <div className="overflow-x-auto border border-slate-800/60 rounded-xl max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-900/40 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                        <th className="py-2 px-3">Data</th>
+                        <th className="py-2 px-3">Insumo</th>
+                        <th className="py-2 px-3 text-right">Qtd Efetiva</th>
+                        <th className="py-2 px-3 text-right">Custo Total</th>
+                        <th className="py-2 px-3 text-center">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50 text-slate-300">
+                      {initialCasa.apropriacoes?.filter((ap: any) => ap.aprovado).map((ap: any) => (
+                        <tr key={ap.id} className="hover:bg-slate-800/5">
+                          <td className="py-2 px-3 font-mono text-slate-400">{formatDate(ap.dataAplicacao)}</td>
+                          <td className="py-2 px-3 font-semibold text-slate-200">{ap.insumo.nome}</td>
+                          <td className="py-2 px-3 text-right font-mono">{ap.quantidadeReal} {ap.insumo.unidadeMedida}</td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-emerald-400">{formatCurrency(ap.custoTotal)}</td>
+                          <td className="py-2 px-3 text-center">
+                            <button
+                              onClick={() => handleDeleteApropriacao(ap.id)}
+                              className="p-1 hover:bg-slate-800 text-red-400 hover:text-red-300 rounded transition cursor-pointer"
+                              title="Estornar custo"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {initialCasa.apropriacoes?.filter((ap: any) => ap.aprovado).length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-slate-500 italic">Nenhum custo apropriado registrado.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
 
+          {/* Curva ABC de Custos */}
+          <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Curva ABC de Custos (Comparativo Lote)</h3>
+            <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-900/30 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                    <th className="py-2.5 px-3">Insumo</th>
+                    <th className="py-2.5 px-3">Categoria</th>
+                    <th className="py-2.5 px-3 text-right">Previsto</th>
+                    <th className="py-2.5 px-3 text-right">Realizado</th>
+                    <th className="py-2.5 px-3 text-right">Desvio</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/50 text-slate-300">
+                  {totalABC.map((abc, index) => {
+                    const desvioPercent = abc.previsto > 0 ? (abc.desvio / abc.previsto) * 100 : 100;
+                    const isOver = abc.desvio > 0;
+                    return (
+                      <tr key={index} className="hover:bg-slate-800/5">
+                        <td className="py-2.5 px-3 font-semibold text-slate-200">{abc.nome}</td>
+                        <td className="py-2.5 px-3 uppercase text-[9px] font-bold text-slate-400">{abc.categoria.replace('_', ' ')}</td>
+                        <td className="py-2.5 px-3 text-right font-mono">{formatCurrency(abc.previsto)}</td>
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-200">{formatCurrency(abc.realizado)}</td>
+                        <td className={`py-2.5 px-3 text-right font-mono font-bold ${isOver ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {abc.desvio === 0 ? '—' : `${isOver ? '+' : ''}${formatCurrency(abc.desvio)} (${desvioPercent.toFixed(0)}%)`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Autorizações Pendentes */}
           <div className="glassmorphism p-5 rounded-2xl border border-slate-850">
             <h3 className="text-sm font-bold text-white mb-1.5 flex items-center gap-2">
-              <ShieldCheck className="text-amber-500" size={18} /> Autorizações Pendentes
+              <ShieldCheck className="text-amber-500" size={18} /> Autorizações de Estouro Pendentes
             </h3>
             <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
               <table className="w-full text-left border-collapse text-xs">
@@ -783,10 +1038,15 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                       <td className="py-3.5 px-4 font-bold">{ap.insumo.nome}</td>
                       <td className="py-3.5 px-4 font-mono font-bold text-amber-500">{formatCurrency(ap.custoTotal)}</td>
                       <td className="py-3.5 px-4 text-center">
-                        <button onClick={() => handleApproveApropriacao(ap.id, true)} disabled={isUpdatingApproval === ap.id} className="px-2.5 py-1 bg-emerald-600 rounded text-[10px] font-bold">Aprovar</button>
+                        <button onClick={() => handleApproveApropriacao(ap.id, true)} disabled={isUpdatingApproval === ap.id} className="px-2.5 py-1 bg-emerald-600 rounded text-[10px] font-bold cursor-pointer">Aprovar</button>
                       </td>
                     </tr>
                   ))}
+                  {initialCasa.apropriacoes?.filter((ap: any) => !ap.aprovado).length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-slate-500 italic">Nenhuma apropriação pendente de liberação.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1000,6 +1260,165 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-lg shadow-blue-500/10"
                 >
                   Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL: MANIPULAR ORÇAMENTO PREVISTO */}
+      {isBudgetModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button 
+              onClick={() => setIsBudgetModalOpen(false)} 
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            >
+              <X size={16} />
+            </button>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-slate-850 pb-2 flex items-center gap-2">
+              <DollarSign size={16} className="text-blue-400" /> Definir Item de Orçamento Previsto
+            </h4>
+            <form onSubmit={handleSaveBudget} className="space-y-4 text-xs">
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Insumo Padrão *</label>
+                <select
+                  value={budgetInsumoId}
+                  onChange={(e) => setBudgetInsumoId(e.target.value)}
+                  required
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                >
+                  <option value="">-- Escolha o Insumo --</option>
+                  {allInsumos.map(i => (
+                    <option key={i.id} value={i.id}>{i.nome} ({i.unidadeMedida})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Quantidade Planejada *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  placeholder="Ex: 100.0"
+                  value={budgetQuantidade}
+                  onChange={(e) => setBudgetQuantidade(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Custo Unitário Previsto (R$) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  placeholder="Ex: 35.50"
+                  value={budgetCustoUnitario}
+                  onChange={(e) => setBudgetCustoUnitario(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsBudgetModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 font-bold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingBudget}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-blue-500/10"
+                >
+                  {isSubmittingBudget && <Loader2 size={12} className="animate-spin" />}
+                  Salvar Previsto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: LANÇAR CUSTO REALIZADO (APROPRIAÇÃO) DIRECT */}
+      {isApropModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button 
+              onClick={() => setIsApropModalOpen(false)} 
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            >
+              <X size={16} />
+            </button>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-slate-850 pb-2 flex items-center gap-2">
+              <DollarSign size={16} className="text-emerald-400" /> Apropriar Custo Efetivo Realizado
+            </h4>
+            <form onSubmit={handleSaveApropDirect} className="space-y-4 text-xs">
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Insumo Utilizado *</label>
+                <select
+                  value={apropInsumoId}
+                  onChange={(e) => setApropInsumoId(e.target.value)}
+                  required
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                >
+                  <option value="">-- Escolha o Insumo --</option>
+                  {allInsumos.map(i => (
+                    <option key={i.id} value={i.id}>{i.nome} ({i.unidadeMedida})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Quantidade Efetiva *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    placeholder="Ex: 5"
+                    value={apropQuantidade}
+                    onChange={(e) => setApropQuantidade(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Custo Total Efetivo *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    placeholder="Ex: 150.00"
+                    value={apropCustoTotal}
+                    onChange={(e) => setApropCustoTotal(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsApropModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 font-bold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingAprop}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-emerald-500/10"
+                >
+                  {isSubmittingAprop && <Loader2 size={12} className="animate-spin" />}
+                  Lançar Custo Real
                 </button>
               </div>
             </form>
