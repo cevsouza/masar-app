@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Building2, 
@@ -180,6 +180,89 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
   const [cgData, setCgData] = useState(new Date().toISOString().split('T')[0]);
   const [cgRealizado, setCgRealizado] = useState(false);
   const [isSavingCg, setIsSavingCg] = useState(false);
+
+  // Estudo de Viabilidade States
+  const [insumosList, setInsumosList] = useState<any[]>([]);
+  const [viabPrecoVenda, setViabPrecoVenda] = useState('200000');
+  const [viabItems, setViabItems] = useState<any[]>([]);
+  const [selectedInsumoId, setSelectedInsumoId] = useState('');
+  const [viabQtd, setViabQtd] = useState('');
+  const [viabCustoUnit, setViabCustoUnit] = useState('');
+  const [isGeneratingViab, setIsGeneratingViab] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/insumos')
+      .then(res => res.json())
+      .then(data => setInsumosList(data))
+      .catch(err => console.error('Erro ao buscar insumos:', err));
+  }, []);
+
+  const handleAddViabItem = () => {
+    if (!selectedInsumoId || !viabQtd || !viabCustoUnit) {
+      alert('Preencha o insumo, quantidade e custo unitário.');
+      return;
+    }
+    const insumoObj = insumosList.find(i => i.id === selectedInsumoId);
+    if (!insumoObj) return;
+
+    setViabItems(prev => [
+      ...prev,
+      {
+        insumoId: selectedInsumoId,
+        nome: insumoObj.nome,
+        categoria: insumoObj.categoria,
+        unidadeMedida: insumoObj.unidadeMedida,
+        quantidadePlanejada: parseFloat(viabQtd),
+        custoUnitarioPrevisto: parseFloat(viabCustoUnit)
+      }
+    ]);
+
+    setSelectedInsumoId('');
+    setViabQtd('');
+    setViabCustoUnit('');
+  };
+
+  const handleRemoveViabItem = (index: number) => {
+    setViabItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleGenerateFeasibility = async () => {
+    if (viabItems.length === 0) {
+      alert('Adicione pelo menos um item ao orçamento padrão da viabilidade.');
+      return;
+    }
+    if (!confirm('Esta ação irá sobrepor todos os orçamentos e preços de venda planejados das casas deste projeto. Deseja continuar?')) {
+      return;
+    }
+    setIsGeneratingViab(true);
+    try {
+      const res = await fetch(`/api/empreendimentos/${project.id}/viabilidade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          precoVendaProjetado: parseFloat(viabPrecoVenda),
+          itensOrcamento: viabItems.map(item => ({
+            insumoId: item.insumoId,
+            quantidadePlanejada: item.quantidadePlanejada,
+            custoUnitarioPrevisto: item.custoUnitarioPrevisto
+          }))
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao gerar viabilidade.');
+      }
+
+      alert('✓ Estudo de Viabilidade gerado com sucesso! Orçamento e VGV replicados para todas as casas.');
+      router.refresh();
+      fetchDreData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsGeneratingViab(false);
+    }
+  };
 
   const fetchDreData = async () => {
     setIsLoadingDre(true);
@@ -812,6 +895,124 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                 ) : (
                   <p className="text-xs text-slate-500 py-6 text-center">Nenhum custo global registrado para o terreno.</p>
                 )}
+              </div>
+            </div>
+
+            {/* Estudo de Viabilidade & Orçamento Padrão das Casas */}
+            <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 bg-[#0f1422]/20 space-y-4">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider block border-b border-slate-850 pb-2.5 font-sans">
+                Estudo de Viabilidade & Orçamento Padrão
+              </h3>
+              
+              <div className="space-y-3 text-xs">
+                {/* Preço de Venda Médio */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 font-medium">Preço de Venda Projetado por Casa (VGV) (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="Ex: 200000.00"
+                    value={viabPrecoVenda}
+                    onChange={(e) => setViabPrecoVenda(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+
+                {/* Seletor de Insumos */}
+                <div className="bg-[#0f1422]/40 p-3.5 rounded-xl border border-slate-850 space-y-3">
+                  <h4 className="font-bold text-slate-350 text-[10px] uppercase">Lançar Item do Orçamento Padrão</h4>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-slate-455 font-medium">Selecionar Insumo Padrão</label>
+                    <select
+                      value={selectedInsumoId}
+                      onChange={(e) => {
+                        setSelectedInsumoId(e.target.value);
+                        const ins = insumosList.find(i => i.id === e.target.value);
+                        if (ins) setViabCustoUnit('1');
+                      }}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-350 focus:outline-none"
+                    >
+                      <option value="">-- Selecione o Insumo --</option>
+                      {insumosList.map((ins: any) => (
+                        <option key={ins.id} value={ins.id}>{ins.nome} ({ins.unidadeMedida}) - {ins.categoria}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-slate-455 font-medium">Qtd Planejada</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Ex: 150"
+                        value={viabQtd}
+                        onChange={(e) => setViabQtd(e.target.value)}
+                        className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-slate-455 font-medium">Custo Unitário (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Ex: 45.00"
+                        value={viabCustoUnit}
+                        onChange={(e) => setViabCustoUnit(e.target.value)}
+                        className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddViabItem}
+                    className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition cursor-pointer"
+                  >
+                    + Adicionar ao Orçamento Padrão
+                  </button>
+                </div>
+
+                {/* Lista de Itens do Orçamento Padrão */}
+                <div className="space-y-2">
+                  <h4 className="font-bold text-slate-400 text-[10px] uppercase">Itens da Tipologia Padrão ({viabItems.length})</h4>
+                  
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    {viabItems.map((item, idx) => (
+                      <div key={idx} className="p-2.5 bg-[#0f1422]/60 border border-slate-850 rounded-xl flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-slate-300">{item.nome}</p>
+                          <p className="text-[9px] text-slate-500 mt-0.5">
+                            Qtd: {item.quantidadePlanejada} {item.unidadeMedida} | Prev: R$ {item.custoUnitarioPrevisto} | Total: R$ {(item.quantidadePlanejada * item.custoUnitarioPrevisto).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveViabItem(idx)}
+                          className="text-[9px] font-bold text-red-500 hover:text-red-400 px-2 py-0.5 bg-slate-900 border border-slate-800 rounded transition cursor-pointer"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    ))}
+
+                    {viabItems.length === 0 && (
+                      <p className="text-[10px] text-slate-500 italic py-4 text-center">Nenhum item adicionado ao orçamento padrão da casa.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Ação Principal de Geração de Viabilidade */}
+                <button
+                  type="button"
+                  disabled={isGeneratingViab}
+                  onClick={handleGenerateFeasibility}
+                  className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-extrabold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10 disabled:opacity-50"
+                >
+                  {isGeneratingViab ? 'Processando Replicação...' : 'Replicar Orçamento Padrão e Gerar Viabilidade'}
+                </button>
               </div>
             </div>
           </div>

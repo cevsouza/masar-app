@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { registerFinancialTransaction } from '@/lib/transactions';
 
 export async function POST(
   request: NextRequest,
@@ -92,6 +93,14 @@ export async function POST(
       }
     });
 
+    if (apropriacao.aprovado) {
+      await registerFinancialTransaction(
+        apropriacao.custoTotal,
+        'DEBITO',
+        `Apropriação de Custo Obra - Lote Qd ${casa.quadra}, Casa ${casa.numero} | Insumo: ${apropriacao.insumo.nome}`
+      );
+    }
+
     return NextResponse.json({
       ...apropriacao,
       warning: isOverbudget ? 'OVERBUDGET_DETECTION' : null,
@@ -132,11 +141,45 @@ export async function PATCH(
     if (custoTotal !== undefined) updateData.custoTotal = parseFloat(custoTotal);
     if (comprovanteUrl !== undefined) updateData.comprovanteUrl = comprovanteUrl;
 
+    const isNewlyApproved = !current.aprovado && aprovado === true;
+    const isNewlyUnapproved = current.aprovado && aprovado === false;
+    const wasAlreadyApproved = current.aprovado && aprovado === true;
+
     const apropriacao = await db.apropriacaoCusto.update({
       where: { id: apropriacaoId },
       data: updateData,
       include: { insumo: true }
     });
+
+    if (isNewlyApproved) {
+      const finalCusto = custoTotal !== undefined ? parseFloat(custoTotal) : current.custoTotal;
+      await registerFinancialTransaction(
+        finalCusto,
+        'DEBITO',
+        `Apropriação Aprovada - Custo Obra Lote Qd ${current.casaId} | Insumo: ${apropriacao.insumo.nome}`
+      );
+    } else if (isNewlyUnapproved) {
+      await registerFinancialTransaction(
+        current.custoTotal,
+        'CREDITO',
+        `Estorno de Apropriação - Custo Obra Lote Qd ${current.casaId} | Insumo: ${apropriacao.insumo.nome}`
+      );
+    } else if (wasAlreadyApproved && custoTotal !== undefined) {
+      const diff = parseFloat(custoTotal) - current.custoTotal;
+      if (diff > 0) {
+        await registerFinancialTransaction(
+          diff,
+          'DEBITO',
+          `Ajuste de Custo (Acréscimo) - Custo Obra Lote Qd ${current.casaId} | Insumo: ${apropriacao.insumo.nome}`
+        );
+      } else if (diff < 0) {
+        await registerFinancialTransaction(
+          Math.abs(diff),
+          'CREDITO',
+          `Ajuste de Custo (Desconto) - Custo Obra Lote Qd ${current.casaId} | Insumo: ${apropriacao.insumo.nome}`
+        );
+      }
+    }
 
     return NextResponse.json(apropriacao);
   } catch (error) {
@@ -164,6 +207,14 @@ export async function DELETE(
 
     if (!current) {
       return NextResponse.json({ error: 'Apropriação não encontrada' }, { status: 404 });
+    }
+
+    if (current.aprovado) {
+      await registerFinancialTransaction(
+        current.custoTotal,
+        'CREDITO',
+        `Exclusão de Apropriação - Estorno Lote Qd ${current.casaId}`
+      );
     }
 
     await db.apropriacaoCusto.delete({

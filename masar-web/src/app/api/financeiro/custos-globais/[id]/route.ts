@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { verifySession } from '@/lib/auth';
+import { registerFinancialTransaction } from '@/lib/transactions';
 
 export async function DELETE(
   request: NextRequest,
@@ -21,6 +22,14 @@ export async function DELETE(
 
     if (!current) {
       return NextResponse.json({ error: 'Custo global não encontrado.' }, { status: 404 });
+    }
+
+    if (current.realizado) {
+      await registerFinancialTransaction(
+        current.valor,
+        'CREDITO',
+        `Exclusão de Custo Global - Estorno [${current.tipo}] - ${current.descricao}`
+      );
     }
 
     await db.custoGlobal.delete({

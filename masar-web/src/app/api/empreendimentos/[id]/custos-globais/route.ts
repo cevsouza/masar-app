@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { verifySession } from '@/lib/auth';
 import { TipoCustoGlobal } from '@prisma/client';
+import { registerFinancialTransaction } from '@/lib/transactions';
 
 export async function POST(
   request: NextRequest,
@@ -46,6 +47,14 @@ export async function POST(
         empreendimentoId: id
       }
     });
+
+    if (newCost.realizado) {
+      await registerFinancialTransaction(
+        newCost.valor,
+        'DEBITO',
+        `Custo Global Realizado [${newCost.tipo}] - ${newCost.descricao}`
+      );
+    }
 
     await logMutation({
       usuarioId: session.userId,
