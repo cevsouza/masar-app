@@ -56,3 +56,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const clientes = await db.cliente.findMany({
+      orderBy: { nome: 'asc' }
+    });
+    return NextResponse.json(clientes);
+  } catch (error) {
+    console.error('Erro ao listar clientes:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  }
+}

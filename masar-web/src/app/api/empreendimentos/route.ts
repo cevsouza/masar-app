@@ -114,3 +114,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const empreendimentos = await db.empreendimento.findMany({
+      orderBy: { nome: 'asc' }
+    });
+    return NextResponse.json(empreendimentos);
+  } catch (error) {
+    console.error('Erro ao listar empreendimentos:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  }
+}
