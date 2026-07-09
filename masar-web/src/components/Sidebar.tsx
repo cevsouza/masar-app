@@ -20,17 +20,19 @@ import {
   Users,
   Bell,
   ShoppingBag,
-  ClipboardList
+  ClipboardList,
+  Home
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
 
 const MENU_ITEMS = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Projetos (Kanban)', href: '/empreendimentos', icon: KanbanSquare },
-  { name: 'Comercial (CRM)', href: '/comercial', icon: BadgeDollarSign },
+  { name: 'Fase Legal (Projetos)', href: '/empreendimentos', icon: KanbanSquare },
+  { name: 'Vendas (Comercial)', href: '/comercial', icon: BadgeDollarSign },
+  { name: 'Suprimentos (Compras)', href: '/suprimentos', icon: ShoppingBag },
+  { name: 'Obras (Casas/Lotes)', href: '/casas', icon: Home },
   { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
-  { name: 'Suprimentos', href: '/suprimentos', icon: ShoppingBag },
   { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList },
   { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank },
   { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users },
@@ -237,6 +239,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           if (item.href === '/empreendimentos' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           if (item.href === '/comercial' && !['ADMIN', 'FINANCEIRO', 'COMERCIAL'].includes(role)) return false;
           if (item.href === '/canteiro' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
+          if (item.href === '/casas' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           if (item.href === '/suprimentos' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
           if (item.href === '/socios/caixa' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
           if (item.href === '/usuarios' && role !== 'ADMIN') return false;
