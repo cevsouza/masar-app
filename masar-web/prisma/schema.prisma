@@ -380,6 +380,7 @@ model CustoGlobal {
   descricao        String
   tipo             TipoCustoGlobal
   valor            Float
+  realizado        Boolean         @default(false)
   empreendimentoId String?
   empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
   data             DateTime        @default(now())

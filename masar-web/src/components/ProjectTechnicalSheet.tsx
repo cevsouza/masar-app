@@ -178,6 +178,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
   const [cgTipo, setCgTipo] = useState('TERRENO');
   const [cgValor, setCgValor] = useState('');
   const [cgData, setCgData] = useState(new Date().toISOString().split('T')[0]);
+  const [cgRealizado, setCgRealizado] = useState(false);
   const [isSavingCg, setIsSavingCg] = useState(false);
 
   const fetchDreData = async () => {
@@ -216,6 +217,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
           descricao: cgDescricao,
           tipo: cgTipo,
           valor: parseFloat(cgValor),
+          realizado: cgRealizado,
           data: cgData
         })
       });
@@ -742,15 +744,28 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-slate-400 font-medium">Data de Pagamento</label>
-                  <input
-                    type="date"
-                    required
-                    value={cgData}
-                    onChange={(e) => setCgData(e.target.value)}
-                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-medium">Data de Pagamento</label>
+                    <input
+                      type="date"
+                      required
+                      value={cgData}
+                      onChange={(e) => setCgData(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-medium">Tipo de Lançamento</label>
+                    <select
+                      value={cgRealizado ? 'REALIZADO' : 'ORCADO'}
+                      onChange={(e) => setCgRealizado(e.target.value === 'REALIZADO')}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-slate-350 focus:outline-none focus:border-blue-500/50"
+                    >
+                      <option value="ORCADO">Orçado / Planejado</option>
+                      <option value="REALIZADO">Realizado / Pago</option>
+                    </select>
+                  </div>
                 </div>
 
                 <button
@@ -774,8 +789,11 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                     <div key={cg.id} className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl flex items-center justify-between text-xs">
                       <div>
                         <p className="font-bold text-slate-200">{cg.descricao}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          {cg.tipo} | {formatDate(cg.data)}
+                        <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                          <span className={`px-1 py-0.2 bg-slate-900 border rounded text-[8px] font-bold ${cg.realizado ? 'text-emerald-400 border-emerald-500/20' : 'text-blue-400 border-blue-500/20'}`}>
+                            {cg.realizado ? 'REAL' : 'ORÇADO'}
+                          </span>
+                          <span>{cg.tipo} | {formatDate(cg.data)}</span>
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -864,27 +882,35 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                         {/* Custos Globais */}
                         <tr className="hover:bg-slate-800/5 font-semibold text-slate-350">
                           <td className="py-3 px-4">(-) Custos Globais do Empreendimento (Rateio Terreno / Projetos / Marketing)</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateio)}</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateio)}</td>
-                          <td className="py-3 px-4 text-right font-mono text-slate-500">R$ 0,00</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateioProj)}</td>
+                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateioReal)}</td>
+                          <td className={`py-3 px-4 text-right font-mono ${(dreData.totalRateioProj - dreData.totalRateioReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(dreData.totalRateioProj - dreData.totalRateioReal)}
+                          </td>
                         </tr>
                         <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
                           <td className="py-1 px-4 pl-8">Aquisição de Terreno</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerreno)}</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerreno)}</td>
-                          <td className="py-1 px-4 text-right font-mono">R$ 0,00</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoProj)}</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoReal)}</td>
+                          <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal)}
+                          </td>
                         </tr>
                         <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
                           <td className="py-1 px-4 pl-8">Projetos & Licenciamento</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetos)}</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetos)}</td>
-                          <td className="py-1 px-4 text-right font-mono">R$ 0,00</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetosProj)}</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetosReal)}</td>
+                          <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioProjetosProj - dreData.rateioProjetosReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(dreData.rateioProjetosProj - dreData.rateioProjetosReal)}
+                          </td>
                         </tr>
                         <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
                           <td className="py-1 px-4 pl-8">Marketing & Publicidade</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketing)}</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketing)}</td>
-                          <td className="py-1 px-4 text-right font-mono">R$ 0,00</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketingProj)}</td>
+                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketingReal)}</td>
+                          <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioMarketingProj - dreData.rateioMarketingReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(dreData.rateioMarketingProj - dreData.rateioMarketingReal)}
+                          </td>
                         </tr>
 
                         {/* Custos Fixos (MCMV) */}

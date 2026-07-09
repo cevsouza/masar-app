@@ -25,7 +25,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { descricao, tipo, valor, data } = body;
+    const { descricao, tipo, valor, data, realizado } = body;
 
     if (!descricao || !tipo || !valor) {
       return NextResponse.json({ error: 'Campos obrigatórios ausentes: descricao, tipo, valor.' }, { status: 400 });
@@ -41,6 +41,7 @@ export async function POST(
         descricao,
         tipo: tipo as TipoCustoGlobal,
         valor: parseFloat(valor),
+        realizado: realizado === true,
         data: data ? new Date(data) : new Date(),
         empreendimentoId: id
       }

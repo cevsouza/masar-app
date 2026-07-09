@@ -196,35 +196,60 @@ export async function GET(request: NextRequest) {
     const totalHouses = await db.casa.count();
     const projectHouses = emp.casas.length;
 
-    const custosEspecificos = await db.custoGlobal.groupBy({
-      where: { empreendimentoId },
+    // Projetado (realizado = false)
+    const custosEspecificosProj = await db.custoGlobal.groupBy({
+      where: { empreendimentoId, realizado: false },
       by: ['tipo'],
       _sum: { valor: true }
     });
 
-    const custosCompartilhados = await db.custoGlobal.groupBy({
-      where: { empreendimentoId: null },
+    const custosCompartilhadosProj = await db.custoGlobal.groupBy({
+      where: { empreendimentoId: null, realizado: false },
       by: ['tipo'],
       _sum: { valor: true }
     });
 
-    const getCustoGlobalProporcional = (tipo: 'TERRENO' | 'PROJETOS' | 'MARKETING' | 'OUTRO') => {
-      const itemEsp = custosEspecificos.find(c => c.tipo === tipo);
+    // Realizado (realizado = true)
+    const custosEspecificosReal = await db.custoGlobal.groupBy({
+      where: { empreendimentoId, realizado: true },
+      by: ['tipo'],
+      _sum: { valor: true }
+    });
+
+    const custosCompartilhadosReal = await db.custoGlobal.groupBy({
+      where: { empreendimentoId: null, realizado: true },
+      by: ['tipo'],
+      _sum: { valor: true }
+    });
+
+    const getCustoGlobalProporcional = (
+      tipo: 'TERRENO' | 'PROJETOS' | 'MARKETING' | 'OUTRO',
+      isRealizado: boolean
+    ) => {
+      const espec = isRealizado ? custosEspecificosReal : custosEspecificosProj;
+      const comp = isRealizado ? custosCompartilhadosReal : custosCompartilhadosProj;
+
+      const itemEsp = espec.find(c => c.tipo === tipo);
       const valorEsp = itemEsp?._sum.valor || 0;
 
-      const itemComp = custosCompartilhados.find(c => c.tipo === tipo);
+      const itemComp = comp.find(c => c.tipo === tipo);
       const valorComp = itemComp?._sum.valor || 0;
       const compProporcional = totalHouses > 0 ? (valorComp / totalHouses) * projectHouses : 0;
 
       return valorEsp + compProporcional;
     };
 
-    const rateioTerreno = getCustoGlobalProporcional('TERRENO');
-    const rateioProjetos = getCustoGlobalProporcional('PROJETOS');
-    const rateioMarketing = getCustoGlobalProporcional('MARKETING');
-    const rateioOutros = getCustoGlobalProporcional('OUTRO');
+    const rateioTerrenoProj = getCustoGlobalProporcional('TERRENO', false);
+    const rateioProjetosProj = getCustoGlobalProporcional('PROJETOS', false);
+    const rateioMarketingProj = getCustoGlobalProporcional('MARKETING', false);
+    const rateioOutrosProj = getCustoGlobalProporcional('OUTRO', false);
+    const totalRateioProj = rateioTerrenoProj + rateioProjetosProj + rateioMarketingProj + rateioOutrosProj;
 
-    const totalRateio = rateioTerreno + rateioProjetos + rateioMarketing + rateioOutros;
+    const rateioTerrenoReal = getCustoGlobalProporcional('TERRENO', true);
+    const rateioProjetosReal = getCustoGlobalProporcional('PROJETOS', true);
+    const rateioMarketingReal = getCustoGlobalProporcional('MARKETING', true);
+    const rateioOutrosReal = getCustoGlobalProporcional('OUTRO', true);
+    const totalRateioReal = rateioTerrenoReal + rateioProjetosReal + rateioMarketingReal + rateioOutrosReal;
 
     // 3. Calcular Impostos (Regime Especial de Tributação - RET, padrão 4%)
     const impostoRET = await db.imposto.findUnique({ where: { nome: 'RET' } });
@@ -362,8 +387,8 @@ export async function GET(request: NextRequest) {
     const totalVariavelRealizado = realVariavelMateriais + realVariavelMaoDireta + realVariavelLogistica + realVariavelMaquinas + realVariavelImpostos;
 
     // 5. Resultado Líquido
-    const lucroLiquidoProjetado = totalVGVProjetado - totalComissaoProjetada - totalRateio - totalImpostoProjetado - totalDiretoProjetado;
-    const lucroLiquidoRealizado = totalVGVRealizado - totalComissaoRealizada - totalRateio - totalImpostoRealizado - totalDiretoRealizado;
+    const lucroLiquidoProjetado = totalVGVProjetado - totalComissaoProjetada - totalRateioProj - totalImpostoProjetado - totalDiretoProjetado;
+    const lucroLiquidoRealizado = totalVGVRealizado - totalComissaoRealizada - totalRateioReal - totalImpostoRealizado - totalDiretoRealizado;
 
     return NextResponse.json({
       empreendimentoNome: emp.nome,
@@ -377,11 +402,16 @@ export async function GET(request: NextRequest) {
       totalComissaoRealizada,
       
       // Custos Globais (rateio)
-      rateioTerreno,
-      rateioProjetos,
-      rateioMarketing,
-      rateioOutros,
-      totalRateio,
+      rateioTerrenoProj,
+      rateioTerrenoReal,
+      rateioProjetosProj,
+      rateioProjetosReal,
+      rateioMarketingProj,
+      rateioMarketingReal,
+      rateioOutrosProj,
+      rateioOutrosReal,
+      totalRateioProj,
+      totalRateioReal,
 
       // Impostos
       totalImpostoProjetado,
