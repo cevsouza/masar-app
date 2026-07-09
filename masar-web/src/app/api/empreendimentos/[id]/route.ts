@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { verifySession } from '@/lib/auth';
+import { fetchCoordinates } from '@/lib/geocoding';
 
 export async function PATCH(
   request: NextRequest,
@@ -62,8 +63,30 @@ export async function PATCH(
     if (bairro !== undefined) updateData.bairro = bairro;
     if (cidade !== undefined) updateData.cidade = cityOrTown(cidade);
     if (estado !== undefined) updateData.estado = estado;
-    if (latitude !== undefined) updateData.latitude = latitude ? parseFloat(latitude) : null;
-    if (longitude !== undefined) updateData.longitude = longitude ? parseFloat(longitude) : null;
+    let latFloat = latitude !== undefined && latitude !== '' && latitude !== null ? parseFloat(latitude) : null;
+    let lngFloat = longitude !== undefined && longitude !== '' && longitude !== null ? parseFloat(longitude) : null;
+
+    if (!latFloat && !lngFloat && (cep !== undefined || endereco !== undefined)) {
+      const finalCep = cep !== undefined ? cep : current.cep;
+      const finalEndereco = endereco !== undefined ? endereco : current.endereco;
+      
+      if (finalCep) {
+        const cepMudou = cep !== undefined && cep !== current.cep;
+        const enderecoMudou = endereco !== undefined && endereco !== current.endereco;
+        const semCoordenadas = !current.latitude || !current.longitude;
+
+        if (cepMudou || enderecoMudou || semCoordenadas) {
+          const coords = await fetchCoordinates(finalCep, finalEndereco || '');
+          if (coords.latitude && coords.longitude) {
+            latFloat = coords.latitude;
+            lngFloat = coords.longitude;
+          }
+        }
+      }
+    }
+
+    if (latitude !== undefined || latFloat !== null) updateData.latitude = latFloat;
+    if (longitude !== undefined || lngFloat !== null) updateData.longitude = lngFloat;
     if (areaTotalTerreno !== undefined) updateData.areaTotalTerreno = areaTotalTerreno ? parseFloat(areaTotalTerreno) : null;
     if (quantidadeCasasPrevistas !== undefined) updateData.quantidadeCasasPrevistas = quantidadeCasasPrevistas ? parseInt(quantidadeCasasPrevistas, 10) : null;
     if (proprietarioAnteriorTerreno !== undefined) updateData.proprietarioAnteriorTerreno = proprietarioAnteriorTerreno;

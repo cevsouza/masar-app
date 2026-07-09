@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { fetchCoordinates } from '@/lib/geocoding';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,8 +39,15 @@ export async function POST(request: NextRequest) {
     const inicioDate = dataInicio ? new Date(dataInicio) : null;
     const fimDate = dataFim ? new Date(dataFim) : null;
     
-    const latFloat = latitude ? parseFloat(latitude) : null;
-    const lngFloat = longitude ? parseFloat(longitude) : null;
+    let latFloat = latitude ? parseFloat(latitude) : null;
+    let lngFloat = longitude ? parseFloat(longitude) : null;
+
+    if (!latFloat && !lngFloat && cep) {
+      const coords = await fetchCoordinates(cep, endereco || '');
+      latFloat = coords.latitude;
+      lngFloat = coords.longitude;
+    }
+
     const areaDecimal = areaTotalTerreno ? parseFloat(areaTotalTerreno) : null;
     const casasPrevistasInt = quantidadeCasasPrevistas ? parseInt(quantidadeCasasPrevistas, 10) : null;
     const valorCompraFloat = valorCompraTerreno ? parseFloat(valorCompraTerreno) : null;
