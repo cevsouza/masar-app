@@ -87,7 +87,15 @@ const TIPO_DOCS_GED = [
 
 export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheetProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre'>('ficha');
+  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre'>(() => {
+    if (typeof window !== 'undefined') {
+      const tabParam = new URLSearchParams(window.location.search).get('tab');
+      if (tabParam === 'financeiro' || tabParam === 'cofre' || tabParam === 'ficha') {
+        return tabParam;
+      }
+    }
+    return 'ficha';
+  });
   
   // Upload States
   const [file, setFile] = useState<File | null>(null);

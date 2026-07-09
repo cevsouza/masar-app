@@ -11,8 +11,8 @@ export async function PATCH(
     const { id } = await params;
     const sessionToken = request.cookies.get('masar_session')?.value;
     const session = sessionToken ? await verifySession(sessionToken) : null;
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Acesso negado: Apenas administradores podem editar casas.' }, { status: 403 });
+    if (!session || !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(session.role)) {
+      return NextResponse.json({ error: 'Acesso negado: Apenas administradores, financeiro ou engenharia podem editar casas.' }, { status: 403 });
     }
 
     const current = await db.casa.findUnique({

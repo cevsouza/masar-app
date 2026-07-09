@@ -251,18 +251,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {/* Botão Global Novo Lançamento */}
-        {['ADMIN', 'FINANCEIRO'].includes(user.role || '') && (
-          <div className="mb-4">
-            <button
-              onClick={() => setIsLancamentoModalOpen(true)}
-              className="w-full py-3 px-4 bg-emerald-650 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition duration-200 cursor-pointer shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 group border-0 font-sans"
-            >
-              <span className="text-sm font-bold transition-transform group-hover:scale-110">+</span>
-              Novo Lançamento
-            </button>
-          </div>
-        )}
 
         {/* Process Flow Menu Items */}
         {PROCESS_MENU_ITEMS.filter((item) => {

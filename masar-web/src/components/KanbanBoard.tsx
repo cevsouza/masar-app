@@ -294,7 +294,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
 
                           <div className="flex gap-1.5 items-center">
                             <Link
-                              href={`/financeiro/${project.id}`}
+                              href={`/empreendimentos/${project.id}/ficha-tecnica?tab=financeiro`}
                               className="flex items-center gap-1 px-2 py-1 text-[9px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded border border-indigo-500/20 transition font-bold"
                             >
                               DRE

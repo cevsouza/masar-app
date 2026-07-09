@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Search, 
   Building2, 
@@ -10,7 +11,9 @@ import {
   ChevronRight, 
   Activity, 
   SlidersHorizontal,
-  FolderLock
+  FolderLock,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 
 interface CasasGlobalBoardProps {
@@ -26,10 +29,57 @@ const COLUMNS = [
   { id: 'PRONTAS', label: '5. Prontas & Entregues', color: 'border-t-emerald-500 bg-emerald-500/5 text-emerald-400' }
 ];
 
+const STAGES = [
+  'BACKLOG',
+  'APROVACOES',
+  'INFRAESTRUTURA',
+  'SUPRAESTRUTURA',
+  'INSTALACOES',
+  'ACABAMENTO',
+  'VISTORIA_CAIXA',
+  'CARTORIO',
+  'VISITAS',
+  'CONCLUIDA'
+];
+
 export default function CasasGlobalBoard({ initialCasas, empreendimentos }: CasasGlobalBoardProps) {
+  const router = useRouter();
   const [selectedEmp, setSelectedEmp] = useState('');
   const [selectedSaleStatus, setSelectedSaleStatus] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [movingId, setMovingId] = useState<string | null>(null);
+
+  const handleMoveHouse = async (casaId: string, currentStatus: string, direction: 'left' | 'right') => {
+    const currentIndex = STAGES.indexOf(currentStatus);
+    let nextIndex = direction === 'right' ? currentIndex + 1 : currentIndex - 1;
+
+    if (nextIndex < 0 || nextIndex >= STAGES.length) return;
+
+    const nextStatus = STAGES[nextIndex];
+    setMovingId(casaId);
+
+    try {
+      const response = await fetch(`/api/casas/${casaId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ statusObra: nextStatus }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Falha ao mover status do lote');
+      }
+
+      router.refresh();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || 'Erro ao mover status do lote.');
+    } finally {
+      setMovingId(null);
+    }
+  };
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -232,13 +282,37 @@ export default function CasasGlobalBoard({ initialCasas, empreendimentos }: Casa
                           </span>
                         </div>
 
-                        <Link 
-                          href={`/casas/${casa.id}`}
-                          title="Ver Ficha Detalhada"
-                          className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white rounded-lg text-slate-400 transition cursor-pointer"
-                        >
-                          <ChevronRight size={14} />
-                        </Link>
+                        <div className="flex items-center gap-1.5">
+                          {/* Seta esquerda */}
+                          <button
+                            type="button"
+                            disabled={casa.statusObra === 'BACKLOG' || movingId === casa.id}
+                            onClick={() => handleMoveHouse(casa.id, casa.statusObra, 'left')}
+                            className="p-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white rounded text-slate-500 hover:text-slate-300 disabled:opacity-20 disabled:hover:bg-slate-900 disabled:hover:text-slate-500 transition cursor-pointer"
+                            title="Recuar fase da obra"
+                          >
+                            <ArrowLeft size={10} />
+                          </button>
+
+                          {/* Seta direita */}
+                          <button
+                            type="button"
+                            disabled={casa.statusObra === 'CONCLUIDA' || movingId === casa.id}
+                            onClick={() => handleMoveHouse(casa.id, casa.statusObra, 'right')}
+                            className="p-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white rounded text-slate-500 hover:text-slate-300 disabled:opacity-20 disabled:hover:bg-slate-900 disabled:hover:text-slate-500 transition cursor-pointer"
+                            title="Avançar fase da obra"
+                          >
+                            <ArrowRight size={10} />
+                          </button>
+
+                          <Link 
+                            href={`/casas/${casa.id}`}
+                            title="Ver Ficha Detalhada"
+                            className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white rounded-lg text-slate-400 transition cursor-pointer"
+                          >
+                            <ChevronRight size={14} />
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   );
