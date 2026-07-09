@@ -64,7 +64,7 @@ export default function CashFlowChart({ data }: { data: ChartData[] }) {
           />
           <Legend verticalAlign="top" height={36} iconType="circle" />
           <Area 
-            name="Fluxo Previsto (Medições Enviadas)" 
+            name="Entradas Totais (Receitas)" 
             type="monotone" 
             dataKey="previsto" 
             stroke="#3b82f6" 
@@ -73,7 +73,7 @@ export default function CashFlowChart({ data }: { data: ChartData[] }) {
             strokeWidth={2}
           />
           <Area 
-            name="Fluxo Realizado (Medições Pagas)" 
+            name="Saídas Totais (Despesas)" 
             type="monotone" 
             dataKey="realizado" 
             stroke="#10b981" 

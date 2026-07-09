@@ -15,6 +15,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validação rígida MCMV de saldo orçado se for vinculado a uma casa
+    if (casaId) {
+      const itemOrcado = await db.itemOrcamento.findFirst({
+        where: {
+          orcamentoCasa: { casaId },
+          insumoId
+        }
+      });
+
+      if (!itemOrcado) {
+        return NextResponse.json(
+          { error: 'Bloqueio de Margem (MCMV): Este insumo não está planejado no orçamento deste lote. Adicione-o ao orçamento do lote antes de solicitar a compra.' },
+          { status: 400 }
+        );
+      }
+
+      const jaSolicitadoSum = await db.solicitacaoCompra.aggregate({
+        where: {
+          casaId,
+          insumoId,
+          status: { notIn: ['REJEITADA'] }
+        },
+        _sum: { quantidadeSolicitada: true }
+      });
+      
+      const jaApropriadoSum = await db.apropriacaoCusto.aggregate({
+        where: {
+          casaId,
+          insumoId,
+          aprovado: true
+        },
+        _sum: { quantidadeReal: true }
+      });
+
+      const totalConsumido = (jaSolicitadoSum._sum.quantidadeSolicitada || 0) + (jaApropriadoSum._sum.quantidadeReal || 0);
+      const limiteDisponivel = itemOrcado.quantidadePlanejada - totalConsumido;
+      
+      if (parseFloat(quantidadeSolicitada) > limiteDisponivel) {
+        return NextResponse.json(
+          { error: `Bloqueio de Margem (MCMV): A quantidade solicitada (${quantidadeSolicitada}) excede o saldo orçado disponível para este lote (Disponível: ${limiteDisponivel.toFixed(2)}).` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Gerar token de cotação pública único
     const tokenCotacao = crypto.randomUUID();
 
@@ -62,6 +107,47 @@ export async function PATCH(request: NextRequest) {
     const current = await db.solicitacaoCompra.findUnique({ where: { id } });
     if (!current) {
       return NextResponse.json({ error: 'Requisição não encontrada.' }, { status: 404 });
+    }
+
+    // Se estiver atualizando a quantidade e a requisição for vinculada a um lote
+    if (quantidadeSolicitada !== undefined && current.casaId) {
+      const itemOrcado = await db.itemOrcamento.findFirst({
+        where: {
+          orcamentoCasa: { casaId: current.casaId },
+          insumoId: current.insumoId
+        }
+      });
+
+      if (itemOrcado) {
+        const jaSolicitadoSum = await db.solicitacaoCompra.aggregate({
+          where: {
+            casaId: current.casaId,
+            insumoId: current.insumoId,
+            id: { not: id }, // ignora a própria solicitação
+            status: { notIn: ['REJEITADA'] }
+          },
+          _sum: { quantidadeSolicitada: true }
+        });
+        
+        const jaApropriadoSum = await db.apropriacaoCusto.aggregate({
+          where: {
+            casaId: current.casaId,
+            insumoId: current.insumoId,
+            aprovado: true
+          },
+          _sum: { quantidadeReal: true }
+        });
+
+        const totalConsumido = (jaSolicitadoSum._sum.quantidadeSolicitada || 0) + (jaApropriadoSum._sum.quantidadeReal || 0);
+        const limiteDisponivel = itemOrcado.quantidadePlanejada - totalConsumido;
+        
+        if (parseFloat(quantidadeSolicitada) > limiteDisponivel) {
+          return NextResponse.json(
+            { error: `Bloqueio de Margem (MCMV): A nova quantidade solicitada (${quantidadeSolicitada}) excede o saldo orçado disponível para este lote (Disponível: ${limiteDisponivel.toFixed(2)}).` },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     const data: any = {};

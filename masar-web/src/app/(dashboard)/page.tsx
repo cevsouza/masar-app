@@ -106,35 +106,100 @@ export default async function DashboardPage() {
     return dataLimite < today;
   });
 
-  // 3. Gráfico de Fluxo de Caixa (Realizado vs. Previsto)
-  const medicoes = await db.medicaoCaixa.findMany({
-    orderBy: { dataMedicao: 'asc' },
+  // 3. Gráfico de Fluxo de Caixa Geral (Entradas vs. Saídas)
+  const medicoesPagas = await db.medicaoCaixa.findMany({
+    where: { status: 'PAGA' },
+    select: { valorLiberado: true, dataMedicao: true }
+  });
+
+  const parcelasPagas = await db.contasAReceberCliente.findMany({
+    where: { pago: true },
+    select: { valor: true, dataVencimento: true }
+  });
+
+  const aportesSocios = await db.movimentacaoSocio.findMany({
+    where: { tipo: 'APORTE' },
+    select: { valor: true, data: true }
+  });
+
+  const apropriacoesAprovadas = await db.apropriacaoCusto.findMany({
+    where: { aprovado: true },
+    select: { custoTotal: true, dataAplicacao: true }
+  });
+
+  const retiradasSocios = await db.movimentacaoSocio.findMany({
+    where: { tipo: { in: ['RETIRADA_LUCRO', 'PRO_LABORE'] } },
+    select: { valor: true, data: true }
+  });
+
+  const custosGlobais = await db.custoGlobal.findMany({
+    select: { valor: true, data: true }
   });
 
   const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const agruparPorMes: Record<string, { previsto: number; realizado: number }> = {};
+  const agruparPorMes: Record<string, { previsto: number; realizado: number }> = {}; // previsto = Entradas, realizado = Saídas
 
-  medicoes.forEach(med => {
-    const date = new Date(med.dataMedicao);
-    const mesNome = mesesNomes[date.getMonth()];
-    const ano = date.getFullYear();
-    const chave = `${mesNome}/${ano}`;
+  const getChave = (d: Date) => {
+    const date = new Date(d);
+    return `${mesesNomes[date.getMonth()]}/${date.getFullYear()}`;
+  };
 
-    if (!agruparPorMes[chave]) {
-      agruparPorMes[chave] = { previsto: 0, realizado: 0 };
-    }
-
+  medicoesPagas.forEach(med => {
+    const chave = getChave(med.dataMedicao);
+    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
     agruparPorMes[chave].previsto += med.valorLiberado;
-    if (med.status === 'PAGA') {
-      agruparPorMes[chave].realizado += med.valorLiberado;
-    }
   });
 
-  const chartData = Object.entries(agruparPorMes).map(([mes, valores]) => ({
-    mes,
-    previsto: valores.previsto,
-    realizado: valores.realizado,
-  }));
+  parcelasPagas.forEach(parc => {
+    const chave = getChave(parc.dataVencimento);
+    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
+    agruparPorMes[chave].previsto += parc.valor;
+  });
+
+  aportesSocios.forEach(ap => {
+    const chave = getChave(ap.data);
+    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
+    agruparPorMes[chave].previsto += ap.valor;
+  });
+
+  apropriacoesAprovadas.forEach(ap => {
+    const chave = getChave(ap.dataAplicacao);
+    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
+    agruparPorMes[chave].realizado += ap.custoTotal;
+  });
+
+  retiradasSocios.forEach(r => {
+    const chave = getChave(r.data);
+    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
+    agruparPorMes[chave].realizado += r.valor;
+  });
+
+  custosGlobais.forEach(cg => {
+    const chave = getChave(cg.data);
+    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
+    agruparPorMes[chave].realizado += cg.valor;
+  });
+
+  const chartData = Object.entries(agruparPorMes)
+    .map(([mes, valores]) => ({
+      mes,
+      previsto: valores.previsto,
+      realizado: valores.realizado,
+    }))
+    .sort((a, b) => {
+      // Sort chronologically
+      const parseMes = (m: string) => {
+        const [mesN, ano] = m.split('/');
+        const mesIdx = mesesNomes.indexOf(mesN);
+        return parseInt(ano) * 12 + mesIdx;
+      };
+      return parseMes(a.mes) - parseMes(b.mes);
+    })
+    .slice(-6);
+
+  const totalEntradasGerais = medicoesPagas.reduce((acc, m) => acc + m.valorLiberado, 0) +
+                              parcelasPagas.reduce((acc, p) => acc + p.valor, 0) +
+                              aportesSocios.reduce((acc, a) => acc + a.valor, 0);
 
   // Casas com problemas/gargalos (Glosadas ou Aguardando)
   const casasGargalo = await db.casa.findMany({
@@ -353,11 +418,13 @@ export default async function DashboardPage() {
       <div className="glassmorphism p-6 rounded-2xl">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-lg font-bold text-white">Fluxo de Caixa CEF</h3>
-            <p className="text-xs text-slate-400">Comparativo histórico entre medições enviadas (Previsto) e pagas (Realizado)</p>
+            <h3 className="text-lg font-bold text-white">Fluxo de Caixa Geral da Construtora</h3>
+            <p className="text-xs text-slate-400 font-sans">
+              Comparativo de receitas gerais (medições pagas, parcelas de compradores, aportes) versus despesas (obras, rateios, retiradas)
+            </p>
           </div>
           <div className="flex items-center gap-1 text-xs text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
-            <TrendingUp size={14} /> Total Pago: {formatCurrency(valorPago)}
+            <TrendingUp size={14} /> Entradas Consolidadas: {formatCurrency(totalEntradasGerais)}
           </div>
         </div>
         <CashFlowChart data={chartData} />
