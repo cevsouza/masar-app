@@ -83,22 +83,11 @@ const TIPO_DOCS_GED = [
   { key: 'OUTRO', label: 'Outros Documentos' }
 ];
 
-const KANBAN_STAGES = [
-  { id: 'BACKLOG', label: '1. Backlog', color: 'border-t-slate-500 text-slate-400 bg-slate-900/10' },
-  { id: 'APROVACOES', label: '2. Burocracia', color: 'border-t-purple-500 text-purple-400 bg-purple-900/10' },
-  { id: 'INFRAESTRUTURA', label: '3. Infraestrutura', color: 'border-t-blue-500 text-blue-400 bg-blue-900/10' },
-  { id: 'SUPRAESTRUTURA', label: '4. Supraestrutura', color: 'border-t-indigo-550 text-indigo-400 bg-indigo-900/10' },
-  { id: 'INSTALACOES', label: '5. Instalações', color: 'border-t-cyan-500 text-cyan-400 bg-cyan-900/10' },
-  { id: 'ACABAMENTO', label: '6. Acabamento', color: 'border-t-amber-500 text-amber-400 bg-amber-900/10' },
-  { id: 'VISTORIA_CAIXA', label: '7. Vistoria Caixa', color: 'border-t-orange-500 text-orange-400 bg-orange-900/10' },
-  { id: 'CARTORIO', label: '8. Legalização', color: 'border-t-pink-500 text-pink-400 bg-pink-900/10' },
-  { id: 'VISITAS', label: '9. Visitas', color: 'border-t-teal-500 text-teal-400 bg-teal-900/10' },
-  { id: 'CONCLUIDA', label: '10. Entregue', color: 'border-t-emerald-500 text-emerald-400 bg-emerald-900/10' },
-];
+
 
 export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheetProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'kanban' | 'cofre'>('ficha');
+  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre'>('ficha');
   
   // Upload States
   const [file, setFile] = useState<File | null>(null);
@@ -512,32 +501,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
     }
   };
 
-  const [movingHouseId, setMovingHouseId] = useState<string | null>(null);
 
-  const handleMoveHouseStage = async (houseId: string, currentPercent: number, newStage: string) => {
-    setMovingHouseId(houseId);
-    try {
-      const res = await fetch(`/api/casas/${houseId}/evolucao`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          statusObra: newStage,
-          percentualObra: newStage === 'CONCLUIDA' ? 100 : (newStage === 'BACKLOG' ? 0 : currentPercent)
-        })
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Erro ao atualizar estágio da casa.');
-      }
-
-      router.refresh();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setMovingHouseId(null);
-    }
-  };
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -643,14 +607,6 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
               }`}
             >
               Cofre de Projetos
-            </button>
-            <button 
-              onClick={() => setActiveTab('kanban')} 
-              className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
-                activeTab === 'kanban' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Kanban de Casas
             </button>
           </div>
 
@@ -1500,189 +1456,6 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
         </div>
       )}
 
-      {/* Conteúdo Aba: Kanban de Casas (Gestão Individualizada de Obras) */}
-      {activeTab === 'kanban' && (
-        <div className="space-y-4 animate-fade-in text-xs">
-          <div className="glassmorphism p-4 rounded-2xl border border-slate-800/80 mb-2">
-            <h3 className="text-sm font-bold text-white font-sans uppercase tracking-wider">
-              Quadro de Evolução Física Individual (Kanban)
-            </h3>
-            <p className="text-[10px] text-slate-450 mt-1">
-              Gerencie cada unidade habitacional de forma independente. Clique nas setas para avançar ou retornar o estágio físico da casa, ou acesse a ficha da casa para diários de obras e apropriações detalhadas.
-            </p>
-          </div>
-
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent min-h-[550px]">
-            {KANBAN_STAGES.map((col, idx) => {
-              const housesInCol = project.casas.filter((c: any) => c.statusObra === col.id);
-              return (
-                <div 
-                  key={col.id} 
-                  className="w-[280px] shrink-0 flex flex-col bg-[#0b0f19]/40 border border-slate-850 rounded-2xl p-3 space-y-3"
-                >
-                  {/* Título da Coluna */}
-                  <div className={`border-t-2 ${col.color} pt-2 px-1 flex items-center justify-between`}>
-                    <span className="font-bold uppercase tracking-wider text-[10px]">
-                      {col.label}
-                    </span>
-                    <span className="bg-slate-900 border border-slate-850 px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold text-slate-400">
-                      {housesInCol.length}
-                    </span>
-                  </div>
-
-                  {/* Lista de Cartões */}
-                  <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[480px] pr-1">
-                    {housesInCol.map((house: any) => {
-                      // Calcular KPIs financeiros do lote MCMV
-                      const receitaCaixaPaga = house.medicoes
-                        ? house.medicoes
-                            .filter((m: any) => m.status === 'PAGA')
-                            .reduce((acc: number, m: any) => acc + m.valorLiberado, 0)
-                        : 0;
-
-                      const custoRealizado = house.apropriacoes
-                        ? house.apropriacoes
-                            .filter((ap: any) => ap.aprovado)
-                            .reduce((acc: number, ap: any) => acc + ap.custoTotal, 0)
-                        : 0;
-
-                      const orcamentoTotal = house.orcamento && house.orcamento.itens
-                        ? house.orcamento.itens.reduce((acc: number, item: any) => acc + (item.quantidadePlanejada * item.custoUnitarioPrevisto), 0)
-                        : 0;
-
-                      const saldoCaixaLote = receitaCaixaPaga - custoRealizado;
-
-                      const percentualMedidoPago = house.medicoes
-                        ? house.medicoes
-                            .filter((m: any) => m.status === 'PAGA')
-                            .reduce((acc: number, m: any) => acc + m.percentualMedido, 0)
-                        : 0;
-
-                      const descompassoFisicoFinanceiro = house.percentualObra - percentualMedidoPago;
-                      const descompassoAlto = descompassoFisicoFinanceiro > 10;
-                      const temGlosa = house.medicoes ? house.medicoes.some((m: any) => m.status === 'GLOSADA_REPROVADA') : false;
-
-                      let borderClass = 'border-slate-800/80 hover:border-slate-700';
-                      if (movingHouseId === house.id) {
-                        borderClass = 'border-blue-500/50 animate-pulse';
-                      } else if (temGlosa) {
-                        borderClass = 'border-amber-500/50 shadow-md shadow-amber-500/5';
-                      } else if (saldoCaixaLote < 0 || descompassoAlto) {
-                        borderClass = 'border-red-500/50 shadow-md shadow-red-500/5';
-                      } else if (saldoCaixaLote > 0 && house.percentualObra > 0) {
-                        borderClass = 'border-emerald-500/50 shadow-md shadow-emerald-500/5';
-                      }
-
-                      return (
-                        <div 
-                          key={house.id} 
-                          className={`p-3 bg-[#0f1422] border ${borderClass} rounded-xl space-y-3 shadow-md transition`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <Link 
-                              href={`/casas/${house.id}`}
-                              className="font-bold text-white hover:text-blue-400 text-xs transition block"
-                            >
-                              Qd {house.quadra}, Casa {house.numero}
-                            </Link>
-                            {house.liberadaVenda ? (
-                              <span className="text-[7px] font-mono font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/15 uppercase">
-                                Venda
-                              </span>
-                            ) : (
-                              <span className="text-[7px] font-mono font-extrabold text-slate-500 bg-slate-550/5 px-1.5 py-0.5 rounded border border-slate-800 uppercase">
-                                Reserva
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Barra de Progresso Físico */}
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[9px] font-mono text-slate-450">
-                              <span>Progresso Físico</span>
-                              <span className="font-bold text-blue-400">{house.percentualObra.toFixed(1)}%</span>
-                            </div>
-                            <div className="w-full bg-[#070a13] rounded-full h-1.5 overflow-hidden">
-                              <div 
-                                className="bg-gradient-to-r from-blue-600 to-indigo-500 h-full rounded-full transition-all duration-300"
-                                style={{ width: `${house.percentualObra}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Micro-Painel Financeiro MCMV */}
-                          <div className="space-y-1.5 text-[9px] pt-1 bg-[#0b0f19]/30 p-2 rounded-lg border border-slate-850">
-                            {/* Saldo de Caixa */}
-                            <div className="flex justify-between items-center">
-                              <span className="text-slate-450 font-medium">Saldo de Caixa:</span>
-                              <span className={`font-mono font-bold ${saldoCaixaLote >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {formatCurrency(saldoCaixaLote)}
-                              </span>
-                            </div>
-
-                            {/* Descompasso Físico-Financeiro */}
-                            <div className="flex justify-between items-center">
-                              <span className="text-slate-450 font-medium">Descompasso:</span>
-                              <div className="flex items-center gap-1 font-mono">
-                                <span className={descompassoAlto ? 'text-red-400 font-bold' : 'text-slate-350'}>
-                                  {descompassoFisicoFinanceiro.toFixed(0)}%
-                                </span>
-                                {descompassoAlto && (
-                                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Descompasso superior a 10% (Alerta de capital de giro!)" />
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Orçado vs Realizado */}
-                            <div className="flex justify-between items-center text-[8px] text-slate-500 border-t border-slate-850/60 pt-1 mt-1">
-                              <span>Orçado: {formatCurrency(orcamentoTotal)}</span>
-                              <span className="text-slate-400 font-medium">Real: {formatCurrency(custoRealizado)}</span>
-                            </div>
-                          </div>
-
-                          {/* Ações de Movimentação Rápidas */}
-                          <div className="flex items-center justify-between pt-2 border-t border-slate-850 text-[10px]">
-                            <button
-                              type="button"
-                              disabled={idx === 0 || movingHouseId !== null}
-                              onClick={() => handleMoveHouseStage(house.id, house.percentualObra, KANBAN_STAGES[idx - 1].id)}
-                              className="p-1 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-400 hover:text-white rounded border border-slate-800 transition cursor-pointer"
-                              title="Mover para etapa anterior"
-                            >
-                              ←
-                            </button>
-                            
-                            <Link 
-                              href={`/casas/${house.id}`}
-                              className="text-[9px] font-bold text-slate-400 hover:text-white px-2 py-0.5 bg-slate-850/40 rounded border border-slate-800 transition"
-                            >
-                              Acessar Ficha
-                            </Link>
-
-                            <button
-                              type="button"
-                              disabled={idx === KANBAN_STAGES.length - 1 || movingHouseId !== null}
-                              onClick={() => handleMoveHouseStage(house.id, house.percentualObra, KANBAN_STAGES[idx + 1].id)}
-                              className="p-1 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-400 hover:text-white rounded border border-slate-800 transition cursor-pointer"
-                              title="Mover para próxima etapa"
-                            >
-                              →
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {housesInCol.length === 0 && (
-                      <p className="text-[10px] text-slate-600 italic text-center py-8">Vazia</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Conteúdo Aba 3: Cofre de Projetos (GED Técnico) */}
       {activeTab === 'cofre' && (
