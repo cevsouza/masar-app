@@ -33,8 +33,42 @@ export async function POST(
     const vgvUnitario = parseFloat(precoVendaProjetado || '0');
     const itemsList = Array.isArray(itensOrcamento) ? itensOrcamento : [];
 
-    if (vgvUnitario <= 0 || itemsList.length === 0) {
-      return NextResponse.json({ error: 'Por favor, informe um preço de venda válido e pelo menos um item de orçamento.' }, { status: 400 });
+    if (vgvUnitario <= 0 && itemsList.length === 0) {
+      return NextResponse.json({ error: 'Por favor, informe um preço de venda válido ou pelo menos um item de orçamento.' }, { status: 400 });
+    }
+
+    const totalCasas = emp.casas.length;
+
+    if (itemsList.length === 0) {
+      // APENAS ATUALIZAR O PREÇO DE VENDA DE TODAS AS CASAS (VGV)
+      await db.$transaction(async (tx) => {
+        for (const casa of emp.casas) {
+          await tx.casa.update({
+            where: { id: casa.id },
+            data: {
+              valorVendaProjetado: vgvUnitario
+            }
+          });
+        }
+      });
+
+      await logMutation({
+        usuarioId: session.userId,
+        usuarioNome: session.nome,
+        acao: 'UPDATE_VGV_BATCH',
+        tabela: 'Empreendimento',
+        registroId: empreendimentoId,
+        valoresNovos: {
+          precoVendaProjetado: vgvUnitario,
+          totalCasas
+        }
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Preço de venda projetado atualizado para todas as casas.',
+        totalReplicado: totalCasas
+      });
     }
 
     // Calcular o custo padrão de uma única casa
@@ -44,7 +78,6 @@ export async function POST(
       return acc + (q * c);
     }, 0);
 
-    const totalCasas = emp.casas.length;
     const totalOrcamentoCasas = totalCasas * custoCasaUnitario;
 
     // Calcular o orçamento total do empreendimento (Custos Globais Orçados + Custos Diretos de Obras das Casas)

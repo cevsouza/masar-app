@@ -264,6 +264,136 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
     }
   };
 
+  // DRE Interactive Input Modal States
+  const [isDreModalOpen, setIsDreModalOpen] = useState(false);
+  const [dreModalCategory, setDreModalCategory] = useState('');
+  const [dreModalLabel, setDreModalLabel] = useState('');
+  const [dreInputValue, setDreInputValue] = useState('');
+  const [dreInputDesc, setDreInputDesc] = useState('');
+  const [dreInputDate, setDreInputDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dreInputRealizado, setDreInputRealizado] = useState(false);
+  const [dreInputCasaId, setDreInputCasaId] = useState('');
+  const [dreInputInsumoId, setDreInputInsumoId] = useState('');
+  const [dreInputQtd, setDreInputQtd] = useState('1');
+  const [isSavingDreInput, setIsSavingDreInput] = useState(false);
+
+  const openDreModal = (category: string, label: string) => {
+    setDreModalCategory(category);
+    setDreModalLabel(label);
+    setDreInputValue('');
+    setDreInputDesc('');
+    setDreInputDate(new Date().toISOString().split('T')[0]);
+    setDreInputRealizado(false);
+    
+    if (project.casas && project.casas.length > 0) {
+      setDreInputCasaId(project.casas[0].id);
+    } else {
+      setDreInputCasaId('');
+    }
+
+    let matchedInsumo = insumosList.find(ins => {
+      if (category.includes('MATERIAIS')) return ins.categoria === 'MATERIAIS';
+      if (category.includes('MAODEOBRA')) return ins.categoria === 'MAO_DE_OBRA';
+      if (category.includes('LOGISTICA')) return ins.categoria === 'LOGISTICA';
+      if (category.includes('MAQUINAS')) return ins.categoria === 'MAQUINAS';
+      if (category.includes('EQUIPE')) return ins.categoria === 'EQUIPE_GESTAO';
+      if (category.includes('CANTEIRO')) return ins.categoria === 'CANTEIRO_OBRA';
+      if (category.includes('CONSUMO')) return ins.categoria === 'CONSUMO_DIARIO';
+      if (category.includes('LOCACAO')) return ins.categoria === 'LOCACAO_EQUIPAMENTOS';
+      if (category.includes('TAXAS')) return ins.categoria === 'TAXAS_ALVARAS';
+      return false;
+    });
+    if (matchedInsumo) {
+      setDreInputInsumoId(matchedInsumo.id);
+    } else if (insumosList.length > 0) {
+      setDreInputInsumoId(insumosList[0].id);
+    } else {
+      setDreInputInsumoId('');
+    }
+
+    setIsDreModalOpen(true);
+  };
+
+  const handleSaveDreInput = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dreInputValue) {
+      alert('Por favor, informe o valor.');
+      return;
+    }
+    setIsSavingDreInput(true);
+    try {
+      if (dreModalCategory === 'VGV') {
+        const res = await fetch(`/api/empreendimentos/${project.id}/viabilidade`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            precoVendaProjetado: parseFloat(dreInputValue)
+          })
+        });
+        if (!res.ok) throw new Error('Erro ao atualizar preço de venda das casas.');
+        alert('✓ VGV atualizado com sucesso para todas as unidades!');
+      } 
+      else if (['TERRENO', 'PROJETOS', 'MARKETING', 'OUTRO'].includes(dreModalCategory)) {
+        const res = await fetch(`/api/empreendimentos/${project.id}/custos-globais`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            descricao: dreInputDesc || dreModalLabel,
+            tipo: dreModalCategory,
+            valor: parseFloat(dreInputValue),
+            realizado: dreInputRealizado,
+            data: dreInputDate
+          })
+        });
+        if (!res.ok) throw new Error('Erro ao cadastrar custo global.');
+        alert('✓ Custo global registrado diretamente pelo DRE!');
+      } 
+      else {
+        if (!dreInputCasaId) {
+          throw new Error('Nenhuma casa selecionada.');
+        }
+
+        if (dreInputRealizado) {
+          const res = await fetch(`/api/casas/${dreInputCasaId}/apropriacoes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              insumoId: dreInputInsumoId,
+              quantidadeReal: parseFloat(dreInputQtd),
+              custoTotal: parseFloat(dreInputValue),
+              comprovanteUrl: null
+            })
+          });
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || 'Erro ao registrar apropriação.');
+          }
+          alert('✓ Custo Realizado apropriado com sucesso na casa!');
+        } else {
+          const res = await fetch(`/api/casas/${dreInputCasaId}/orcamento`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              insumoId: dreInputInsumoId,
+              quantidadePlanejada: parseFloat(dreInputQtd),
+              custoUnitarioPrevisto: parseFloat(dreInputValue)
+            })
+          });
+          if (!res.ok) throw new Error('Erro ao adicionar item de orçamento.');
+          alert('✓ Item de Orçamento adicionado com sucesso na casa!');
+        }
+      }
+
+      setIsDreModalOpen(false);
+      router.refresh();
+      fetchDreData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSavingDreInput(false);
+    }
+  };
+
   const fetchDreData = async () => {
     setIsLoadingDre(true);
     try {
@@ -1053,8 +1183,12 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                       </thead>
                       <tbody className="divide-y divide-slate-850 text-slate-300">
                         {/* Receita Bruta */}
-                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
-                          <td className="py-3 px-4">Receita Operacional Bruta - Valor Geral de Vendas (VGV)</td>
+                        <tr 
+                          onClick={() => openDreModal('VGV', 'VGV & Preço de Venda das Casas')}
+                          className="hover:bg-slate-800/15 font-semibold text-slate-200 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar/ajustar o VGV estimado"
+                        >
+                          <td className="py-3 px-4 group-hover:text-indigo-400 transition-colors">Receita Operacional Bruta - Valor Geral de Vendas (VGV)</td>
                           <td className="py-3 px-4 text-right font-mono">{formatCurrency(dreData.totalVGVProjetado)}</td>
                           <td className="py-3 px-4 text-right font-mono text-emerald-400">{formatCurrency(dreData.totalVGVRealizado)}</td>
                           <td className={`py-3 px-4 text-right font-mono ${(dreData.totalVGVRealizado - dreData.totalVGVProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1063,8 +1197,12 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                         </tr>
 
                         {/* Deduções */}
-                        <tr className="hover:bg-slate-800/5 text-slate-400">
-                          <td className="py-2 px-4 pl-6">(-) Comissão de Vendas (Intermediação Imobiliária)</td>
+                        <tr 
+                          onClick={() => openDreModal('VGV', 'Comissão de Vendas')}
+                          className="hover:bg-slate-800/15 text-slate-400 cursor-pointer transition-all duration-150 group"
+                          title="Clique para ajustar comissão ou VGV das unidades"
+                        >
+                          <td className="py-2 px-4 pl-6 group-hover:text-indigo-400 transition-colors">(-) Comissão de Vendas (Intermediação Imobiliária)</td>
                           <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoProjetada)}</td>
                           <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoRealizada)}</td>
                           <td className={`py-2 px-4 text-right font-mono ${dreData.totalComissaoRealizada > dreData.totalComissaoProjetada ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -1089,24 +1227,36 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                             {formatCurrency(dreData.totalRateioProj - dreData.totalRateioReal)}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
-                          <td className="py-1 px-4 pl-8">Aquisição de Terreno</td>
+                        <tr 
+                          onClick={() => openDreModal('TERRENO', 'Aquisição de Terreno')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar custo de Aquisição de Terreno"
+                        >
+                          <td className="py-1 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Aquisição de Terreno</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoProj)}</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoReal)}</td>
                           <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal)}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
-                          <td className="py-1 px-4 pl-8">Projetos & Licenciamento</td>
+                        <tr 
+                          onClick={() => openDreModal('PROJETOS', 'Projetos & Licenciamento')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar custo de Projetos & Licenciamento"
+                        >
+                          <td className="py-1 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Projetos & Licenciamento</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetosProj)}</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetosReal)}</td>
                           <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioProjetosProj - dreData.rateioProjetosReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency(dreData.rateioProjetosProj - dreData.rateioProjetosReal)}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-500 pl-8">
-                          <td className="py-1 px-4 pl-8">Marketing & Publicidade</td>
+                        <tr 
+                          onClick={() => openDreModal('MARKETING', 'Marketing & Publicidade')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar custo de Marketing & Publicidade"
+                        >
+                          <td className="py-1 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Marketing & Publicidade</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketingProj)}</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketingReal)}</td>
                           <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioMarketingProj - dreData.rateioMarketingReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1123,40 +1273,60 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                             {formatCurrency((dreData.totalFixoProjetado || 0) - (dreData.totalFixoRealizado || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Equipe de Gestão e Supervisão (Engenharia / Campo)</td>
+                        <tr 
+                          onClick={() => openDreModal('FIXO_EQUIPE', 'Equipe de Gestão e Supervisão (Engenharia / Campo)')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Equipe de Gestão"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Equipe de Gestão e Supervisão (Engenharia / Campo)</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoEquipeGestao || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoEquipeGestao || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoEquipeGestao - dreData.realFixoEquipeGestao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency((dreData.projFixoEquipeGestao || 0) - (dreData.realFixoEquipeGestao || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Instalação e Manutenção do Canteiro de Obras</td>
+                        <tr 
+                          onClick={() => openDreModal('FIXO_CANTEIRO', 'Instalação e Manutenção do Canteiro de Obras')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Canteiro de Obras"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Instalação e Manutenção do Canteiro de Obras</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoCanteiro || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoCanteiro || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoCanteiro - dreData.realFixoCanteiro) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency((dreData.projFixoCanteiro || 0) - (dreData.realFixoCanteiro || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Despesas de Consumo Contínuo (Concessionárias / Vigilância)</td>
+                        <tr 
+                          onClick={() => openDreModal('FIXO_CONSUMO', 'Despesas de Consumo Contínuo (Concessionárias / Vigilância)')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Consumo Contínuo"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Despesas de Consumo Contínuo (Concessionárias / Vigilância)</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoConsumo || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoConsumo || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoConsumo - dreData.realFixoConsumo) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency((dreData.projFixoConsumo || 0) - (dreData.realFixoConsumo || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Locação de Equipamentos Mensais (Andaimes / Betoneiras)</td>
+                        <tr 
+                          onClick={() => openDreModal('FIXO_LOCACAO', 'Locação de Equipamentos Mensais (Andaimes / Betoneiras)')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Locação de Equipamentos"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Locação de Equipamentos Mensais (Andaimes / Betoneiras)</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoLocacao || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoLocacao || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoLocacao - dreData.realFixoLocacao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency((dreData.projFixoLocacao || 0) - (dreData.realFixoLocacao || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Taxas, Alvarás e Seguros de Engenharia</td>
+                        <tr 
+                          onClick={() => openDreModal('FIXO_TAXAS', 'Taxas, Alvarás e Seguros de Engenharia')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Taxas e Seguros"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Taxas, Alvarás e Seguros de Engenharia</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoTaxasSeguros || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoTaxasSeguros || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoTaxasSeguros - dreData.realFixoTaxasSeguros) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1173,32 +1343,48 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                             {formatCurrency((dreData.totalVariavelProjetado || 0) - (dreData.totalVariavelRealizado || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Materiais de Construção (Aço / Cimento / Blocos - Curva A)</td>
+                        <tr 
+                          onClick={() => openDreModal('VARIAVEL_MATERIAIS', 'Materiais de Construção (Aço / Cimento / Blocos - Curva A)')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Materiais de Construção"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Materiais de Construção (Aço / Cimento / Blocos - Curva A)</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMateriais || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMateriais || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMateriais - dreData.realVariavelMateriais) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency((dreData.projVariavelMateriais || 0) - (dreData.realVariavelMateriais || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Mão de Obra Direta (Pedreiros / Carpinteiros / Medição de Produção)</td>
+                        <tr 
+                          onClick={() => openDreModal('VARIAVEL_MAODEOBRA', 'Mão de Obra Direta (Pedreiros / Carpinteiros / Medição de Produção)')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Mão de Obra Direta"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Mão de Obra Direta (Pedreiros / Carpinteiros / Medição de Produção)</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMaoDireta || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMaoDireta || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMaoDireta - dreData.realVariavelMaoDireta) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency((dreData.projVariavelMaoDireta || 0) - (dreData.realVariavelMaoDireta || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Logística e Fretes de Insumos</td>
+                        <tr 
+                          onClick={() => openDreModal('VARIAVEL_LOGISTICA', 'Logística e Fretes de Insumos')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Logística e Fretes"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Logística e Fretes de Insumos</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelLogistica || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelLogistica || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelLogistica - dreData.realVariavelLogistica) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatCurrency((dreData.projVariavelLogistica || 0) - (dreData.realVariavelLogistica || 0))}
                           </td>
                         </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Consumo Específico de Máquinas (Terraplenagem / Fundações)</td>
+                        <tr 
+                          onClick={() => openDreModal('VARIAVEL_MAQUINAS', 'Consumo Específico de Máquinas (Terraplenagem / Fundações)')}
+                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
+                          title="Clique para lançar orçamento ou despesa de Máquinas"
+                        >
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Consumo Específico de Máquinas (Terraplenagem / Fundações)</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMaquinas || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMaquinas || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMaquinas - dreData.realVariavelMaquinas) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
