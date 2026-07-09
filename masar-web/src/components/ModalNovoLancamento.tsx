@@ -185,6 +185,16 @@ export default function ModalNovoLancamento({
     setStep(prev => Math.max(1, prev - 1));
   };
 
+  const handleCategoriaChange = (newCat: string) => {
+    setCategoria(newCat);
+    if (['MATERIAL', 'MAO_DE_OBRA', 'MEDICAO_CAIXA', 'ENTRADA_CLIENTE'].includes(newCat)) {
+      setDestino('CASA');
+    } else {
+      setDestino('GLOBAL');
+      setCasaId('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!descricao || !valor || !categoria) {
@@ -441,7 +451,7 @@ export default function ModalNovoLancamento({
                     <label className="text-xs text-slate-400 font-medium block">Categoria Financeira</label>
                     <select
                       value={categoria}
-                      onChange={(e) => setCategoria(e.target.value)}
+                      onChange={(e) => handleCategoriaChange(e.target.value)}
                       className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50"
                     >
                       {natureza === 'RECEITA' ? (
@@ -460,6 +470,24 @@ export default function ModalNovoLancamento({
                       )}
                     </select>
                   </div>
+
+                  {/* Seleção de Casa (se Destino for CASA) */}
+                  {destino === 'CASA' && (
+                    <div className="space-y-1.5 border-l-2 border-indigo-500/30 pl-3 py-1">
+                      <label className="text-xs text-slate-400 font-medium block">Casa / Lote de Vínculo *</label>
+                      <select
+                        value={casaId}
+                        onChange={(e) => setCasaId(e.target.value)}
+                        required
+                        className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50"
+                      >
+                        <option value="">-- Selecione o Lote --</option>
+                        {casas.map(c => (
+                          <option key={c.id} value={c.id}>Qd {c.quadra}, Casa {c.numero} (Cliente: {c.cliente?.nome || 'Sem Cliente'})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* Condicionais Insumo (Despesa Obra) ou Cliente (Receita) */}
                   {natureza === 'DESPESA' && (categoria === 'MATERIAL' || categoria === 'MAO_DE_OBRA') && (
