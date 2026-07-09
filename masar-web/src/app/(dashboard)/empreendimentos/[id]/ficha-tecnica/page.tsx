@@ -15,7 +15,18 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
     where: { id },
     include: {
       casas: {
-        select: { id: true, percentualObra: true }
+        select: {
+          id: true,
+          numero: true,
+          quadra: true,
+          statusObra: true,
+          percentualObra: true,
+          liberadaVenda: true
+        },
+        orderBy: [
+          { quadra: 'asc' },
+          { numero: 'asc' }
+        ]
       },
       documentos: {
         orderBy: { dataCriacao: 'desc' }

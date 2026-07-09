@@ -68,6 +68,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Auto-gerar as casas planejadas no Backlog na criação do empreendimento
+    if (casasPrevistasInt && casasPrevistasInt > 0) {
+      const housesData = Array.from({ length: casasPrevistasInt }, (_, index) => {
+        const num = (index + 1).toString().padStart(2, '0');
+        return {
+          numero: num,
+          quadra: 'A',
+          statusObra: 'BACKLOG' as const,
+          percentualObra: 0.0,
+          empreendimentoId: empreendimento.id,
+        };
+      });
+      await db.casa.createMany({
+        data: housesData
+      });
+    }
+
     // Gatilho de Custo do Terreno
     if (valorCompraFloat && valorCompraFloat > 0) {
       const desc = `Aquisição do Terreno - ${nome}`;

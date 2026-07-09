@@ -88,6 +88,39 @@ export async function PATCH(
       data: updateData
     });
 
+    // Auto-gerar casas faltantes se a quantidade de casas previstas for maior que a contagem atual
+    if (updateData.quantidadeCasasPrevistas !== undefined && updateData.quantidadeCasasPrevistas > 0) {
+      const targetCount = updateData.quantidadeCasasPrevistas;
+      const currentCount = await db.casa.count({
+        where: { empreendimentoId: id }
+      });
+      if (targetCount > currentCount) {
+        const diff = targetCount - currentCount;
+        const startNum = currentCount + 1;
+        const housesData = Array.from({ length: diff }, (_, index) => {
+          const num = (startNum + index).toString().padStart(2, '0');
+          return {
+            numero: num,
+            quadra: 'A',
+            statusObra: 'BACKLOG' as const,
+            percentualObra: 0.0,
+            empreendimentoId: id,
+            areaConstruida: updated.padraoAreaConstruida,
+            areaLote: updated.padraoAreaLote,
+            quantidadeQuartos: updated.padraoQuantidadeQuartos ?? 0,
+            quantidadeSuites: updated.padraoQuantidadeSuites ?? 0,
+            quantidadeBanheiros: updated.padraoQuantidadeBanheiros ?? 0,
+            vagasGaragem: updated.padraoVagasGaragem ?? 0,
+            possuiQuintal: updated.padraoPossuiQuintal ?? false,
+            salaConjugada: updated.padraoSalaConjugada ?? false,
+          };
+        });
+        await db.casa.createMany({
+          data: housesData
+        });
+      }
+    }
+
     // Se a replicação em massa foi solicitada, sobrescrever todas as casas
     if (replicarTipologia === true) {
       await db.casa.updateMany({
