@@ -9,7 +9,13 @@ export default async function SuprimentosPage() {
     include: {
       insumo: true,
       casa: {
-        include: { empreendimento: true }
+        include: { 
+          empreendimento: true,
+          orcamento: {
+            include: { itens: true }
+          },
+          apropriacoes: true
+        }
       },
       empreendimento: true,
       cotacoes: true
@@ -32,15 +38,35 @@ export default async function SuprimentosPage() {
   });
 
   // Serializar datas para componentes clientes com segurança
-  const serializedSolicitacoes = solicitacoes.map(s => ({
-    ...s,
-    dataNecessidade: s.dataNecessidade.toISOString(),
-    dataCriacao: s.dataCriacao.toISOString(),
-    cotacoes: s.cotacoes.map(c => ({
-      ...c,
-      dataCriacao: c.dataCriacao.toISOString()
-    }))
-  }));
+  const serializedSolicitacoes = solicitacoes.map(s => {
+    let orcadoQtd = null;
+    let consumoQtd = null;
+    let saldoQtd = null;
+
+    if (s.casa) {
+      const itemOrcado = s.casa.orcamento?.itens.find(item => item.insumoId === s.insumoId);
+      orcadoQtd = itemOrcado ? itemOrcado.quantidadePlanejada : 0;
+
+      const apropriado = s.casa.apropriacoes
+        .filter(ap => ap.insumoId === s.insumoId)
+        .reduce((sum, ap) => sum + ap.quantidadeReal, 0);
+      consumoQtd = apropriado;
+      saldoQtd = orcadoQtd - consumoQtd;
+    }
+
+    return {
+      ...s,
+      dataNecessidade: s.dataNecessidade.toISOString(),
+      dataCriacao: s.dataCriacao.toISOString(),
+      cotacoes: s.cotacoes.map(c => ({
+        ...c,
+        dataCriacao: c.dataCriacao.toISOString()
+      })),
+      orcadoQtd,
+      consumoQtd,
+      saldoQtd
+    };
+  });
 
   const serializedCasas = casas.map(c => ({
     id: c.id,

@@ -39,6 +39,7 @@ interface Casa {
     nome: string;
   };
   statusObra: string;
+  percentualObra: number;
   infraestrutura: Infra | null;
 }
 
@@ -238,9 +239,63 @@ export default function CanteiroForm({ initialCasas, initialInsumos }: CanteiroF
           ))}
         </select>
         {activeCasa && (
-          <div className="mt-3.5 flex justify-between items-center bg-[#090d16] p-2.5 rounded-lg border border-slate-800/60 text-xs">
-            <span className="text-slate-400">Estágio de Obra:</span>
-            <span className="font-bold text-indigo-400 uppercase">{activeCasa.statusObra.replace('_', ' ')}</span>
+          <div className="mt-4 p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-3">
+            <div className="flex justify-between items-center text-xs font-bold font-sans text-slate-300">
+              <span className="flex items-center gap-1">
+                <Activity size={12} className="text-indigo-400" /> Painel de Progresso Físico
+              </span>
+              <span className="text-indigo-400 uppercase text-[10px]">
+                {activeCasa.statusObra.replace('_', ' ')}
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] text-slate-450 font-semibold">
+                <span className="text-slate-400">Evolução Física</span>
+                <span className="font-bold text-slate-200">{activeCasa.percentualObra || 0}%</span>
+              </div>
+              <div className="w-full bg-[#0f1422] h-2 rounded-full overflow-hidden border border-slate-800">
+                <div 
+                  className="bg-indigo-500 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${activeCasa.percentualObra || 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Checklist de Utilidades / Ligações */}
+            <div className="grid grid-cols-3 gap-2 text-center text-[9px] pt-1">
+              <div className={`p-1.5 rounded-lg border ${
+                activeCasa.infraestrutura?.padraoEnergiaInstalado 
+                  ? 'bg-emerald-950/20 border-emerald-500/10 text-emerald-400' 
+                  : 'bg-slate-950/30 border-slate-850 text-slate-500 font-medium'
+              }`}>
+                Energia: {activeCasa.infraestrutura?.padraoEnergiaInstalado ? 'Instalado' : 'Pendente'}
+              </div>
+              <div className={`p-1.5 rounded-lg border ${
+                activeCasa.infraestrutura?.ligacaoAguaConcluida 
+                  ? 'bg-emerald-950/20 border-emerald-500/10 text-emerald-400' 
+                  : 'bg-slate-950/30 border-slate-850 text-slate-500 font-medium'
+              }`}>
+                Água: {activeCasa.infraestrutura?.ligacaoAguaConcluida ? 'Concluída' : 'Pendente'}
+              </div>
+              <div className={`p-1.5 rounded-lg border ${
+                activeCasa.infraestrutura?.fossaFiltroEsgotoConcluido 
+                  ? 'bg-emerald-950/20 border-emerald-500/10 text-emerald-400' 
+                  : 'bg-slate-950/30 border-slate-850 text-slate-500 font-medium'
+              }`}>
+                Esgoto: {activeCasa.infraestrutura?.fossaFiltroEsgotoConcluido ? 'Instalado' : 'Pendente'}
+              </div>
+            </div>
+
+            {/* Didactical Tip */}
+            <div className="p-2.5 bg-slate-950/50 border border-slate-850 rounded-lg text-[10px] text-slate-400 flex items-start gap-1.5 leading-relaxed">
+              <Lightbulb size={12} className="text-yellow-500 shrink-0 mt-0.5" />
+              <p>
+                <strong>Dica de Canteiro:</strong> Preencha o diário detalhando os serviços realizados no lote. 
+                Isso documenta o progresso para a liberação de recursos de medições na Caixa Econômica!
+              </p>
+            </div>
           </div>
         )}
       </div>

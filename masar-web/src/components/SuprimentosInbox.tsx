@@ -18,7 +18,9 @@ import {
   Edit2,
   Trash2,
   X,
-  Upload
+  Upload,
+  Activity,
+  FolderLock
 } from 'lucide-react';
 
 interface Cotacao {
@@ -46,6 +48,9 @@ interface Solicitacao {
   tokenCotacao: string;
   cotacoes: Cotacao[];
   dataCriacao: string | Date;
+  orcadoQtd: number | null;
+  consumoQtd: number | null;
+  saldoQtd: number | null;
 }
 
 interface SuprimentosInboxProps {
@@ -323,11 +328,36 @@ export default function SuprimentosInbox({
     ? casas.filter(c => c.empreendimento.id === newEmpreendimentoId)
     : casas;
 
+  // SLA Statistics for the list
+  const totalReqs = solicitacoes.length;
+  const pendingQuotes = solicitacoes.filter(s => s.cotacoes.length === 0).length;
+  const urgentReqs = solicitacoes.filter(s => {
+    const diff = new Date(s.dataNecessidade).getTime() - new Date().getTime();
+    const diffDays = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 5 && s.status !== 'APROVADA';
+  }).length;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-xs text-slate-350 relative">
       
       {/* Coluna Esquerda: Lista de Requisições */}
       <div className="lg:col-span-5 space-y-4">
+        {/* SLA Metrics Header */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-[#0f1422] p-3 rounded-xl border border-slate-850 text-center">
+            <span className="text-[8px] text-slate-500 block uppercase font-bold">Total Requisições</span>
+            <span className="text-sm font-bold text-white font-mono">{totalReqs}</span>
+          </div>
+          <div className="bg-[#0f1422] p-3 rounded-xl border border-slate-850 text-center">
+            <span className="text-[8px] text-slate-500 block uppercase font-bold">Sem Cotação</span>
+            <span className="text-sm font-bold text-amber-500 font-mono">{pendingQuotes}</span>
+          </div>
+          <div className="bg-[#0f1422] p-3 rounded-xl border border-slate-850 text-center">
+            <span className="text-[8px] text-slate-500 block uppercase font-bold">Urgentes (&lt;5d)</span>
+            <span className="text-sm font-bold text-red-500 font-mono">{urgentReqs}</span>
+          </div>
+        </div>
+
         <div className="flex justify-between items-center">
           <h3 className="text-sm font-bold text-white uppercase tracking-wider block">Requisições de Compra</h3>
           <button
@@ -430,6 +460,87 @@ export default function SuprimentosInbox({
                 </button>
               </div>
             </div>
+
+            {/* Didactical Lote/Casa Budget Context Panel */}
+            {selectedSol.casaId ? (
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-850 space-y-3.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">
+                    <Activity size={12} className="text-indigo-405 text-indigo-400" /> Controle de Orçamento do Lote
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    Casa {selectedSol.casa?.numero} - {selectedSol.casa?.empreendimento.nome}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-3 text-center">
+                  <div className="bg-[#0f1422] p-2.5 rounded-lg border border-slate-850">
+                    <span className="text-[8px] text-slate-500 block uppercase font-bold">Orçado</span>
+                    <span className="font-mono text-xs font-bold text-slate-300">
+                      {selectedSol.orcadoQtd !== null ? `${selectedSol.orcadoQtd} ${selectedSol.insumo.unidadeMedida}` : 'Não orçado'}
+                    </span>
+                  </div>
+                  <div className="bg-[#0f1422] p-2.5 rounded-lg border border-slate-850">
+                    <span className="text-[8px] text-slate-500 block uppercase font-bold">Consumido</span>
+                    <span className="font-mono text-xs font-bold text-slate-400">
+                      {selectedSol.consumoQtd !== null ? `${selectedSol.consumoQtd} ${selectedSol.insumo.unidadeMedida}` : '0'}
+                    </span>
+                  </div>
+                  <div className="bg-[#0f1422] p-2.5 rounded-lg border border-slate-850">
+                    <span className="text-[8px] text-slate-500 block uppercase font-bold">Solicitando</span>
+                    <span className="font-mono text-xs font-bold text-blue-400">
+                      {selectedSol.quantidadeSolicitada} {selectedSol.insumo.unidadeMedida}
+                    </span>
+                  </div>
+                  <div className={`p-2.5 rounded-lg border ${
+                    (selectedSol.saldoQtd ?? 0) - selectedSol.quantidadeSolicitada >= 0
+                      ? 'bg-emerald-950/20 border-emerald-500/10 text-emerald-400'
+                      : 'bg-red-950/20 border-red-500/10 text-red-400'
+                  }`}>
+                    <span className="text-[8px] text-slate-500 block uppercase font-bold">Saldo Após Compra</span>
+                    <span className="font-mono text-xs font-bold">
+                      {selectedSol.saldoQtd !== null 
+                        ? `${((selectedSol.saldoQtd ?? 0) - selectedSol.quantidadeSolicitada).toFixed(2)} ${selectedSol.insumo.unidadeMedida}` 
+                        : '--'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Didactical Advice */}
+                {selectedSol.orcadoQtd === 0 ? (
+                  <div className="p-2.5 bg-red-950/30 border border-red-500/20 rounded-lg text-[10px] text-red-400 flex items-start gap-2">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <p>
+                      <strong>Atenção:</strong> Este insumo não está planejado no orçamento original deste lote. 
+                      Para emitir a ordem de compra, o sistema exigirá aprovação de estouro orçamentário.
+                    </p>
+                  </div>
+                ) : (selectedSol.saldoQtd ?? 0) - selectedSol.quantidadeSolicitada < 0 ? (
+                  <div className="p-2.5 bg-amber-555/5 border border-amber-500/20 rounded-lg text-[10px] text-amber-400 flex items-start gap-2">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <p>
+                      <strong>Alerta de Estouro:</strong> Esta compra excede o saldo físico orçado restante para o lote. 
+                      Ao autorizar, você gerará uma solicitação de estouro que requer liberação administrativa.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-2.5 bg-emerald-950/20 border border-emerald-500/15 rounded-lg text-[10px] text-emerald-400 flex items-start gap-2">
+                    <CheckCircle size={14} className="shrink-0 mt-0.5" />
+                    <p>
+                      <strong>Viabilidade Verde:</strong> Compra em conformidade com o saldo físico e margem econômica do lote.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850/80 text-[10px] text-slate-400 flex items-start gap-2">
+                <FolderLock size={14} className="text-slate-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-slate-300 block uppercase tracking-wider text-[8px] mb-0.5">Rateio Global</span>
+                  Esta requisição é destinada a despesas gerais ou rateio global do empreendimento (não associado a um lote/casa unitário).
+                </div>
+              </div>
+            )}
 
             {/* Trava de Orçamento (Excepcional) */}
             {overrunData && (
