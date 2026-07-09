@@ -13,10 +13,18 @@ import {
   FileWarning
 } from 'lucide-react';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/auth';
 
 export const revalidate = 0; // Disable server component caching to reflect real-time updates
 
 export default async function DashboardPage() {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('masar_session')?.value;
+  const session = sessionToken ? await verifySession(sessionToken) : null;
+  const userRole = session?.role || 'COMERCIAL';
+  const hasProjectsAccess = ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(userRole);
+
   const today = new Date();
 
   // 1. Queries de leitura rápida direta no Prisma
@@ -251,27 +259,54 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           
           {/* Radar 1: Projetos sem Alvará */}
-          <div className={`glassmorphism p-5 rounded-2xl border ${semAlvara.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}>
-            <div className="flex items-center gap-3">
-              <span className={`p-2 rounded-xl ${semAlvara.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                <ShieldAlert size={20} />
-              </span>
-              <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Alvarás Pendentes</h4>
-                <p className="text-xl font-extrabold text-white mt-1">
-                  {semAlvara.length} <span className="text-[10px] text-slate-400 font-normal">projetos</span>
-                </p>
+          {hasProjectsAccess ? (
+            <Link 
+              href="/empreendimentos" 
+              className={`glassmorphism p-5 rounded-2xl border transition hover:bg-slate-800/5 hover:border-indigo-500/40 block cursor-pointer ${semAlvara.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}
+            >
+              <div className="flex items-center gap-3">
+                <span className={`p-2 rounded-xl ${semAlvara.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                  <ShieldAlert size={20} />
+                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Alvarás Pendentes</h4>
+                  <p className="text-xl font-extrabold text-white mt-1">
+                    {semAlvara.length} <span className="text-[10px] text-slate-400 font-normal">projetos</span>
+                  </p>
+                </div>
               </div>
+              <p className="text-xs text-slate-400 mt-3 leading-relaxed">
+                {semAlvara.length > 0 
+                  ? `Projetos ativos em CAIXA/OBRA sem Alvará de Prefeitura aprovado: ${semAlvara.map(p => p.nome).join(', ')}.`
+                  : 'Todos os projetos ativos possuem Alvarás de Prefeitura deferidos.'}
+              </p>
+            </Link>
+          ) : (
+            <div className={`glassmorphism p-5 rounded-2xl border ${semAlvara.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'} opacity-75`}>
+              <div className="flex items-center gap-3">
+                <span className={`p-2 rounded-xl ${semAlvara.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                  <ShieldAlert size={20} />
+                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Alvarás Pendentes</h4>
+                  <p className="text-xl font-extrabold text-white mt-1">
+                    {semAlvara.length} <span className="text-[10px] text-slate-400 font-normal">projetos</span>
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-3 leading-relaxed">
+                {semAlvara.length > 0 
+                  ? `Projetos ativos em CAIXA/OBRA sem Alvará de Prefeitura aprovado: ${semAlvara.map(p => p.nome).join(', ')}.`
+                  : 'Todos os projetos ativos possuem Alvarás de Prefeitura deferidos.'}
+              </p>
             </div>
-            <p className="text-xs text-slate-400 mt-3 leading-relaxed">
-              {semAlvara.length > 0 
-                ? `Projetos ativos em CAIXA/OBRA sem Alvará de Prefeitura aprovado: ${semAlvara.map(p => p.nome).join(', ')}.`
-                : 'Todos os projetos ativos possuem Alvarás de Prefeitura deferidos.'}
-            </p>
-          </div>
+          )}
 
           {/* Radar 2: Descompasso Físico-Financeiro */}
-          <div className={`glassmorphism p-5 rounded-2xl border ${casasDescompasso.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}>
+          <Link 
+            href="#gargalos" 
+            className={`glassmorphism p-5 rounded-2xl border transition hover:bg-slate-800/5 hover:border-indigo-500/40 block cursor-pointer ${casasDescompasso.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}
+          >
             <div className="flex items-center gap-3">
               <span className={`p-2 rounded-xl ${casasDescompasso.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
                 <FileWarning size={20} />
@@ -288,27 +323,51 @@ export default async function DashboardPage() {
                 ? 'Casas com desvio físico vs financeiro atestado CEF superior a 10% (Risco alto de glosa de vistoria).'
                 : 'Todas as unidades estão com o cronograma físico alinhado às medições pagas.'}
             </p>
-          </div>
+          </Link>
 
           {/* Radar 3: Casas prontas sem Habite-se */}
-          <div className={`glassmorphism p-5 rounded-2xl border ${casasSemHabiteSe.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}>
-            <div className="flex items-center gap-3">
-              <span className={`p-2 rounded-xl ${casasSemHabiteSe.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                <CalendarCheck2 size={20} />
-              </span>
-              <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Habite-se Atrasado</h4>
-                <p className="text-xl font-extrabold text-white mt-1">
-                  {casasSemHabiteSe.length} <span className="text-[10px] text-slate-400 font-normal">unidades</span>
-                </p>
+          {hasProjectsAccess ? (
+            <Link 
+              href="/empreendimentos" 
+              className={`glassmorphism p-5 rounded-2xl border transition hover:bg-slate-800/5 hover:border-indigo-500/40 block cursor-pointer ${casasSemHabiteSe.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'}`}
+            >
+              <div className="flex items-center gap-3">
+                <span className={`p-2 rounded-xl ${casasSemHabiteSe.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                  <CalendarCheck2 size={20} />
+                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Habite-se Atrasado</h4>
+                  <p className="text-xl font-extrabold text-white mt-1">
+                    {casasSemHabiteSe.length} <span className="text-[10px] text-slate-400 font-normal">unidades</span>
+                  </p>
+                </div>
               </div>
+              <p className="text-xs text-slate-400 mt-3 leading-relaxed">
+                {casasSemHabiteSe.length > 0 
+                  ? 'Casas prontas sem Habite-se emitido (cobrança continuada de juros de obra CEF aos adquirentes).'
+                  : 'Nenhum risco de juros de obra estendido por falta de Habite-se.'}
+              </p>
+            </Link>
+          ) : (
+            <div className={`glassmorphism p-5 rounded-2xl border ${casasSemHabiteSe.length > 0 ? 'border-red-500/25 bg-red-950/5' : 'border-slate-800'} opacity-75`}>
+              <div className="flex items-center gap-3">
+                <span className={`p-2 rounded-xl ${casasSemHabiteSe.length > 0 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                  <CalendarCheck2 size={20} />
+                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Habite-se Atrasado</h4>
+                  <p className="text-xl font-extrabold text-white mt-1">
+                    {casasSemHabiteSe.length} <span className="text-[10px] text-slate-400 font-normal">unidades</span>
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-3 leading-relaxed">
+                {casasSemHabiteSe.length > 0 
+                  ? 'Casas prontas sem Habite-se emitido (cobrança continuada de juros de obra CEF aos adquirentes).'
+                  : 'Nenhum risco de juros de obra estendido por falta de Habite-se.'}
+              </p>
             </div>
-            <p className="text-xs text-slate-400 mt-3 leading-relaxed">
-              {casasSemHabiteSe.length > 0 
-                ? 'Casas prontas sem Habite-se emitido (cobrança continuada de juros de obra CEF aos adquirentes).'
-                : 'Nenhum risco de juros de obra estendido por falta de Habite-se.'}
-            </p>
-          </div>
+          )}
 
         </div>
       </div>
@@ -366,43 +425,94 @@ export default async function DashboardPage() {
       {/* Cards de Métricas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Total Empreendimentos */}
-        <div className="glassmorphism p-5 rounded-2xl space-y-4">
-          <div className="flex justify-between items-start">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Projetos Ativos</span>
-            <span className="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><Building2 size={18} /></span>
+        {hasProjectsAccess ? (
+          <Link 
+            href="/empreendimentos" 
+            className="glassmorphism p-5 rounded-2xl space-y-4 block transition hover:bg-slate-800/5 hover:border-blue-500/40 cursor-pointer"
+          >
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Projetos Ativos</span>
+              <span className="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><Building2 size={18} /></span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">{totalEmpreendimentos}</h3>
+              <p className="text-xs text-slate-500 mt-1">Registrados na base de dados</p>
+            </div>
+          </Link>
+        ) : (
+          <div className="glassmorphism p-5 rounded-2xl space-y-4 opacity-75">
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Projetos Ativos</span>
+              <span className="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><Building2 size={18} /></span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">{totalEmpreendimentos}</h3>
+              <p className="text-xs text-slate-500 mt-1">Registrados na base de dados</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-2xl font-bold text-white">{totalEmpreendimentos}</h3>
-            <p className="text-xs text-slate-500 mt-1">Registrados na base de dados</p>
-          </div>
-        </div>
+        )}
 
         {/* Casas em Obra */}
-        <div className="glassmorphism p-5 rounded-2xl space-y-4">
-          <div className="flex justify-between items-start">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Casas em Obra</span>
-            <span className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><Home size={18} /></span>
+        {hasProjectsAccess ? (
+          <Link 
+            href="/empreendimentos" 
+            className="glassmorphism p-5 rounded-2xl space-y-4 block transition hover:bg-slate-800/5 hover:border-indigo-500/40 cursor-pointer"
+          >
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Casas em Obra</span>
+              <span className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><Home size={18} /></span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">{casasEmObra} <span className="text-xs text-slate-500 font-normal">/ {totalCasas}</span></h3>
+              <p className="text-xs text-slate-500 mt-1">Com execução física ativa</p>
+            </div>
+          </Link>
+        ) : (
+          <div className="glassmorphism p-5 rounded-2xl space-y-4 opacity-75">
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Casas em Obra</span>
+              <span className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><Home size={18} /></span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">{casasEmObra} <span className="text-xs text-slate-500 font-normal">/ {totalCasas}</span></h3>
+              <p className="text-xs text-slate-500 mt-1">Com execução física ativa</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-2xl font-bold text-white">{casasEmObra} <span className="text-xs text-slate-500 font-normal">/ {totalCasas}</span></h3>
-            <p className="text-xs text-slate-500 mt-1">Com execução física ativa</p>
-          </div>
-        </div>
+        )}
 
         {/* Medições Pendentes */}
-        <div className="glassmorphism p-5 rounded-2xl space-y-4">
-          <div className="flex justify-between items-start">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Aguardando Caixa</span>
-            <span className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><Clock size={18} /></span>
+        {hasProjectsAccess ? (
+          <Link 
+            href="/empreendimentos" 
+            className="glassmorphism p-5 rounded-2xl space-y-4 block transition hover:bg-slate-800/5 hover:border-amber-500/40 cursor-pointer"
+          >
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Aguardando Caixa</span>
+              <span className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><Clock size={18} /></span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-amber-400">{formatCurrency(valorPendente)}</h3>
+              <p className="text-xs text-slate-500 mt-1">Valor enviado em medição</p>
+            </div>
+          </Link>
+        ) : (
+          <div className="glassmorphism p-5 rounded-2xl space-y-4 opacity-75">
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Aguardando Caixa</span>
+              <span className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><Clock size={18} /></span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-amber-400">{formatCurrency(valorPendente)}</h3>
+              <p className="text-xs text-slate-500 mt-1">Valor enviado em medição</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-2xl font-bold text-amber-400">{formatCurrency(valorPendente)}</h3>
-            <p className="text-xs text-slate-500 mt-1">Valor enviado em medição</p>
-          </div>
-        </div>
+        )}
 
         {/* Total Glosado */}
-        <div className={`glassmorphism p-5 rounded-2xl space-y-4 border ${hasGlosaAtiva ? 'border-red-500/30' : ''}`}>
+        <Link 
+          href="#gargalos" 
+          className={`glassmorphism p-5 rounded-2xl space-y-4 border transition hover:bg-slate-800/5 hover:border-red-500/40 cursor-pointer ${hasGlosaAtiva ? 'border-red-500/30' : ''}`}
+        >
           <div className="flex justify-between items-start">
             <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Valor Glosado</span>
             <span className={`p-2 rounded-lg ${hasGlosaAtiva ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/10 text-slate-400'}`}><XCircle size={18} /></span>
@@ -411,7 +521,7 @@ export default async function DashboardPage() {
             <h3 className={`text-2xl font-bold ${hasGlosaAtiva ? 'text-red-500' : 'text-slate-300'}`}>{formatCurrency(valorGlosado)}</h3>
             <p className="text-xs text-slate-500 mt-1">Retido/Reprovado pela CEF</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Gráfico de Fluxo de Caixa */}
