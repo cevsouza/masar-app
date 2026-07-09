@@ -144,6 +144,18 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   const [checkMateriais, setCheckMateriais] = useState(false);
   const [isCreatingMedicao, setIsCreatingMedicao] = useState(false);
 
+  // Auto-calcular valor liberado baseado no percentual medido para facilitar o preenchimento
+  useEffect(() => {
+    const pct = parseFloat(percentualMedido);
+    if (!isNaN(pct) && pct >= 0 && pct <= 100) {
+      const totalCEF = initialCasa.contrato 
+        ? initialCasa.contrato.financiamento 
+        : (Number(initialCasa.valorVendaProjetado || 0) * 0.8);
+      const calculated = (totalCEF * pct / 100).toFixed(2);
+      setValorLiberado(calculated);
+    }
+  }, [percentualMedido, initialCasa]);
+
   // Status updating state
   const [updatingMedicaoId, setUpdatingMedicaoId] = useState<string | null>(null);
 

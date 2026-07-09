@@ -19,7 +19,8 @@ import {
   Info,
   Calendar,
   Loader2,
-  X
+  X,
+  Edit
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -1211,7 +1212,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 font-semibold text-slate-200 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar/ajustar o VGV estimado"
                         >
-                          <td className="py-3 px-4 group-hover:text-indigo-400 transition-colors">Receita Operacional Bruta - Valor Geral de Vendas (VGV)</td>
+                          <td className="py-3 px-4 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Receita Operacional Bruta - Valor Geral de Vendas (VGV)</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-3 px-4 text-right font-mono">{formatCurrency(dreData.totalVGVProjetado)}</td>
                           <td className="py-3 px-4 text-right font-mono text-emerald-400">{formatCurrency(dreData.totalVGVRealizado)}</td>
                           <td className={`py-3 px-4 text-right font-mono ${(dreData.totalVGVRealizado - dreData.totalVGVProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1225,7 +1229,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-slate-400 cursor-pointer transition-all duration-150 group"
                           title="Clique para ajustar comissão ou VGV das unidades"
                         >
-                          <td className="py-2 px-4 pl-6 group-hover:text-indigo-400 transition-colors">(-) Comissão de Vendas (Intermediação Imobiliária)</td>
+                          <td className="py-2 px-4 pl-6 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>(-) Comissão de Vendas (Intermediação Imobiliária)</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoProjetada)}</td>
                           <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoRealizada)}</td>
                           <td className={`py-2 px-4 text-right font-mono ${dreData.totalComissaoRealizada > dreData.totalComissaoProjetada ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -1255,7 +1262,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar custo de Aquisição de Terreno"
                         >
-                          <td className="py-1 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Aquisição de Terreno</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Aquisição de Terreno</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoProj)}</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoReal)}</td>
                           <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1267,7 +1277,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar custo de Projetos & Licenciamento"
                         >
-                          <td className="py-1 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Projetos & Licenciamento</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Projetos & Licenciamento</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetosProj)}</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetosReal)}</td>
                           <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioProjetosProj - dreData.rateioProjetosReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1279,7 +1292,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar custo de Marketing & Publicidade"
                         >
-                          <td className="py-1 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Marketing & Publicidade</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Marketing & Publicidade</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketingProj)}</td>
                           <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketingReal)}</td>
                           <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioMarketingProj - dreData.rateioMarketingReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1301,7 +1317,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar orçamento ou despesa de Equipe de Gestão"
                         >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Equipe de Gestão e Supervisão (Engenharia / Campo)</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Equipe de Gestão e Supervisão (Engenharia / Campo)</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoEquipeGestao || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoEquipeGestao || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoEquipeGestao - dreData.realFixoEquipeGestao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1313,7 +1332,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar orçamento ou despesa de Canteiro de Obras"
                         >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Instalação e Manutenção do Canteiro de Obras</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Instalação e Manutenção do Canteiro de Obras</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoCanteiro || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoCanteiro || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoCanteiro - dreData.realFixoCanteiro) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1325,7 +1347,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar orçamento ou despesa de Consumo Contínuo"
                         >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Despesas de Consumo Contínuo (Concessionárias / Vigilância)</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Despesas de Consumo Contínuo (Concessionárias / Vigilância)</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoConsumo || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoConsumo || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoConsumo - dreData.realFixoConsumo) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1337,7 +1362,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar orçamento ou despesa de Locação de Equipamentos"
                         >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Locação de Equipamentos Mensais (Andaimes / Betoneiras)</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Locação de Equipamentos Mensais (Andaimes / Betoneiras)</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoLocacao || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoLocacao || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoLocacao - dreData.realFixoLocacao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1349,7 +1377,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar orçamento ou despesa de Taxas e Seguros"
                         >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Taxas, Alvarás e Seguros de Engenharia</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Taxas, Alvarás e Seguros de Engenharia</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoTaxasSeguros || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoTaxasSeguros || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoTaxasSeguros - dreData.realFixoTaxasSeguros) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1371,7 +1402,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar orçamento ou despesa de Materiais de Construção"
                         >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Materiais de Construção (Aço / Cimento / Blocos - Curva A)</td>
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Materiais de Construção (Aço / Cimento / Blocos - Curva A)</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMateriais || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMateriais || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMateriais - dreData.realVariavelMateriais) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1383,7 +1417,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar orçamento ou despesa de Mão de Obra Direta"
                         >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Mão de Obra Direta (Pedreiros / Carpinteiros / Medição de Produção)</td>
+                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Mão de Obra Direta (Pedreiros / Carpinteiros / Medição de Produção)</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMaoDireta || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMaoDireta || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMaoDireta - dreData.realVariavelMaoDireta) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1395,7 +1432,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
                           title="Clique para lançar orçamento ou despesa de Logística e Fretes"
                         >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Logística e Fretes de Insumos</td>
+                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span>Logística e Fretes de Insumos</span>
+                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
+                          </td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelLogistica || 0)}</td>
                           <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelLogistica || 0)}</td>
                           <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelLogistica - dreData.realVariavelLogistica) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1650,6 +1690,27 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                           />
                         </div>
                       </div>
+                      
+                      {/* Real-time Math Display for Usability */}
+                      {dreInputQtd && dreInputValue && (
+                        <div className="p-2.5 bg-[#070a13]/60 border border-slate-850 rounded-xl font-mono text-[10px] flex items-center justify-between text-indigo-400 mt-2">
+                          {dreInputRealizado ? (
+                            <>
+                              <span>Custo Unitário Efetivo Calculado:</span>
+                              <span className="font-bold">
+                                {formatCurrency((parseFloat(dreInputValue) || 0) / (parseFloat(dreInputQtd) || 1))}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Custo Total Previsto Calculado (Qtd × Unitário):</span>
+                              <span className="font-bold">
+                                {formatCurrency((parseFloat(dreInputQtd) || 0) * (parseFloat(dreInputValue) || 0))}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
                       
                       {dreInputRealizado && (
                         <span className="text-[10px] text-amber-500 block">
