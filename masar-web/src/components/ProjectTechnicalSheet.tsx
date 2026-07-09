@@ -409,7 +409,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
   const fetchDreData = async () => {
     setIsLoadingDre(true);
     try {
-      const res = await fetch(`/api/financeiro/dre?empreendimentoId=${project.id}`);
+      const res = await fetch(`/api/financeiro/dre?empreendimentoId=${project.id}&_t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setDreData(data);

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export function classificarInsumoMCMV(nome: string, categoria: string): {
   tipo: 'FIXO' | 'VARIAVEL';
   subcategoria: 'EQUIPE_GESTAO' | 'CANTEIRO' | 'CONSUMO_CONTINUO' | 'LOCACAO_EQUIPAMENTOS' | 'TAXAS_SEGUROS' | 'MATERIAIS_CURVA_A' | 'MAO_DE_OBRA_DIRETA' | 'LOGISTICA_FRETES' | 'MAQUINAS_CONSUMO' | 'IMPOSTOS_RECEITA';
