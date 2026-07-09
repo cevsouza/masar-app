@@ -10,7 +10,14 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
   const casa = await db.casa.findUnique({
     where: { id },
     include: {
-      empreendimento: true,
+      empreendimento: {
+        include: {
+          custosGlobais: true,
+          casas: {
+            select: { id: true }
+          }
+        }
+      },
       cliente: true,
       infraestrutura: true,
       contrato: true,

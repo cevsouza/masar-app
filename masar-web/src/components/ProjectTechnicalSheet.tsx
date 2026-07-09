@@ -887,10 +887,21 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
                 <iframe 
                   width="100%" 
                   height="340" 
-                  src={`https://maps.google.com/maps?q=${project.latitude},${project.longitude}&t=&z=16&ie=UTF8&iwloc=&output=embed`}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${project.longitude - 0.005}%2C${project.latitude - 0.005}%2C${project.longitude + 0.005}%2C${project.latitude + 0.005}&layer=mapnik&marker=${project.latitude}%2C${project.longitude}`}
                   className="rounded-xl border border-slate-800"
                   allowFullScreen
                 />
+                
+                <div className="flex gap-2 mt-2">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${project.latitude},${project.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-[10px] font-bold transition text-center cursor-pointer border border-slate-700/50"
+                  >
+                    <MapPin size={12} className="text-indigo-400" /> Abrir no Google Maps (Visão Satélite)
+                  </a>
+                </div>
                 
                 <div className="flex justify-between items-center bg-[#0f1422]/60 p-3.5 rounded-xl border border-slate-850 font-mono text-[10px]">
                   <div>

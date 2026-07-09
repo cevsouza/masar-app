@@ -29,7 +29,8 @@ import {
   Edit2,
   Trash2,
   Loader2,
-  Layers
+  Layers,
+  Calculator
 } from 'lucide-react';
 import GedManager from '@/components/GedManager';
 import {
@@ -714,6 +715,79 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                 </div>
               </div>
 
+              {/* Velocímetros Físico-Financeiros do Lote */}
+              <div className="grid grid-cols-2 gap-4 mb-5">
+                {/* Gauge Físico */}
+                <div className="flex flex-col items-center justify-center p-3 bg-[#0d111d]/80 border border-slate-850 rounded-2xl text-center">
+                  <div className="relative w-16 h-16 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="32" cy="32" r="26" className="stroke-slate-800" strokeWidth="5" fill="transparent" />
+                      <circle
+                        cx="32"
+                        cy="32"
+                        r="26"
+                        className="stroke-indigo-500 transition-all duration-500 ease-out"
+                        strokeWidth="5"
+                        strokeDasharray={2 * Math.PI * 26}
+                        strokeDashoffset={2 * Math.PI * 26 - (percentualObra ? parseFloat(percentualObra) : 0) / 100 * (2 * Math.PI * 26)}
+                        strokeLinecap="round"
+                        fill="transparent"
+                      />
+                    </svg>
+                    <span className="absolute font-mono font-black text-[11px] text-white">
+                      {parseFloat(percentualObra).toFixed(1)}%
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase mt-2 block">Progresso Físico</span>
+                  <span className="text-[8px] text-slate-500 mt-0.5 block">Executado em obra</span>
+                </div>
+
+                {/* Gauge Financeiro */}
+                <div className="flex flex-col items-center justify-center p-3 bg-[#0d111d]/80 border border-slate-850 rounded-2xl text-center">
+                  <div className="relative w-16 h-16 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="32" cy="32" r="26" className="stroke-slate-800" strokeWidth="5" fill="transparent" />
+                      <circle
+                        cx="32"
+                        cy="32"
+                        r="26"
+                        className={`${
+                          (totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) > parseFloat(percentualObra)
+                            ? (totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) - parseFloat(percentualObra) <= 10
+                              ? 'stroke-amber-500'
+                              : 'stroke-red-500'
+                            : 'stroke-emerald-500'
+                        } transition-all duration-500 ease-out`}
+                        strokeWidth="5"
+                        strokeDasharray={2 * Math.PI * 26}
+                        strokeDashoffset={2 * Math.PI * 26 - (Math.min(100, totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) / 100) * (2 * Math.PI * 26)}
+                        strokeLinecap="round"
+                        fill="transparent"
+                      />
+                    </svg>
+                    <span className="absolute font-mono font-black text-[11px] text-white">
+                      {(totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0).toFixed(1)}%
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase mt-2 block">Orçamento Consumido</span>
+                  <span className="text-[8px] text-slate-500 mt-0.5 block">Total Real: {formatCurrency(totalRealAprovado)}</span>
+                </div>
+              </div>
+
+              {/* Alerta de Descompasso */}
+              {(totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) > parseFloat(percentualObra) && (
+                <div className={`p-2.5 rounded-xl text-[9px] border mb-5 flex items-start gap-1.5 ${
+                  (totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) - parseFloat(percentualObra) <= 10
+                    ? 'bg-amber-950/20 border-amber-500/20 text-amber-400'
+                    : 'bg-red-950/20 border-red-500/20 text-red-400'
+                }`}>
+                  <span className="font-bold">⚠️ DESCOMPASSO ATIVO:</span>
+                  <span>
+                    O consumo financeiro ({((totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0)).toFixed(1)}%) superou o avanço físico ({parseFloat(percentualObra).toFixed(1)}%).
+                  </span>
+                </div>
+              )}
+
               <form onSubmit={handleUpdatePhysical} className="space-y-4">
                 <div>
                   <label className="text-xs text-slate-400 block mb-1.5 font-medium">Estágio Atual da Obra</label>
@@ -966,6 +1040,151 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                 <h3 className="text-xl font-bold text-amber-500 font-mono mt-1.5">{formatCurrency(totalRealPendente)}</h3>
               </div>
             </div>
+
+            {/* DRE Unitário do Lote (Mecanismo de Rateio Dinâmico) */}
+            {(() => {
+              const totalHouses = initialCasa.empreendimento?.casas?.length || 1;
+              const custosGlobais = initialCasa.empreendimento?.custosGlobais || [];
+
+              // VGV da Unidade
+              const vgvProj = Number(initialCasa.valorVendaProjetado || 0);
+              const vgvReal = initialCasa.contrato ? initialCasa.contrato.valorVenda : 0;
+
+              // Comissões (5% projetada vs real)
+              const comissaoProj = vgvProj * 0.05;
+              const comissaoReal = initialCasa.contrato ? initialCasa.contrato.comissaoValor : 0;
+
+              // RET (4% padrão)
+              const retProj = vgvProj * 0.04;
+              const retReal = vgvReal * 0.04;
+
+              // Rateio Terreno
+              const terrProj = custosGlobais.filter((cg: any) => cg.tipo === 'TERRENO' && !cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
+              const terrReal = custosGlobais.filter((cg: any) => cg.tipo === 'TERRENO' && cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
+              const rateioTerrenoProj = terrProj / totalHouses;
+              const rateioTerrenoReal = terrReal / totalHouses;
+
+              // Rateio Projetos
+              const projProj = custosGlobais.filter((cg: any) => cg.tipo === 'PROJETOS' && !cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
+              const projReal = custosGlobais.filter((cg: any) => cg.tipo === 'PROJETOS' && cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
+              const rateioProjetosProj = projProj / totalHouses;
+              const rateioProjetosReal = projReal / totalHouses;
+
+              // Outros Rateios (Marketing + Outro)
+              const outrosProj = custosGlobais.filter((cg: any) => (cg.tipo === 'MARKETING' || cg.tipo === 'OUTRO') && !cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
+              const outrosReal = custosGlobais.filter((cg: any) => (cg.tipo === 'MARKETING' || cg.tipo === 'OUTRO') && cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
+              const rateioOutrosProj = outrosProj / totalHouses;
+              const rateioOutrosReal = outrosReal / totalHouses;
+
+              // Custos de Obra
+              const obraProj = totalOrado;
+              const obraReal = totalRealAprovado;
+
+              // Resultado Líquido
+              const lucroProj = vgvProj - comissaoProj - retProj - rateioTerrenoProj - rateioProjetosProj - rateioOutrosProj - obraProj;
+              const lucroReal = vgvReal - comissaoReal - retReal - rateioTerrenoReal - rateioProjetosReal - rateioOutrosReal - obraReal;
+
+              return (
+                <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 bg-[#0f1422]/10 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-850 pb-2.5">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                      <Calculator size={14} className="text-indigo-400" /> DRE Unitário do Lote (Resultado Individual)
+                    </h3>
+                    <span className="text-[9px] text-slate-500 italic">
+                      * Custos de Aquisição de Terreno e Projetos rateados entre as {totalHouses} unidades do projeto
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto border border-slate-850 rounded-xl">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-900/40 border-b border-slate-850 text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
+                          <th className="py-2.5 px-3.5">Demonstração de Resultado da Unidade</th>
+                          <th className="py-2.5 px-3.5 text-right">Projetado (Orçado)</th>
+                          <th className="py-2.5 px-3.5 text-right">Realizado (Efetivo)</th>
+                          <th className="py-2.5 px-3.5 text-right">Desvio</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-850/40 text-slate-350">
+                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
+                          <td className="py-2 px-3.5">Receita Operacional Bruta (VGV do Lote)</td>
+                          <td className="py-2 px-3.5 text-right font-mono">{formatCurrency(vgvProj)}</td>
+                          <td className="py-2 px-3.5 text-right font-mono text-emerald-400">{formatCurrency(vgvReal)}</td>
+                          <td className={`py-2 px-3.5 text-right font-mono ${vgvReal - vgvProj >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(vgvReal - vgvProj)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-slate-450 text-[10px]">
+                          <td className="py-1.5 px-3.5 pl-6">(-) Comissão de Vendas</td>
+                          <td className="py-1.5 px-3.5 text-right font-mono">-{formatCurrency(comissaoProj)}</td>
+                          <td className="py-1.5 px-3.5 text-right font-mono">-{formatCurrency(comissaoReal)}</td>
+                          <td className={`py-1.5 px-3.5 text-right font-mono ${comissaoReal > comissaoProj ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(comissaoProj - comissaoReal)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-slate-450 text-[10px]">
+                          <td className="py-1.5 px-3.5 pl-6">(-) Tributos RET (4%)</td>
+                          <td className="py-1.5 px-3.5 text-right font-mono">-{formatCurrency(retProj)}</td>
+                          <td className="py-1.5 px-3.5 text-right font-mono">-{formatCurrency(retReal)}</td>
+                          <td className={`py-1.5 px-3.5 text-right font-mono ${retReal > retProj ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(retProj - retReal)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-300">
+                          <td className="py-2 px-3.5">(-) Custos Globais Rateados</td>
+                          <td className="py-2 px-3.5 text-right font-mono">-{formatCurrency(rateioTerrenoProj + rateioProjetosProj + rateioOutrosProj)}</td>
+                          <td className="py-2 px-3.5 text-right font-mono">-{formatCurrency(rateioTerrenoReal + rateioProjetosReal + rateioOutrosReal)}</td>
+                          <td className={`py-2 px-3.5 text-right font-mono ${(rateioTerrenoProj + rateioProjetosProj + rateioOutrosProj) - (rateioTerrenoReal + rateioProjetosReal + rateioOutrosReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency((rateioTerrenoProj + rateioProjetosProj + rateioOutrosProj) - (rateioTerrenoReal + rateioProjetosReal + rateioOutrosReal))}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-slate-500 text-[10px]">
+                          <td className="py-1 px-3.5 pl-8">Rateio Terreno / Fração Lote</td>
+                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioTerrenoProj)}</td>
+                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioTerrenoReal)}</td>
+                          <td className={`py-1 px-3.5 text-right font-mono ${rateioTerrenoProj - rateioTerrenoReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(rateioTerrenoProj - rateioTerrenoReal)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-slate-500 text-[10px]">
+                          <td className="py-1 px-3.5 pl-8">Rateio Projetos & Alvarás</td>
+                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioProjetosProj)}</td>
+                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioProjetosReal)}</td>
+                          <td className={`py-1 px-3.5 text-right font-mono ${rateioProjetosProj - rateioProjetosReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(rateioProjetosProj - rateioProjetosReal)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 text-slate-500 text-[10px]">
+                          <td className="py-1 px-3.5 pl-8">Rateio Outros (Marketing / Vendas)</td>
+                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioOutrosProj)}</td>
+                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioOutrosReal)}</td>
+                          <td className={`py-1 px-3.5 text-right font-mono ${rateioOutrosProj - rateioOutrosReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(rateioOutrosProj - rateioOutrosReal)}
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-300">
+                          <td className="py-2 px-3.5">(-) Custos Diretos de Obras (Construção Lote)</td>
+                          <td className="py-2 px-3.5 text-right font-mono">-{formatCurrency(obraProj)}</td>
+                          <td className="py-2 px-3.5 text-right font-mono">-{formatCurrency(obraReal)}</td>
+                          <td className={`py-2 px-3.5 text-right font-mono ${obraProj - obraReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(obraProj - obraReal)}
+                          </td>
+                        </tr>
+                        <tr className="bg-slate-900/40 font-extrabold text-xs text-white">
+                          <td className="py-2.5 px-3.5">(=) MARGEM LÍQUIDA DA UNIDADE</td>
+                          <td className="py-2.5 px-3.5 text-right font-mono">{formatCurrency(lucroProj)}</td>
+                          <td className={`py-2.5 px-3.5 text-right font-mono ${lucroReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(lucroReal)}
+                          </td>
+                          <td className={`py-2.5 px-3.5 text-right font-mono ${(lucroReal - lucroProj) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(lucroReal - lucroProj)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Coluna Esquerda: Gráfico & Ações */}
