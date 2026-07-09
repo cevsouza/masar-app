@@ -53,7 +53,27 @@ export async function GET(request: NextRequest) {
       return prazoLimite < today;
     });
 
-    const totalAlertas = documentosExpirando.length + marcosAtrasados.length;
+    // 3.5 Buscar Milestones customizados atrasados ou próximos (dentro de 7 dias)
+    const milestonesAtivos = await db.milestone.findMany({
+      where: { concluido: false },
+      include: {
+        empreendimento: true,
+        casa: true
+      }
+    });
+
+    const milestonesAtrasados = milestonesAtivos.filter(m => {
+      return new Date(m.dataLimite) < today;
+    });
+
+    const milestonesProximos = milestonesAtivos.filter(m => {
+      const limite = new Date(m.dataLimite);
+      const seteDias = new Date();
+      seteDias.setDate(today.getDate() + 7);
+      return limite >= today && limite <= seteDias;
+    });
+
+    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length;
 
     if (totalAlertas > 0) {
       // 4. Carregar todos os administradores (ADMIN)
@@ -84,6 +104,30 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      for (const m of milestonesAtrasados) {
+        const localInfo = m.casa ? `Lote Qd ${m.casa.quadra}, Casa ${m.casa.numero}` : m.empreendimento ? `Proj. ${m.empreendimento.nome}` : 'Geral';
+        const msg = `🚨 Milestone ATRASADO: [${m.titulo}] (${m.categoria}) - ${localInfo}. Venceu em: ${new Date(m.dataLimite).toLocaleDateString('pt-BR')}`;
+        await db.notificacao.createMany({
+          data: admins.map(admin => ({
+            usuarioId: admin.id,
+            mensagem: msg,
+            lida: false
+          }))
+        });
+      }
+
+      for (const m of milestonesProximos) {
+        const localInfo = m.casa ? `Lote Qd ${m.casa.quadra}, Casa ${m.casa.numero}` : m.empreendimento ? `Proj. ${m.empreendimento.nome}` : 'Geral';
+        const msg = `⚠️ Milestone Próximo: [${m.titulo}] (${m.categoria}) - ${localInfo}. Vence em: ${new Date(m.dataLimite).toLocaleDateString('pt-BR')}`;
+        await db.notificacao.createMany({
+          data: admins.map(admin => ({
+            usuarioId: admin.id,
+            mensagem: msg,
+            lida: false
+          }))
+        });
+      }
+
       // 6. Enviar e-mail sumário para cada administrador
       const docListHtml = documentosExpirando.map(doc => 
         `<li><strong>${doc.nome}</strong> (Vence em: ${doc.dataVencimento?.toLocaleDateString('pt-BR')}) - Unidade Qd ${doc.casa?.quadra || ''}, Casa ${doc.casa?.numero || ''}</li>`
@@ -92,6 +136,11 @@ export async function GET(request: NextRequest) {
       const marcoListHtml = marcosAtrasados.map(m => 
         `<li><strong>${m.tipo}</strong> - Empreendimento: <em>${m.empreendimento.nome}</em> (Atrasado desde: ${new Date(m.dataProtocolo.getTime() + m.prazoEsperadoDias * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')})</li>`
       ).join('');
+
+      const milestoneListHtml = [
+        ...milestonesAtrasados.map(m => `<li><strong style="color: #dc2626;">[ATRASADO]</strong> <strong>${m.titulo}</strong> (${m.categoria}) - ${m.casa ? `Lote Qd ${m.casa.quadra}, Casa ${m.casa.numero}` : m.empreendimento ? `Proj. ${m.empreendimento.nome}` : 'Geral'} - Venceu em: ${new Date(m.dataLimite).toLocaleDateString('pt-BR')}</li>`),
+        ...milestonesProximos.map(m => `<li><strong style="color: #f59e0b;">[PRÓXIMO]</strong> <strong>${m.titulo}</strong> (${m.categoria}) - ${m.casa ? `Lote Qd ${m.casa.quadra}, Casa ${m.casa.numero}` : m.empreendimento ? `Proj. ${m.empreendimento.nome}` : 'Geral'} - Vence em: ${new Date(m.dataLimite).toLocaleDateString('pt-BR')}</li>`)
+      ].join('');
 
       const emailHtml = `
         <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
@@ -107,6 +156,11 @@ export async function GET(request: NextRequest) {
           ${marcosAtrasados.length > 0 ? `
             <h3 style="color: #dc2626;">🚨 Marcos Burocráticos Atrasados (SLA Excedido):</h3>
             <ul>${marcoListHtml}</ul>
+          ` : ''}
+
+          ${milestonesAtrasados.length + milestonesProximos.length > 0 ? `
+            <h3 style="color: #4f46e5;">📅 Agenda de Marcos Críticos (Milestones):</h3>
+            <ul>${milestoneListHtml}</ul>
           ` : ''}
 
           <p style="margin-top: 20px;">Por favor, acesse o painel administrativo para regularizar as pendências.</p>
@@ -128,6 +182,8 @@ export async function GET(request: NextRequest) {
       success: true,
       documentosExpirando: documentosExpirando.length,
       marcosAtrasados: marcosAtrasados.length,
+      milestonesAtrasados: milestonesAtrasados.length,
+      milestonesProximos: milestonesProximos.length,
       alertasGerados: totalAlertas
     });
   } catch (error: any) {

@@ -15,6 +15,7 @@ import {
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth';
+import DashboardMilestones from '@/components/DashboardMilestones';
 
 export const revalidate = 0; // Disable server component caching to reflect real-time updates
 
@@ -226,6 +227,41 @@ export default async function DashboardPage() {
       }
     }
   });
+
+  const milestones = await db.milestone.findMany({
+    include: {
+      empreendimento: { select: { nome: true } },
+      casa: { select: { numero: true, quadra: true } }
+    },
+    orderBy: { dataLimite: 'asc' }
+  });
+
+  const allEmpreendimentosList = await db.empreendimento.findMany({
+    select: { id: true, nome: true },
+    orderBy: { nome: 'asc' }
+  });
+
+  const allCasasForMilestone = await db.casa.findMany({
+    select: { id: true, numero: true, quadra: true, empreendimentoId: true },
+    orderBy: [
+      { quadra: 'asc' },
+      { numero: 'asc' }
+    ]
+  });
+
+  const serializedMilestones = milestones.map(m => ({
+    id: m.id,
+    titulo: m.titulo,
+    descricao: m.descricao,
+    categoria: m.categoria,
+    dataLimite: m.dataLimite.toISOString(),
+    dataConclusao: m.dataConclusao ? m.dataConclusao.toISOString() : null,
+    concluido: m.concluido,
+    empreendimentoId: m.empreendimentoId,
+    empreendimento: m.empreendimento,
+    casaId: m.casaId,
+    casa: m.casa
+  }));
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -540,7 +576,14 @@ export default async function DashboardPage() {
         <CashFlowChart data={chartData} />
       </div>
 
-      {/* Lista de Gargalos Físicos / Financeiros */}
+  {/* Agenda de Marcos Críticos & Pitfalls */}
+  <DashboardMilestones 
+    initialMilestones={serializedMilestones} 
+    empreendimentos={allEmpreendimentosList}
+    casas={allCasasForMilestone}
+  />
+
+  {/* Lista de Gargalos Físicos / Financeiros */}
       <div id="gargalos" className="glassmorphism rounded-2xl overflow-hidden">
         <div className="p-6 border-b border-[#1e293b]">
           <h3 className="text-lg font-bold text-white">Pontos de Atenção & Gargalos</h3>

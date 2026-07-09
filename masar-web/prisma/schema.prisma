@@ -155,6 +155,7 @@ model Empreendimento {
   cotacoes               CotacaoMaterial[]
   solicitacoesCompra     SolicitacaoCompra[]
   custosGlobais          CustoGlobal[]
+  milestones             Milestone[]
 }
 
 model MarcoBurocratico {
@@ -233,8 +234,9 @@ model Casa {
   contrato         ContratoVenda?
   documentos       DocumentoAnexo[]
   pontos           PontoTrabalhador[]
-  solicitacoesCompra SolicitacaoCompra[]
-  movimentacoesEstoque MovimentacaoEstoque[]
+  solicitacoesCompra     SolicitacaoCompra[]
+  movimentacoesEstoque   MovimentacaoEstoque[]
+  milestones             Milestone[]
 }
 
 model OrcamentoCasa {
@@ -548,4 +550,20 @@ enum TipoDocumentoAnexo {
   MATRICULA_TERRENO
   ALVARA_LOTEAMENTO
   OUTRO
+}
+
+model Milestone {
+  id               String          @id @default(uuid())
+  titulo           String
+  descricao        String?
+  categoria        String          @default("PROJETO") // PROJETO, OBRA, COMERCIAL, FINANCEIRO
+  dataLimite       DateTime
+  dataConclusao    DateTime?
+  concluido        Boolean         @default(false)
+  empreendimentoId String?
+  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  casaId           String?
+  casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  dataCriacao      DateTime        @default(now())
+  dataAtualizacao  DateTime        @updatedAt
 }
