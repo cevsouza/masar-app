@@ -245,3 +245,32 @@ export async function DELETE(
     return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
   }
 }
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const empreendimento = await db.empreendimento.findUnique({
+      where: { id },
+      include: {
+        casas: {
+          orderBy: [
+            { quadra: 'asc' },
+            { numero: 'asc' }
+          ]
+        }
+      }
+    });
+
+    if (!empreendimento) {
+      return NextResponse.json({ error: 'Empreendimento não encontrado' }, { status: 404 });
+    }
+
+    return NextResponse.json(empreendimento);
+  } catch (error: any) {
+    console.error('Erro ao buscar empreendimento:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
+  }
+}
