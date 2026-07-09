@@ -866,579 +866,557 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
       )}
 {/* Conteúdo Aba 2: Gestão Financeira Global (Custos Globais e DRE Comparativo) */}
       {activeTab === 'financeiro' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in text-xs text-slate-350">
+        <div className="space-y-8 animate-fade-in text-xs text-slate-350">
           
-          {/* Lado Esquerdo: Gestão de Custos Globais (Terreno, Impostos de Aquisição, Projetos Globais) */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="glassmorphism p-6 rounded-2xl border border-slate-800/80 bg-[#0f1422]/20 flex flex-col justify-center items-center text-center space-y-4">
-              <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400">
-                <DollarSign size={28} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-sans">
-                  Gestão Financeira Descentralizada
-                </h3>
-                <p className="text-[10px] text-slate-450 mt-1 max-w-xs mx-auto">
-                  Utilize o motor de Lançamento Universal para registrar custos globais do terreno, projetos, impostos e rateios operacionais.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setUniversalNatureza('DESPESA');
-                  setUniversalCategoria('TERRENO');
-                  setUniversalDestino('GLOBAL');
-                  setUniversalCasaId(undefined);
-                  setIsUniversalModalOpen(true);
-                }}
-                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10 text-xs"
-              >
-                + Registrar Custo Global / Terreno
-              </button>
-            </div>
-
-            {/* Listagem de custos globais cadastrados */}
-            <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
-              <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider border-b border-slate-850 pb-2 font-sans">
-                Custos Globais do Terreno ({project.custosGlobais?.length || 0})
-              </h3>
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                {project.custosGlobais && project.custosGlobais.length > 0 ? (
-                  project.custosGlobais.map((cg: any) => (
-                    <div key={cg.id} className="p-3 bg-[#0f1422]/60 border border-slate-850 rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-bold text-slate-200">{cg.descricao}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5">
-                          <span className={`px-1 py-0.2 bg-slate-900 border rounded text-[8px] font-bold ${cg.realizado ? 'text-emerald-400 border-emerald-500/20' : 'text-blue-400 border-blue-500/20'}`}>
-                            {cg.realizado ? 'REAL' : 'ORÇADO'}
-                          </span>
-                          <span>{cg.tipo} | {formatDate(cg.data)}</span>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-red-400">{formatCurrency(cg.valor)}</span>
-                        {['ADMIN', 'FINANCEIRO'].includes(userRole) && (
-                          <button
-                            onClick={() => handleDeleteGlobalCost(cg.id)}
-                            className="text-[9px] font-bold text-red-500 hover:text-red-400 px-1.5 py-0.5 bg-red-950/20 rounded border border-red-900/30 transition cursor-pointer"
-                          >
-                            Excluir
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-500 py-6 text-center">Nenhum custo global registrado para o terreno.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Estudo de Viabilidade & Orçamento Padrão das Casas */}
-            <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 bg-[#0f1422]/20 space-y-4">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider block border-b border-slate-850 pb-2.5 font-sans">
-                Estudo de Viabilidade & Orçamento Padrão
-              </h3>
-              
-              <div className="space-y-3 text-xs">
-                {/* Preço de Venda Médio */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-400 font-medium">Preço de Venda Projetado por Casa (VGV) (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="Ex: 200000.00"
-                    value={viabPrecoVenda}
-                    onChange={(e) => setViabPrecoVenda(e.target.value)}
-                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500/50"
-                  />
+          {/* 1. Nubank-Style Summary Cards Strip */}
+          {dreData && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Card 1: Resultado Líquido */}
+              <div className="glassmorphism p-6 rounded-3xl border border-slate-800 bg-[#0d121f]/40 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500" />
+                <span className="text-[10px] text-slate-455 uppercase tracking-widest font-bold block">Resultado Líquido</span>
+                <h2 className={`text-2xl font-black font-mono tracking-tight mt-2 ${dreData.lucroLiquidoRealizado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatCurrency(dreData.lucroLiquidoRealizado)}
+                </h2>
+                <div className="flex items-center justify-between mt-3 text-[10px] text-slate-500 pt-3 border-t border-slate-850/50">
+                  <span>Projetado / Estimado:</span>
+                  <span className="font-mono text-slate-350">{formatCurrency(dreData.lucroLiquidoProjetado)}</span>
                 </div>
-
-                {/* Seletor de Insumos */}
-                <div className="bg-[#0f1422]/40 p-3.5 rounded-xl border border-slate-850 space-y-3">
-                  <h4 className="font-bold text-slate-350 text-[10px] uppercase">Lançar Item do Orçamento Padrão</h4>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-slate-455 font-medium">Selecionar Insumo Padrão</label>
-                    <select
-                      value={selectedInsumoId}
-                      onChange={(e) => {
-                        setSelectedInsumoId(e.target.value);
-                        const ins = insumosList.find(i => i.id === e.target.value);
-                        if (ins) setViabCustoUnit('1');
-                      }}
-                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-350 focus:outline-none"
-                    >
-                      <option value="">-- Selecione o Insumo --</option>
-                      {insumosList.map((ins: any) => (
-                        <option key={ins.id} value={ins.id}>{ins.nome} ({ins.unidadeMedida}) - {ins.categoria}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-slate-455 font-medium">Qtd Planejada</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Ex: 150"
-                        value={viabQtd}
-                        onChange={(e) => setViabQtd(e.target.value)}
-                        className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-slate-455 font-medium">Custo Unitário (R$)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Ex: 45.00"
-                        value={viabCustoUnit}
-                        onChange={(e) => setViabCustoUnit(e.target.value)}
-                        className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAddViabItem}
-                    className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition cursor-pointer"
-                  >
-                    + Adicionar ao Orçamento Padrão
-                  </button>
-                </div>
-
-                {/* Lista de Itens do Orçamento Padrão */}
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-400 text-[10px] uppercase">Itens da Tipologia Padrão ({viabItems.length})</h4>
-                  
-                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                    {viabItems.map((item, idx) => (
-                      <div key={idx} className="p-2.5 bg-[#0f1422]/60 border border-slate-850 rounded-xl flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-slate-300">{item.nome}</p>
-                          <p className="text-[9px] text-slate-500 mt-0.5">
-                            Qtd: {item.quantidadePlanejada} {item.unidadeMedida} | Prev: R$ {item.custoUnitarioPrevisto} | Total: R$ {(item.quantidadePlanejada * item.custoUnitarioPrevisto).toLocaleString('pt-BR')}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveViabItem(idx)}
-                          className="text-[9px] font-bold text-red-500 hover:text-red-400 px-2 py-0.5 bg-slate-900 border border-slate-800 rounded transition cursor-pointer"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
-
-                    {viabItems.length === 0 && (
-                      <p className="text-[10px] text-slate-500 italic py-4 text-center">Nenhum item adicionado ao orçamento padrão da casa.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Ação Principal de Geração de Viabilidade */}
-                <button
-                  type="button"
-                  disabled={isGeneratingViab}
-                  onClick={handleGenerateFeasibility}
-                  className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-extrabold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10 disabled:opacity-50"
-                >
-                  {isGeneratingViab ? 'Processando Replicação...' : 'Replicar Orçamento Padrão e Gerar Viabilidade'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Lado Direito: DRE Comparativo de Incorporação (Projetado vs Realizado) */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="glassmorphism p-6 rounded-2xl border border-slate-800/80 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 mb-5">
-                <div>
-                  <h3 className="text-base font-bold text-white uppercase tracking-wider font-sans">
-                    Demonstração do Resultado do Exercício (DRE) - Real vs Projetado (Incorporação)
-                  </h3>
-                  <p className="text-[10px] text-slate-400 mt-1">Demonstração de resultados de loteamento e construção.</p>
-                </div>
-                <button 
-                  type="button"
-                  onClick={fetchDreData}
-                  disabled={isLoadingDre}
-                  className="px-3 py-1.5 bg-[#0f1422] border border-slate-800 hover:bg-slate-800 rounded-lg text-[10px] text-slate-300 font-bold uppercase transition cursor-pointer"
-                >
-                  {isLoadingDre ? 'Atualizando...' : 'Atualizar Demonstração'}
-                </button>
               </div>
 
-              {isLoadingDre && !dreData ? (
-                <div className="py-20 text-center text-slate-400 text-xs">Carregando dados da Demonstração do Resultado do Exercício...</div>
-              ) : dreData ? (
-                <div className="space-y-6 text-xs text-slate-350">
-                  <div className="overflow-x-auto border border-slate-850 rounded-xl">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-slate-900/40 border-b border-slate-850 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                          <th className="py-3 px-4">Demonstração de Resultado do Exercício (DRE)</th>
-                          <th className="py-3 px-4 text-right">Projetado (Orçado)</th>
-                          <th className="py-3 px-4 text-right">Realizado (Fechado)</th>
-                          <th className="py-3 px-4 text-right">Desvio</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-850 text-slate-300">
-                        {/* Receita Bruta */}
-                        <tr 
-                          onClick={() => openDreModal('VGV', 'VGV & Preço de Venda das Casas')}
-                          className="hover:bg-slate-800/15 font-semibold text-slate-200 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar/ajustar o VGV estimado"
-                        >
-                          <td className="py-3 px-4 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Receita Operacional Bruta - Valor Geral de Vendas (VGV)</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono">{formatCurrency(dreData.totalVGVProjetado)}</td>
-                          <td className="py-3 px-4 text-right font-mono text-emerald-400">{formatCurrency(dreData.totalVGVRealizado)}</td>
-                          <td className={`py-3 px-4 text-right font-mono ${(dreData.totalVGVRealizado - dreData.totalVGVProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(dreData.totalVGVRealizado - dreData.totalVGVProjetado)}
-                          </td>
-                        </tr>
-
-                        {/* Deduções */}
-                        <tr 
-                          onClick={() => openDreModal('VGV', 'Comissão de Vendas')}
-                          className="hover:bg-slate-800/15 text-slate-400 cursor-pointer transition-all duration-150 group"
-                          title="Clique para ajustar comissão ou VGV das unidades"
-                        >
-                          <td className="py-2 px-4 pl-6 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>(-) Comissão de Vendas (Intermediação Imobiliária)</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoProjetada)}</td>
-                          <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalComissaoRealizada)}</td>
-                          <td className={`py-2 px-4 text-right font-mono ${dreData.totalComissaoRealizada > dreData.totalComissaoProjetada ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(dreData.totalComissaoProjetada - dreData.totalComissaoRealizada)}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 text-slate-400">
-                          <td className="py-2 px-4 pl-6">(-) Tributos sobre Faturamento - Regime Especial de Tributação (RET)</td>
-                          <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalImpostoProjetado)}</td>
-                          <td className="py-2 px-4 text-right font-mono">-{formatCurrency(dreData.totalImpostoRealizado)}</td>
-                          <td className={`py-2 px-4 text-right font-mono ${dreData.totalImpostoRealizado > dreData.totalImpostoProjetado ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(dreData.totalImpostoProjetado - dreData.totalImpostoRealizado)}
-                          </td>
-                        </tr>
-
-                        {/* Custos Globais */}
-                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-350">
-                          <td className="py-3 px-4">(-) Custos Globais do Empreendimento (Rateio Terreno / Projetos / Marketing)</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateioProj)}</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalRateioReal)}</td>
-                          <td className={`py-3 px-4 text-right font-mono ${(dreData.totalRateioProj - dreData.totalRateioReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(dreData.totalRateioProj - dreData.totalRateioReal)}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('TERRENO', 'Aquisição de Terreno')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar custo de Aquisição de Terreno"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Aquisição de Terreno</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoProj)}</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoReal)}</td>
-                          <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal)}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('PROJETOS', 'Projetos & Licenciamento')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar custo de Projetos & Licenciamento"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Projetos & Licenciamento</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetosProj)}</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioProjetosReal)}</td>
-                          <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioProjetosProj - dreData.rateioProjetosReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(dreData.rateioProjetosProj - dreData.rateioProjetosReal)}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('MARKETING', 'Marketing & Publicidade')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-500 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar custo de Marketing & Publicidade"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Marketing & Publicidade</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketingProj)}</td>
-                          <td className="py-1 px-4 text-right font-mono">-{formatCurrency(dreData.rateioMarketingReal)}</td>
-                          <td className={`py-1 px-4 text-right font-mono ${(dreData.rateioMarketingProj - dreData.rateioMarketingReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(dreData.rateioMarketingProj - dreData.rateioMarketingReal)}
-                          </td>
-                        </tr>
-
-                        {/* Custos Fixos (MCMV) */}
-                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
-                          <td className="py-3 px-4">(-) Custos Fixos de Construção (O Relógio Contra a Margem)</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalFixoProjetado || 0)}</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalFixoRealizado || 0)}</td>
-                          <td className={`py-3 px-4 text-right font-mono ${(dreData.totalFixoProjetado - dreData.totalFixoRealizado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.totalFixoProjetado || 0) - (dreData.totalFixoRealizado || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('FIXO_EQUIPE', 'Equipe de Gestão e Supervisão (Engenharia / Campo)')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Equipe de Gestão"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Equipe de Gestão e Supervisão (Engenharia / Campo)</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoEquipeGestao || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoEquipeGestao || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoEquipeGestao - dreData.realFixoEquipeGestao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projFixoEquipeGestao || 0) - (dreData.realFixoEquipeGestao || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('FIXO_CANTEIRO', 'Instalação e Manutenção do Canteiro de Obras')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Canteiro de Obras"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Instalação e Manutenção do Canteiro de Obras</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoCanteiro || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoCanteiro || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoCanteiro - dreData.realFixoCanteiro) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projFixoCanteiro || 0) - (dreData.realFixoCanteiro || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('FIXO_CONSUMO', 'Despesas de Consumo Contínuo (Concessionárias / Vigilância)')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Consumo Contínuo"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Despesas de Consumo Contínuo (Concessionárias / Vigilância)</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoConsumo || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoConsumo || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoConsumo - dreData.realFixoConsumo) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projFixoConsumo || 0) - (dreData.realFixoConsumo || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('FIXO_LOCACAO', 'Locação de Equipamentos Mensais (Andaimes / Betoneiras)')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Locação de Equipamentos"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Locação de Equipamentos Mensais (Andaimes / Betoneiras)</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoLocacao || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoLocacao || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoLocacao - dreData.realFixoLocacao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projFixoLocacao || 0) - (dreData.realFixoLocacao || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('FIXO_TAXAS', 'Taxas, Alvarás e Seguros de Engenharia')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Taxas e Seguros"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Taxas, Alvarás e Seguros de Engenharia</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projFixoTaxasSeguros || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realFixoTaxasSeguros || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projFixoTaxasSeguros - dreData.realFixoTaxasSeguros) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projFixoTaxasSeguros || 0) - (dreData.realFixoTaxasSeguros || 0))}
-                          </td>
-                        </tr>
-
-                        {/* Custos Variáveis (MCMV) */}
-                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
-                          <td className="py-3 px-4">(-) Custos Variáveis de Construção (A Eficiência da Produção)</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalVariavelProjetado || 0)}</td>
-                          <td className="py-3 px-4 text-right font-mono">-{formatCurrency(dreData.totalVariavelRealizado || 0)}</td>
-                          <td className={`py-3 px-4 text-right font-mono ${(dreData.totalVariavelProjetado - dreData.totalVariavelRealizado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.totalVariavelProjetado || 0) - (dreData.totalVariavelRealizado || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('VARIAVEL_MATERIAIS', 'Materiais de Construção (Aço / Cimento / Blocos - Curva A)')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Materiais de Construção"
-                        >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Materiais de Construção (Aço / Cimento / Blocos - Curva A)</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMateriais || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMateriais || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMateriais - dreData.realVariavelMateriais) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projVariavelMateriais || 0) - (dreData.realVariavelMateriais || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('VARIAVEL_MAODEOBRA', 'Mão de Obra Direta (Pedreiros / Carpinteiros / Medição de Produção)')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Mão de Obra Direta"
-                        >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Mão de Obra Direta (Pedreiros / Carpinteiros / Medição de Produção)</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMaoDireta || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMaoDireta || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMaoDireta - dreData.realVariavelMaoDireta) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projVariavelMaoDireta || 0) - (dreData.realVariavelMaoDireta || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('VARIAVEL_LOGISTICA', 'Logística e Fretes de Insumos')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Logística e Fretes"
-                        >
-                          <td className="py-2 px-4 pl-8 group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                            <span>Logística e Fretes de Insumos</span>
-                            <Edit size={12} className="opacity-0 group-hover:opacity-100 text-indigo-400 transition-opacity" />
-                          </td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelLogistica || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelLogistica || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelLogistica - dreData.realVariavelLogistica) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projVariavelLogistica || 0) - (dreData.realVariavelLogistica || 0))}
-                          </td>
-                        </tr>
-                        <tr 
-                          onClick={() => openDreModal('VARIAVEL_MAQUINAS', 'Consumo Específico de Máquinas (Terraplenagem / Fundações)')}
-                          className="hover:bg-slate-800/15 text-[10px] text-slate-450 pl-8 cursor-pointer transition-all duration-150 group"
-                          title="Clique para lançar orçamento ou despesa de Máquinas"
-                        >
-                          <td className="py-1.5 px-4 pl-8 group-hover:text-indigo-400 transition-colors">Consumo Específico de Máquinas (Terraplenagem / Fundações)</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelMaquinas || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelMaquinas || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelMaquinas - dreData.realVariavelMaquinas) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projVariavelMaquinas || 0) - (dreData.realVariavelMaquinas || 0))}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 text-[10px] text-slate-450 pl-8">
-                          <td className="py-1.5 px-4 pl-8">Impostos Incidentes sobre o Faturamento (Regime Especial de Tributação - RET)</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.projVariavelImpostos || 0)}</td>
-                          <td className="py-1.5 px-4 text-right font-mono">-{formatCurrency(dreData.realVariavelImpostos || 0)}</td>
-                          <td className={`py-1.5 px-4 text-right font-mono ${(dreData.projVariavelImpostos - dreData.realVariavelImpostos) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((dreData.projVariavelImpostos || 0) - (dreData.realVariavelImpostos || 0))}
-                          </td>
-                        </tr>
-
-                        {/* Lucro Líquido */}
-                        <tr className="bg-slate-900/30 font-extrabold text-sm text-white">
-                          <td className="py-3 px-4">(=) RESULTADO LÍQUIDO DO PROJETO</td>
-                          <td className="py-3 px-4 text-right font-mono">{formatCurrency(dreData.lucroLiquidoProjetado)}</td>
-                          <td className={`py-3 px-4 text-right font-mono ${dreData.lucroLiquidoRealizado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(dreData.lucroLiquidoRealizado)}
-                          </td>
-                          <td className={`py-3 px-4 text-right font-mono ${(dreData.lucroLiquidoRealizado - dreData.lucroLiquidoProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(dreData.lucroLiquidoRealizado - dreData.lucroLiquidoProjetado)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Margem de Lucro comparativa */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-[#0f1422]/60 border border-slate-850 rounded-xl text-center">
-                      <span className="text-slate-500 uppercase tracking-wider text-[8px] font-bold block">Margem Projetada</span>
-                      <span className="text-white font-mono text-sm font-bold mt-1 block">
-                        {dreData.totalVGVProjetado > 0 
-                          ? `${((dreData.lucroLiquidoProjetado / dreData.totalVGVProjetado) * 100).toFixed(1)}%`
-                          : '0.0%'
-                        }
-                      </span>
-                    </div>
-                    <div className="p-4 bg-[#0f1422]/60 border border-slate-850 rounded-xl text-center">
-                      <span className="text-slate-500 uppercase tracking-wider text-[8px] font-bold block">Margem Realizada</span>
-                      <span className={`font-mono text-sm font-bold mt-1 block ${dreData.lucroLiquidoRealizado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {dreData.totalVGVRealizado > 0 
-                          ? `${((dreData.lucroLiquidoRealizado / dreData.totalVGVRealizado) * 100).toFixed(1)}%`
-                          : '0.0%'
-                        }
-                      </span>
-                    </div>
-                  </div>
+              {/* Card 2: VGV Estimado */}
+              <div className="glassmorphism p-6 rounded-3xl border border-slate-800 bg-[#0d121f]/40 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500" />
+                <span className="text-[10px] text-slate-455 uppercase tracking-widest font-bold block">VGV Estimado</span>
+                <h2 className="text-2xl font-black font-mono text-white tracking-tight mt-2">
+                  {formatCurrency(dreData.totalVGVRealizado > 0 ? dreData.totalVGVRealizado : dreData.totalVGVProjetado)}
+                </h2>
+                <div className="flex items-center justify-between mt-3 text-[10px] text-slate-500 pt-3 border-t border-slate-850/50">
+                  <span>Projetado Real:</span>
+                  <span className="font-mono text-slate-350">{formatCurrency(dreData.totalVGVProjetado)}</span>
                 </div>
-              ) : (
-                <div className="py-20 text-center text-slate-500 text-xs">Carregando dados da Demonstração do Resultado do Exercício... Clique em "Atualizar Demonstração" para forçar o recálculo.</div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Modal de Lançamento Direto do DRE */}
-          {isDreModalOpen && dreModalCategory === 'VGV' && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 text-xs">
-              <div className="bg-[#0b0f19] border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 animate-fade-in text-slate-350">
-                <div className="flex items-center justify-between border-b border-slate-850 pb-3">
-                  <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-sans">
-                    Ajuste de VGV
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setIsDreModalOpen(false)}
-                    className="text-slate-500 hover:text-white font-bold text-sm cursor-pointer"
-                  >
-                    ✕
-                  </button>
+              {/* Card 3: Margem de Lucro */}
+              <div className="glassmorphism p-6 rounded-3xl border border-slate-800 bg-[#0d121f]/40 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500" />
+                <span className="text-[10px] text-slate-455 uppercase tracking-widest font-bold block">Margem de Lucro</span>
+                <h2 className={`text-2xl font-black font-mono tracking-tight mt-2 ${dreData.lucroLiquidoRealizado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {dreData.totalVGVRealizado > 0 
+                    ? `${((dreData.lucroLiquidoRealizado / dreData.totalVGVRealizado) * 100).toFixed(1)}%`
+                    : '0.0%'
+                  }
+                </h2>
+                <div className="flex items-center justify-between mt-3 text-[10px] text-slate-500 pt-3 border-t border-slate-850/50">
+                  <span>Margem Projetada:</span>
+                  <span className="font-mono text-slate-350">
+                    {dreData.totalVGVProjetado > 0 
+                      ? `${((dreData.lucroLiquidoProjetado / dreData.totalVGVProjetado) * 100).toFixed(1)}%`
+                      : '0.0%'
+                    }
+                  </span>
                 </div>
-                
-                <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">
-                  Linha Selecionada: {dreModalLabel}
-                </p>
-
-                <form onSubmit={handleSaveDreInput} className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-slate-400 font-medium">Preço de Venda Médio das Casas (R$)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        required
-                        placeholder="Ex: 220000.00"
-                        value={dreInputValue}
-                        onChange={(e) => setDreInputValue(e.target.value)}
-                        className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                      />
-                      <span className="text-[10px] text-slate-500 mt-1 block">
-                        Ao salvar, o preço de venda projetado será replicado para todas as casas do empreendimento.
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSavingDreInput}
-                    className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-xl transition cursor-pointer shadow-lg shadow-indigo-600/10 disabled:opacity-50 flex items-center justify-center gap-1.5"
-                  >
-                    {isSavingDreInput ? 'Salvando...' : '✓ Confirmar e Replicar VGV'}
-                  </button>
-                </form>
               </div>
             </div>
           )}
+
+          {/* 2. DRE Table & Detailed Statements */}
+          <div className="glassmorphism p-6 rounded-3xl border border-slate-800 bg-[#0d121f]/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-850 pb-5 mb-6">
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-sans flex items-center gap-2">
+                  <Sparkles size={16} className="text-purple-400" /> Demonstração do Resultado do Exercício (DRE)
+                </h3>
+                <p className="text-[10px] text-slate-455 mt-1">Clique nas linhas destacadas para realizar novos lançamentos ou retificar valores.</p>
+              </div>
+              <button 
+                type="button"
+                onClick={fetchDreData}
+                disabled={isLoadingDre}
+                className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 shadow-lg shadow-indigo-600/10"
+              >
+                {isLoadingDre ? 'Atualizando...' : 'Atualizar DRE'}
+              </button>
+            </div>
+
+            {isLoadingDre && !dreData ? (
+              <div className="py-20 text-center text-slate-500 text-xs italic">Carregando dados da demonstração...</div>
+            ) : dreData ? (
+              <div className="overflow-x-auto border border-slate-850/60 rounded-2xl">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-[#0b0f19] border-b border-slate-850 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      <th className="py-3.5 px-5">Estrutura do DRE</th>
+                      <th className="py-3.5 px-5 text-right">Orçado / Projetado</th>
+                      <th className="py-3.5 px-5 text-right">Realizado / Pago</th>
+                      <th className="py-3.5 px-5 text-right">Desvio</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-850/60 text-slate-300">
+                    
+                    {/* ROB - VGV */}
+                    <tr 
+                      onClick={() => openDreModal('VGV', 'Preço de Venda Médio / VGV')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group font-bold text-slate-200"
+                    >
+                      <td className="py-4 px-5 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Receita Bruta - Valor Geral de Vendas (VGV)</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-4 px-5 text-right font-mono">{formatCurrency(dreData.totalVGVProjetado)}</td>
+                      <td className="py-4 px-5 text-right font-mono text-emerald-455">{formatCurrency(dreData.totalVGVRealizado)}</td>
+                      <td className={`py-4 px-5 text-right font-mono ${(dreData.totalVGVRealizado - dreData.totalVGVProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(dreData.totalVGVRealizado - dreData.totalVGVProjetado)}
+                      </td>
+                    </tr>
+
+                    {/* Comissão */}
+                    <tr 
+                      onClick={() => openDreModal('VGV', 'Comissão de Vendas')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-400"
+                    >
+                      <td className="py-3 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>(-) Comissão de Vendas</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-3 px-5 text-right font-mono">-{formatCurrency(dreData.totalComissaoProjetada)}</td>
+                      <td className="py-3 px-5 text-right font-mono">-{formatCurrency(dreData.totalComissaoRealizada)}</td>
+                      <td className={`py-3 px-5 text-right font-mono ${dreData.totalComissaoRealizada > dreData.totalComissaoProjetada ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {formatCurrency(dreData.totalComissaoProjetada - dreData.totalComissaoRealizada)}
+                      </td>
+                    </tr>
+
+                    {/* Impostos RET */}
+                    <tr className="hover:bg-slate-900/10 text-slate-450">
+                      <td className="py-3 px-5 pl-8">(-) Impostos Regime Especial Tributário (RET)</td>
+                      <td className="py-3 px-5 text-right font-mono">-{formatCurrency(dreData.totalImpostoProjetado)}</td>
+                      <td className="py-3 px-5 text-right font-mono">-{formatCurrency(dreData.totalImpostoRealizado)}</td>
+                      <td className={`py-3 px-5 text-right font-mono ${dreData.totalImpostoRealizado > dreData.totalImpostoProjetado ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {formatCurrency(dreData.totalImpostoProjetado - dreData.totalImpostoRealizado)}
+                      </td>
+                    </tr>
+
+                    {/* Rateios de Custos Globais */}
+                    <tr className="bg-slate-950/20 font-semibold text-slate-200">
+                      <td className="py-4 px-5">(-) Custos Globais do Empreendimento (Macro Rateados)</td>
+                      <td className="py-4 px-5 text-right font-mono">-{formatCurrency(dreData.totalRateioProj)}</td>
+                      <td className="py-4 px-5 text-right font-mono">-{formatCurrency(dreData.totalRateioReal)}</td>
+                      <td className={`py-4 px-5 text-right font-mono ${(dreData.totalRateioProj - dreData.totalRateioReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(dreData.totalRateioProj - dreData.totalRateioReal)}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('TERRENO', 'Aquisição de Terreno')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Aquisição de Terreno</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoProj)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.rateioTerrenoReal)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(dreData.rateioTerrenoProj - dreData.rateioTerrenoReal)}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('PROJETOS', 'Projetos & Licenciamento')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Projetos & Licenciamento</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.rateioProjetosProj)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.rateioProjetosReal)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.rateioProjetosProj - dreData.rateioProjetosReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(dreData.rateioProjetosProj - dreData.rateioProjetosReal)}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MARKETING', 'Marketing & Publicidade')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Marketing & Publicidade</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.rateioMarketingProj)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.rateioMarketingReal)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.rateioMarketingProj - dreData.rateioMarketingReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(dreData.rateioMarketingProj - dreData.rateioMarketingReal)}
+                      </td>
+                    </tr>
+
+                    {/* Custos Fixos */}
+                    <tr className="bg-slate-950/20 font-semibold text-slate-200">
+                      <td className="py-4 px-5">(-) Custos Fixos de Construção (Apoio & Canteiro)</td>
+                      <td className="py-4 px-5 text-right font-mono">-{formatCurrency(dreData.totalFixoProjetado || 0)}</td>
+                      <td className="py-4 px-5 text-right font-mono">-{formatCurrency(dreData.totalFixoRealizado || 0)}</td>
+                      <td className={`py-4 px-5 text-right font-mono ${(dreData.totalFixoProjetado - dreData.totalFixoRealizado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.totalFixoProjetado || 0) - (dreData.totalFixoRealizado || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MAODEOBRA', 'Equipe de Gestão e Campo')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Equipe de Gestão e Supervisão (Campo/Engenharia)</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projFixoEquipeGestao || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realFixoEquipeGestao || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projFixoEquipeGestao - dreData.realFixoEquipeGestao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projFixoEquipeGestao || 0) - (dreData.realFixoEquipeGestao || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MATERIAL', 'Canteiro de Obras')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Manutenção do Canteiro de Obras</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projFixoCanteiro || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realFixoCanteiro || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projFixoCanteiro - dreData.realFixoCanteiro) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projFixoCanteiro || 0) - (dreData.realFixoCanteiro || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MATERIAL', 'Consumo Contínuo')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Consumo Contínuo (Concessionárias / Seguranças)</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projFixoConsumo || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realFixoConsumo || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projFixoConsumo - dreData.realFixoConsumo) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projFixoConsumo || 0) - (dreData.realFixoConsumo || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MATERIAL', 'Locação de Andaimes / Betoneiras')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Locações Mensais (Andaimes / Betoneiras)</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projFixoLocacao || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realFixoLocacao || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projFixoLocacao - dreData.realFixoLocacao) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projFixoLocacao || 0) - (dreData.realFixoLocacao || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('TAXAS', 'Taxas, Alvarás e Emplacamento')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Tributos e Alvarás de Construção</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projFixoTaxasSeguros || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realFixoTaxasSeguros || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projFixoTaxasSeguros - dreData.realFixoTaxasSeguros) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projFixoTaxasSeguros || 0) - (dreData.realFixoTaxasSeguros || 0))}
+                      </td>
+                    </tr>
+
+                    {/* Custos Variáveis */}
+                    <tr className="bg-slate-950/20 font-semibold text-slate-200">
+                      <td className="py-4 px-5">(-) Custos Variáveis de Construção (Materiais & Serviços)</td>
+                      <td className="py-4 px-5 text-right font-mono">-{formatCurrency(dreData.totalVariavelProjetado || 0)}</td>
+                      <td className="py-4 px-5 text-right font-mono">-{formatCurrency(dreData.totalVariavelRealizado || 0)}</td>
+                      <td className={`py-4 px-5 text-right font-mono ${(dreData.totalVariavelProjetado - dreData.totalVariavelRealizado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.totalVariavelProjetado || 0) - (dreData.totalVariavelRealizado || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MATERIAL', 'Materiais de Construção')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Materiais da Obra (Curva A - Ferro/Cimento/Blocos)</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projVariavelMateriais || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realVariavelMateriais || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projVariavelMateriais - dreData.realVariavelMateriais) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projVariavelMateriais || 0) - (dreData.realVariavelMateriais || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MAODEOBRA', 'Mão de Obra Direta')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Mão de Obra de Produção (Empreiteiro/Pedreiros)</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projVariavelMaoDireta || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realVariavelMaoDireta || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projVariavelMaoDireta - dreData.realVariavelMaoDireta) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projVariavelMaoDireta || 0) - (dreData.realVariavelMaoDireta || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MATERIAL', 'Logística e Fretes')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Frete de Insumos e Logística</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projVariavelLogistica || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realVariavelLogistica || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projVariavelLogistica - dreData.realVariavelLogistica) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projVariavelLogistica || 0) - (dreData.realVariavelLogistica || 0))}
+                      </td>
+                    </tr>
+
+                    <tr 
+                      onClick={() => openDreModal('MATERIAL', 'Locações e Máquinas')}
+                      className="hover:bg-purple-500/5 hover:text-white cursor-pointer transition-all duration-150 group text-slate-455"
+                    >
+                      <td className="py-2.5 px-5 pl-8 flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <span>Locações de Máquinas (Terraplenagem / Fundações)</span>
+                        <Edit size={12} className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity" />
+                      </td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.projVariavelMaquinas || 0)}</td>
+                      <td className="py-2.5 px-5 text-right font-mono">-{formatCurrency(dreData.realVariavelMaquinas || 0)}</td>
+                      <td className={`py-2.5 px-5 text-right font-mono ${(dreData.projVariavelMaquinas - dreData.realVariavelMaquinas) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency((dreData.projVariavelMaquinas || 0) - (dreData.realVariavelMaquinas || 0))}
+                      </td>
+                    </tr>
+
+                    {/* Resultado Líquido */}
+                    <tr className="bg-slate-900/60 font-extrabold text-sm text-white border-t-2 border-slate-800">
+                      <td className="py-4.5 px-5">(=) RESULTADO LÍQUIDO OPERACIONAL</td>
+                      <td className="py-4.5 px-5 text-right font-mono">{formatCurrency(dreData.lucroLiquidoProjetado)}</td>
+                      <td className={`py-4.5 px-5 text-right font-mono ${dreData.lucroLiquidoRealizado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(dreData.lucroLiquidoRealizado)}
+                      </td>
+                      <td className={`py-4.5 px-5 text-right font-mono ${(dreData.lucroLiquidoRealizado - dreData.lucroLiquidoProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(dreData.lucroLiquidoRealizado - dreData.lucroLiquidoProjetado)}
+                      </td>
+                    </tr>
+
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-16 text-center text-slate-500 italic">DRE indisponível no momento. Clique em log de atualização.</div>
+            )}
+          </div>
+
+          {/* 3. Controls & History Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Controls: Registrar + Viabilidade */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* Quick Transaction Registration Card */}
+              <div className="glassmorphism p-6 rounded-3xl border border-slate-800 bg-[#0d121f]/20 flex flex-col justify-between space-y-5">
+                <div className="space-y-1.5">
+                  <span className="text-[10px] text-purple-400 uppercase tracking-widest font-bold block">Registros Rápidos</span>
+                  <h3 className="text-base font-bold text-white font-sans">Lançamento Geral / Rateios</h3>
+                  <p className="text-[10px] text-slate-455">Lance despesas globais do terreno, projetos de arquitetura, alvarás, RET ou comissões diretamente no livro-caixa.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUniversalNatureza('DESPESA');
+                    setUniversalCategoria('TERRENO');
+                    setUniversalDestino('GLOBAL');
+                    setUniversalCasaId(undefined);
+                    setIsUniversalModalOpen(true);
+                  }}
+                  className="w-full py-3 bg-purple-650 hover:bg-purple-600 text-white font-bold rounded-2xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-purple-650/10 text-xs"
+                >
+                  <DollarSign size={14} />
+                  + Novo Lançamento Geral / Rateio
+                </button>
+              </div>
+
+              {/* standard budget & feasibility generator */}
+              <div className="glassmorphism p-6 rounded-3xl border border-slate-800 bg-[#0d121f]/20 space-y-5">
+                <div className="space-y-1">
+                  <span className="text-[10px] text-indigo-400 uppercase tracking-widest font-bold block">Geração de Viabilidade</span>
+                  <h3 className="text-base font-bold text-white font-sans">Orçamento Padrão & VGV</h3>
+                  <p className="text-[10px] text-slate-455">Configure a tipologia do orçamento padrão da casa e replique para todas as casas do empreendimento de forma preditiva.</p>
+                </div>
+                
+                <div className="space-y-4 text-xs">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-medium">Preço de Venda Médio das Casas (VGV) (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      placeholder="Ex: 215000.00"
+                      value={viabPrecoVenda}
+                      onChange={(e) => setViabPrecoVenda(e.target.value)}
+                      className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500/50 font-mono"
+                    />
+                  </div>
+
+                  <div className="bg-[#070a13]/60 p-4 rounded-2xl border border-slate-855/70 space-y-3">
+                    <h4 className="font-bold text-slate-350 text-[10px] uppercase">Lançar Item do Orçamento Padrão</h4>
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-slate-455 font-medium">Selecionar Insumo Padrão</label>
+                      <select
+                        value={selectedInsumoId}
+                        onChange={(e) => {
+                          setSelectedInsumoId(e.target.value);
+                          const ins = insumosList.find(i => i.id === e.target.value);
+                          if (ins) setViabCustoUnit('1');
+                        }}
+                        className="w-full bg-[#0d121f] border border-slate-800 rounded-xl px-3 py-2 text-slate-355 focus:outline-none"
+                      >
+                        <option value="">-- Selecione o Insumo --</option>
+                        {insumosList.map((ins: any) => (
+                          <option key={ins.id} value={ins.id}>{ins.nome} ({ins.unidadeMedida}) - {ins.categoria}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-slate-455 font-medium">Qtd Planejada</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="0"
+                          value={viabQtd}
+                          onChange={(e) => setViabQtd(e.target.value)}
+                          className="w-full bg-[#0d121f] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-slate-455 font-medium">Custo Unitário (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={viabCustoUnit}
+                          onChange={(e) => setViabCustoUnit(e.target.value)}
+                          className="w-full bg-[#0d121f] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddViabItem}
+                      className="w-full py-2 bg-slate-850 hover:bg-slate-800 text-slate-300 font-bold rounded-xl transition cursor-pointer text-xs"
+                    >
+                      + Adicionar Item ao Modelo
+                    </button>
+                  </div>
+
+                  {/* List of items in standard budget template */}
+                  <div className="space-y-2">
+                    <h4 className="font-bold text-slate-400 text-[10px] uppercase">Itens Adicionados ({viabItems.length})</h4>
+                    <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                      {viabItems.map((item, idx) => (
+                        <div key={idx} className="p-2.5 bg-[#070a13]/40 border border-slate-855 rounded-xl flex items-center justify-between text-[10px]">
+                          <div>
+                            <p className="font-bold text-slate-300">{item.nome}</p>
+                            <p className="text-[9px] text-slate-500 mt-0.5">
+                              Qtd: {item.quantidadePlanejada} {item.unidadeMedida} | Unit: R$ {item.custoUnitarioPrevisto}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveViabItem(idx)}
+                            className="text-[9px] font-bold text-red-500 hover:text-red-400 px-2 py-0.5 bg-slate-900 border border-slate-855 rounded transition cursor-pointer"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      ))}
+                      {viabItems.length === 0 && (
+                        <p className="text-[10px] text-slate-555 italic py-2 text-center">Nenhum item orçado no modelo.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isGeneratingViab}
+                    onClick={handleGenerateFeasibility}
+                    className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 disabled:opacity-50 text-white font-extrabold rounded-2xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-655/15"
+                  >
+                    {isGeneratingViab ? 'Processando Replicação...' : 'Replicar Orçamento e Gerar Viabilidade'}
+                  </button>
+
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Controls: Historico de Custos Globais */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="glassmorphism p-6 rounded-3xl border border-slate-800 bg-[#0d121f]/20 space-y-4">
+                <div className="border-b border-slate-855 pb-3">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider font-sans">
+                    Extrato de Rateios e Custos Globais ({project.custosGlobais?.length || 0})
+                  </h3>
+                  <p className="text-[10px] text-slate-455 mt-1">Lançamentos de nível macro rateados sobre o VGV do projeto.</p>
+                </div>
+                
+                <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                  {project.custosGlobais && project.custosGlobais.length > 0 ? (
+                    project.custosGlobais.map((cg: any) => (
+                      <div key={cg.id} className="p-3.5 bg-[#070a13]/40 border border-slate-855 hover:border-slate-800 rounded-2xl flex items-center justify-between transition-all duration-200">
+                        <div>
+                          <p className="font-bold text-slate-200 text-xs">{cg.descricao}</p>
+                          <div className="text-[10px] text-slate-500 mt-1.5 flex items-center gap-2">
+                            <span className={`px-1.5 py-0.2 bg-slate-900 border rounded text-[8px] font-bold ${cg.realizado ? 'text-emerald-400' : 'text-blue-400'}`}>
+                              {cg.realizado ? 'REAL' : 'ORÇADO'}
+                            </span>
+                            <span>{cg.tipo}</span>
+                            <span>•</span>
+                            <span>{formatDate(cg.data)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="font-mono font-bold text-red-400 text-xs">{formatCurrency(cg.valor)}</span>
+                          {['ADMIN', 'FINANCEIRO'].includes(userRole) && (
+                            <button
+                              onClick={() => handleDeleteGlobalCost(cg.id)}
+                              className="text-[9px] font-bold text-red-500 hover:text-red-400 px-2 py-1 bg-red-955/20 rounded-lg border border-red-900/30 transition cursor-pointer"
+                            >
+                              Excluir
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-500 py-12 text-center italic">Nenhum custo global registrado.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
 
           <ModalNovoLancamento
             isOpen={isUniversalModalOpen}
@@ -1455,6 +1433,7 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
           />
         </div>
       )}
+
 
 
       {/* Conteúdo Aba 3: Cofre de Projetos (GED Técnico) */}
