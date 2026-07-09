@@ -389,10 +389,13 @@ export default function ReportGenerator({ empreendimentos, casas }: ReportGenera
                 <span>Data de Emissão: {new Date().toLocaleDateString('pt-BR')}</span>
               </div>
             </div>
-            {/* Marca d'água ERP SaaS */}
-            <div className="text-right">
-              <span className="font-extrabold tracking-wider text-indigo-400 print-accent text-base font-sans">MASAR</span>
-              <span className="text-[9px] text-slate-500 block uppercase print-text-muted">ERP de Obras MCMV</span>
+            {/* Logotipo Masar Empreendimentos */}
+            <div className="text-right flex flex-col items-end">
+              <div className="flex items-center gap-1.5 justify-end">
+                <span className="text-sm font-bold text-indigo-400 print-accent font-serif select-none" dir="rtl">مسار</span>
+                <span className="font-extrabold tracking-tight text-white print-text-dark text-base font-sans">Masar</span>
+              </div>
+              <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wider print-text-muted">empreendimentos</span>
             </div>
           </div>
 
