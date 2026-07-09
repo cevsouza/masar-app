@@ -19,7 +19,12 @@ export async function POST(
       where: { id: empreendimentoId },
       include: {
         casas: true,
-        custosGlobais: true
+        transacoes: {
+          where: {
+            casaId: null,
+            natureza: 'DESPESA'
+          }
+        }
       }
     });
 
@@ -81,9 +86,9 @@ export async function POST(
     const totalOrcamentoCasas = totalCasas * custoCasaUnitario;
 
     // Calcular o orçamento total do empreendimento (Custos Globais Orçados + Custos Diretos de Obras das Casas)
-    const totalCustosGlobaisOrcados = emp.custosGlobais
-      .filter(cg => !cg.realizado)
-      .reduce((acc, cg) => acc + cg.valor, 0);
+    const totalCustosGlobaisOrcados = emp.transacoes
+      .filter(t => t.status === 'PENDENTE')
+      .reduce((acc, t) => acc + t.valor, 0);
 
     const orcamentoTotalEmpreendimento = totalOrcamentoCasas + totalCustosGlobaisOrcados;
 

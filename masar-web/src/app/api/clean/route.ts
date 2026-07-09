@@ -12,15 +12,12 @@ export async function GET(request: NextRequest) {
     await db.movimentacaoSocio.deleteMany();
     await db.socio.deleteMany();
     await db.contaBancaria.deleteMany();
-    await db.contasAReceberCliente.deleteMany();
+    await db.transacaoFinanceira.deleteMany();
     await db.contratoVenda.deleteMany();
     await db.corretor.deleteMany();
-    await db.custoGlobal.deleteMany();
-    await db.imposto.deleteMany();
 
     await db.diarioDeObra.deleteMany();
     await db.infraestruturaUnidade.deleteMany();
-    await db.apropriacaoCusto.deleteMany();
     await db.itemOrcamento.deleteMany();
     await db.orcamentoCasa.deleteMany();
     await db.insumoPadrao.deleteMany();

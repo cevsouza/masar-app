@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { CategoriaInsumo } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,33 +19,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Empreendimento não encontrado' }, { status: 404 });
     }
 
-    // 1. Receitas de Clientes (Contas a Receber do contrato de venda)
-    const contasReceber = await db.contasAReceberCliente.findMany({
-      where: {
-        contrato: {
-          casa: { empreendimentoId }
-        }
-      },
-      select: {
-        valor: true,
-        dataVencimento: true,
-        pago: true
-      }
+    // 1. Obter todas as transações financeiras vinculadas a este empreendimento
+    const transacoes = await db.transacaoFinanceira.findMany({
+      where: { empreendimentoId }
     });
 
-    // 2. Repasses da Caixa (Medições Caixa)
-    const medicoes = await db.medicaoCaixa.findMany({
-      where: {
-        casa: { empreendimentoId }
-      },
-      select: {
-        valorLiberado: true,
-        dataMedicao: true,
-        status: true
-      }
-    });
-
-    // 3. Aportes de Sócios
+    // 2. Aportes de Sócios
     const aportes = await db.movimentacaoSocio.findMany({
       where: {
         empreendimentoId,
@@ -58,19 +36,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 4. Custos Diretos de Construção (Apropriações de Custo)
-    const apropriacoes = await db.apropriacaoCusto.findMany({
-      where: {
-        casa: { empreendimentoId }
-      },
-      select: {
-        custoTotal: true,
-        dataAplicacao: true,
-        aprovado: true
-      }
-    });
-
-    // 5. Retiradas de Sócios (Saídas financeiras)
+    // 3. Retiradas de Sócios
     const retiradas = await db.movimentacaoSocio.findMany({
       where: {
         empreendimentoId,
@@ -80,29 +46,6 @@ export async function GET(request: NextRequest) {
         valor: true,
         data: true
       }
-    });
-
-    // 6. Custos Globais (Terreno, Projetos, Mkt, etc.)
-    const totalHouses = await db.casa.count();
-    const projectHouses = emp.casas.length;
-
-    const custosGlobais = await db.custoGlobal.findMany({
-      where: {
-        OR: [
-          { empreendimentoId },
-          { empreendimentoId: null }
-        ]
-      }
-    });
-
-    const rateados = custosGlobais.map(c => {
-      const valor = c.empreendimentoId 
-        ? c.valor 
-        : (totalHouses > 0 ? (c.valor / totalHouses) * projectHouses : 0);
-      return {
-        valor,
-        data: c.data
-      };
     });
 
     // Agrupamento por Mês
@@ -151,23 +94,39 @@ export async function GET(request: NextRequest) {
       return DFCData[chave];
     };
 
-    // Processar Medições Caixa
-    medicoes.forEach(m => {
-      const mesObj = getOrCreateMes(m.dataMedicao);
-      if (m.status === 'PAGA') {
-        mesObj.entradasMedicoesReal += m.valorLiberado;
-      } else {
-        mesObj.entradasMedicoesPrev += m.valorLiberado;
-      }
-    });
+    // Processar todas as TransacoesFinanceiras
+    transacoes.forEach(t => {
+      const dataFoco = t.status === 'PAGO' && t.dataPagamento ? t.dataPagamento : t.dataVencimento;
+      const mesObj = getOrCreateMes(dataFoco);
+      const isReal = t.status === 'PAGO';
 
-    // Processar Contas a Receber Clientes
-    contasReceber.forEach(c => {
-      const mesObj = getOrCreateMes(c.dataVencimento);
-      if (c.pago) {
-        mesObj.entradasClientesReal += c.valor;
+      if (t.natureza === 'RECEITA') {
+        if (t.categoria === 'MEDICAO_CAIXA') {
+          if (isReal) {
+            mesObj.entradasMedicoesReal += t.valor;
+          } else {
+            mesObj.entradasMedicoesPrev += t.valor;
+          }
+        } else if (t.categoria === 'ENTRADA_CLIENTE') {
+          if (isReal) {
+            mesObj.entradasClientesReal += t.valor;
+          } else {
+            mesObj.entradasClientesPrev += t.valor;
+          }
+        }
       } else {
-        mesObj.entradasClientesPrev += c.valor;
+        // Saídas/Despesas
+        if (t.casaId !== null) {
+          // Custo direto de obra da unidade
+          if (isReal) {
+            mesObj.saidasObraReal += t.valor;
+          } else {
+            mesObj.saidasObraPrev += t.valor;
+          }
+        } else {
+          // Custo global / rateio (sem casaId)
+          mesObj.saidasRateiosReal += t.valor;
+        }
       }
     });
 
@@ -177,26 +136,10 @@ export async function GET(request: NextRequest) {
       mesObj.entradasAportesReal += a.valor;
     });
 
-    // Processar Apropriações Obra (Realizado)
-    apropriacoes.forEach(ap => {
-      const mesObj = getOrCreateMes(ap.dataAplicacao);
-      if (ap.aprovado) {
-        mesObj.saidasObraReal += ap.custoTotal;
-      } else {
-        mesObj.saidasObraPrev += ap.custoTotal; // pendente aprov
-      }
-    });
-
     // Processar Retiradas Sócios
     retiradas.forEach(r => {
       const mesObj = getOrCreateMes(r.data);
       mesObj.saidasRetiradasReal += r.valor;
-    });
-
-    // Processar Custos Globais / Rateios
-    rateados.forEach(rt => {
-      const mesObj = getOrCreateMes(rt.data);
-      mesObj.saidasRateiosReal += rt.valor;
     });
 
     // Ordenar e calcular saldos líquidos e acumulados

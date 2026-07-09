@@ -31,8 +31,9 @@ export default async function AreaDoClientePage() {
               documentos: true
             }
           },
-          contasReceber: {
-            orderBy: { numeroParcela: 'asc' }
+          transacoes: {
+            where: { natureza: 'RECEITA' },
+            orderBy: { dataVencimento: 'asc' }
           },
           corretor: true
         }
@@ -52,7 +53,7 @@ export default async function AreaDoClientePage() {
     telefone: cliente.telefone,
     etapaAtual: cliente.etapaAtual,
     contrachequeUrl: cliente.contrachequeUrl,
-    contratos: cliente.contratos.map(contrato => ({
+    contratos: cliente.contratos.map((contrato: any) => ({
       id: contrato.id,
       valorVenda: contrato.valorVenda,
       entrada: contrato.entrada,
@@ -68,18 +69,18 @@ export default async function AreaDoClientePage() {
         empreendimento: {
           nome: contrato.casa.empreendimento.nome
         },
-        documentos: contrato.casa.documentos.map(doc => ({
+        documentos: contrato.casa.documentos.map((doc: any) => ({
           id: doc.id,
           nome: doc.nome,
           caminhoArquivo: doc.caminhoArquivo
         }))
       },
-      contasReceber: contrato.contasReceber.map(p => ({
+      contasReceber: contrato.transacoes.map((p: any, idx: number) => ({
         id: p.id,
-        numeroParcela: p.numeroParcela,
+        numeroParcela: idx + 1,
         valor: p.valor,
         dataVencimento: p.dataVencimento.toISOString(),
-        pago: p.pago
+        pago: p.status === 'PAGO'
       })),
       corretor: contrato.corretor ? {
         nome: contrato.corretor.nome,

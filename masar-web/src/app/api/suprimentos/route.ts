@@ -40,16 +40,16 @@ export async function POST(request: NextRequest) {
         _sum: { quantidadeSolicitada: true }
       });
       
-      const jaApropriadoSum = await db.apropriacaoCusto.aggregate({
+      const jaApropriadoSum = await db.transacaoFinanceira.aggregate({
         where: {
           casaId,
           insumoId,
-          aprovado: true
+          status: 'PAGO'
         },
-        _sum: { quantidadeReal: true }
+        _sum: { quantidade: true }
       });
 
-      const totalConsumido = (jaSolicitadoSum._sum.quantidadeSolicitada || 0) + (jaApropriadoSum._sum.quantidadeReal || 0);
+      const totalConsumido = (jaSolicitadoSum._sum.quantidadeSolicitada || 0) + (jaApropriadoSum._sum.quantidade || 0);
       const limiteDisponivel = itemOrcado.quantidadePlanejada - totalConsumido;
       
       if (parseFloat(quantidadeSolicitada) > limiteDisponivel) {
@@ -129,16 +129,16 @@ export async function PATCH(request: NextRequest) {
           _sum: { quantidadeSolicitada: true }
         });
         
-        const jaApropriadoSum = await db.apropriacaoCusto.aggregate({
+        const jaApropriadoSum = await db.transacaoFinanceira.aggregate({
           where: {
             casaId: current.casaId,
             insumoId: current.insumoId,
-            aprovado: true
+            status: 'PAGO'
           },
-          _sum: { quantidadeReal: true }
+          _sum: { quantidade: true }
         });
 
-        const totalConsumido = (jaSolicitadoSum._sum.quantidadeSolicitada || 0) + (jaApropriadoSum._sum.quantidadeReal || 0);
+        const totalConsumido = (jaSolicitadoSum._sum.quantidadeSolicitada || 0) + (jaApropriadoSum._sum.quantidade || 0);
         const limiteDisponivel = itemOrcado.quantidadePlanejada - totalConsumido;
         
         if (parseFloat(quantidadeSolicitada) > limiteDisponivel) {

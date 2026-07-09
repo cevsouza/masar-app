@@ -14,7 +14,12 @@ export default async function SuprimentosPage() {
           orcamento: {
             include: { itens: true }
           },
-          apropriacoes: true
+          transacoes: {
+            where: {
+              natureza: 'DESPESA',
+              status: 'PAGO'
+            }
+          }
         }
       },
       empreendimento: true,
@@ -44,12 +49,12 @@ export default async function SuprimentosPage() {
     let saldoQtd = null;
 
     if (s.casa) {
-      const itemOrcado = s.casa.orcamento?.itens.find(item => item.insumoId === s.insumoId);
+      const itemOrcado = s.casa.orcamento?.itens.find((item: any) => item.insumoId === s.insumoId);
       orcadoQtd = itemOrcado ? itemOrcado.quantidadePlanejada : 0;
 
-      const apropriado = s.casa.apropriacoes
-        .filter(ap => ap.insumoId === s.insumoId)
-        .reduce((sum, ap) => sum + ap.quantidadeReal, 0);
+      const apropriado = s.casa.transacoes
+        .filter((t: any) => t.insumoId === s.insumoId)
+        .reduce((sum: number, t: any) => sum + t.quantidade, 0);
       consumoQtd = apropriado;
       saldoQtd = orcadoQtd - consumoQtd;
     }

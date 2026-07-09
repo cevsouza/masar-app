@@ -165,29 +165,32 @@ export async function PATCH(
     const finalValorCompra = updated.valorCompraTerreno ? Number(updated.valorCompraTerreno) : 0;
     if (finalValorCompra > 0) {
       const desc = `Aquisição do Terreno - ${updated.nome}`;
-      const existingCost = await db.custoGlobal.findFirst({
+      const existingCost = await db.transacaoFinanceira.findFirst({
         where: {
           empreendimentoId: updated.id,
-          tipo: 'TERRENO'
+          categoria: 'TERRENO'
         }
       });
 
       if (existingCost) {
-        if (existingCost.valor !== finalValorCompra || existingCost.descricao !== desc) {
-          await db.custoGlobal.update({
+        if (existingCost.valor !== finalValorCompra || existingCost.descricao !== `Custo Global [TERRENO] - ${desc}`) {
+          await db.transacaoFinanceira.update({
             where: { id: existingCost.id },
             data: { 
               valor: finalValorCompra,
-              descricao: desc
+              descricao: `Custo Global [TERRENO] - ${desc}`
             }
           });
         }
       } else {
-        await db.custoGlobal.create({
+        await db.transacaoFinanceira.create({
           data: {
-            descricao: desc,
-            tipo: 'TERRENO',
+            descricao: `Custo Global [TERRENO] - ${desc}`,
             valor: finalValorCompra,
+            dataVencimento: new Date(),
+            natureza: 'DESPESA',
+            status: 'PENDENTE',
+            categoria: 'TERRENO',
             empreendimentoId: updated.id
           }
         });

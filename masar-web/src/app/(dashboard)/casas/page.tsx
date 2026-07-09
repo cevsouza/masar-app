@@ -35,8 +35,8 @@ export default async function CasasPage() {
         select: { valorLiberado: true, status: true, percentualMedido: true },
         orderBy: { dataMedicao: 'desc' }
       },
-      apropriacoes: {
-        select: { custoTotal: true, aprovado: true }
+      transacoes: {
+        select: { valor: true, status: true, natureza: true }
       }
     },
     orderBy: [
@@ -49,16 +49,16 @@ export default async function CasasPage() {
   const serializedCasas = casas.map(c => ({
     ...c,
     // total apropriado aprovado e pendente
-    totalApropriadoAprovado: c.apropriacoes
-      .filter(ap => ap.aprovado)
-      .reduce((acc, ap) => acc + ap.custoTotal, 0),
-    totalApropriadoPendente: c.apropriacoes
-      .filter(ap => !ap.aprovado)
-      .reduce((acc, ap) => acc + ap.custoTotal, 0),
+    totalApropriadoAprovado: c.transacoes
+      .filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PAGO')
+      .reduce((acc: number, t: any) => acc + t.valor, 0),
+    totalApropriadoPendente: c.transacoes
+      .filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PENDENTE')
+      .reduce((acc: number, t: any) => acc + t.valor, 0),
     // medições Caixa pagas
     totalMedidoCaixa: c.medicoes
       .filter(m => m.status === 'PAGA')
-      .reduce((acc, m) => acc + m.valorLiberado, 0)
+      .reduce((acc: number, m: any) => acc + m.valorLiberado, 0)
   }));
 
   return (

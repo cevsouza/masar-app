@@ -17,7 +17,7 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
       casas: {
         include: {
           medicoes: true,
-          apropriacoes: {
+          transacoes: {
             include: {
               insumo: true
             }
@@ -40,8 +40,12 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
       documentos: {
         orderBy: { dataCriacao: 'desc' }
       },
-      custosGlobais: {
-        orderBy: { data: 'desc' }
+      transacoes: {
+        where: {
+          casaId: null,
+          natureza: 'DESPESA'
+        },
+        orderBy: { dataVencimento: 'desc' }
       }
     }
   });
@@ -90,16 +94,16 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
         status: m.status,
         dataMedicao: m.dataMedicao.toISOString()
       })),
-      apropriacoes: casa.apropriacoes.map(ap => ({
-        id: ap.id,
-        custoTotal: ap.custoTotal,
-        aprovado: ap.aprovado,
-        dataAplicacao: ap.dataAplicacao.toISOString(),
-        insumo: {
-          id: ap.insumo.id,
-          nome: ap.insumo.nome,
-          categoria: ap.insumo.categoria
-        }
+      apropriacoes: casa.transacoes.map((t: any) => ({
+        id: t.id,
+        custoTotal: t.valor,
+        aprovado: t.status === 'PAGO',
+        dataAplicacao: t.dataVencimento.toISOString(),
+        insumo: t.insumo ? {
+          id: t.insumo.id,
+          nome: t.insumo.nome,
+          categoria: t.insumo.categoria
+        } : null
       })),
       orcamento: casa.orcamento ? {
         id: casa.orcamento.id,
@@ -122,12 +126,12 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
       tipo: doc.tipo,
       dataCriacao: doc.dataCriacao.toISOString()
     })),
-    custosGlobais: project.custosGlobais.map(cg => ({
+    custosGlobais: project.transacoes.map((cg: any) => ({
       id: cg.id,
       descricao: cg.descricao,
-      tipo: cg.tipo,
+      tipo: cg.categoria === 'TERRENO' ? 'TERRENO' : (cg.categoria === 'PROJETOS' ? 'PROJETOS' : 'OUTRO'),
       valor: cg.valor,
-      data: cg.data.toISOString()
+      data: cg.dataVencimento.toISOString()
     }))
   };
 

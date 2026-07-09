@@ -39,9 +39,9 @@ export default async function RelatoriosPage() {
           }
         }
       },
-      apropriacoes: {
+      transacoes: {
         include: { insumo: true },
-        orderBy: { dataAplicacao: 'desc' }
+        orderBy: { dataVencimento: 'desc' }
       },
       diarios: {
         orderBy: { data: 'desc' },
@@ -80,9 +80,10 @@ export default async function RelatoriosPage() {
     dataAtualizacao: c.dataAtualizacao.toISOString(),
     prazoFisico: c.prazoFisico ? c.prazoFisico.toISOString() : null,
     prazoFinanceiro: c.prazoFinanceiro ? c.prazoFinanceiro.toISOString() : null,
-    apropriacoes: c.apropriacoes.map(ap => ({
-      ...ap,
-      dataAplicacao: ap.dataAplicacao.toISOString(),
+    transacoes: c.transacoes.map(t => ({
+      ...t,
+      dataVencimento: t.dataVencimento.toISOString(),
+      dataPagamento: t.dataPagamento ? t.dataPagamento.toISOString() : null,
     })),
     diarios: c.diarios.map(d => ({
       ...d,

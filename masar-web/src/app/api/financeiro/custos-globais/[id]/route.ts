@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { verifySession } from '@/lib/auth';
-import { registerFinancialTransaction } from '@/lib/transactions';
 
 export async function DELETE(
   request: NextRequest,
@@ -16,7 +15,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Acesso negado: Apenas administradores ou financeiro podem excluir custos.' }, { status: 403 });
     }
 
-    const current = await db.custoGlobal.findUnique({
+    const current = await db.transacaoFinanceira.findUnique({
       where: { id }
     });
 
@@ -24,15 +23,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Custo global não encontrado.' }, { status: 404 });
     }
 
-    if (current.realizado) {
-      await registerFinancialTransaction(
-        current.valor,
-        'CREDITO',
-        `Exclusão de Custo Global - Estorno [${current.tipo}] - ${current.descricao}`
-      );
-    }
-
-    await db.custoGlobal.delete({
+    await db.transacaoFinanceira.delete({
       where: { id }
     });
 
@@ -40,13 +31,13 @@ export async function DELETE(
       usuarioId: session.userId,
       usuarioNome: session.nome,
       acao: 'DELETE',
-      tabela: 'CustoGlobal',
+      tabela: 'TransacaoFinanceira',
       registroId: id,
       valoresAntigos: current,
       valoresNovos: null
     });
 
-    return NextResponse.json({ success: true, message: 'Custo global excluído com sucesso.' });
+    return NextResponse.json({ success: true, message: 'Custo global excluído com sucesso do livro-caixa.' });
   } catch (error: any) {
     console.error('Erro ao excluir custo global:', error);
     return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });

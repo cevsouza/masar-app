@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
+import ModalNovoLancamento from './ModalNovoLancamento';
 
 const MENU_ITEMS = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -37,7 +38,7 @@ const MENU_ITEMS = [
   { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone },
   { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList },
   { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank },
-  { name: 'Cockpit Fluxo Caixa', href: '/financeiro/fluxo-de-caixa', icon: TrendingUp },
+  { name: 'Central Financeira', href: '/financeiro', icon: TrendingUp },
   { name: 'Relatórios Gerenciais', href: '/relatorios', icon: FileText },
   { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users },
 ];
@@ -61,6 +62,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isLancamentoModalOpen, setIsLancamentoModalOpen] = useState(false);
   
   // Notifications states
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -237,6 +239,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {/* Botão Global Novo Lançamento */}
+        {['ADMIN', 'FINANCEIRO'].includes(user.role || '') && (
+          <div className="mb-4">
+            <button
+              onClick={() => setIsLancamentoModalOpen(true)}
+              className="w-full py-3 px-4 bg-emerald-650 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition duration-200 cursor-pointer shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 group border-0 font-sans"
+            >
+              <span className="text-sm font-bold transition-transform group-hover:scale-110">+</span>
+              Novo Lançamento
+            </button>
+          </div>
+        )}
+
         {MENU_ITEMS.filter((item) => {
           const role = user.role || 'COMERCIAL';
           if (item.href === '/' && role !== 'ADMIN') return false;
@@ -246,7 +261,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           if (item.href === '/casas' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           if (item.href === '/suprimentos' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
           if (item.href === '/socios/caixa' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
-          if (item.href === '/financeiro/fluxo-de-caixa' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
+          if (item.href === '/financeiro' && !['ADMIN', 'FINANCEIRO'].includes(role)) return false;
           if (item.href === '/relatorios' && !['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(role)) return false;
           if (item.href === '/usuarios' && role !== 'ADMIN') return false;
           return true;
@@ -507,6 +522,28 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       )}
     </aside>
+
+    <ModalNovoLancamento
+      isOpen={isLancamentoModalOpen}
+      onClose={() => setIsLancamentoModalOpen(false)}
+      onSuccess={() => {
+        if (typeof window !== 'undefined') window.location.reload();
+      }}
+      defaultEmpreendimentoId={(() => {
+        if (!pathname) return undefined;
+        if (pathname.includes('/empreendimentos/')) {
+          return pathname.split('/empreendimentos/')[1]?.split('/')[0];
+        }
+        return undefined;
+      })()}
+      defaultCasaId={(() => {
+        if (!pathname) return undefined;
+        if (pathname.includes('/casas/')) {
+          return pathname.split('/casas/')[1]?.split('/')[0];
+        }
+        return undefined;
+      })()}
+    />
     </>
   );
 }

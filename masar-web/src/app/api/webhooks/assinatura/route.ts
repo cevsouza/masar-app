@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
         // Atualizar status do ContratoVenda para ASSINADO_CAIXA
         const contrato = await tx.contratoVenda.update({
           where: { id: assinatura.contratoId },
-          data: { status: 'ASSINADO_CAIXA' }
+          data: { status: 'ASSINADO_CAIXA' },
+          include: { casa: true }
         });
 
         // Atualizar registro de assinatura
@@ -56,13 +57,18 @@ export async function POST(request: NextRequest) {
           const vencimentoSinal = new Date();
           vencimentoSinal.setDate(vencimentoSinal.getDate() + 3); // 3 dias de prazo
           
-          await tx.contasAReceberCliente.create({
+          await tx.transacaoFinanceira.create({
             data: {
-              contratoId: contrato.id,
-              numeroParcela: 0, // Parcela 0 representa o Sinal/Entrada
+              descricao: 'Sinal/Entrada de Contrato',
               valor: contrato.entrada,
               dataVencimento: vencimentoSinal,
-              pago: false
+              natureza: 'RECEITA',
+              status: 'PENDENTE',
+              categoria: 'ENTRADA_CLIENTE',
+              empreendimentoId: contrato.casa.empreendimentoId,
+              casaId: contrato.casaId,
+              clienteId: contrato.clienteId,
+              contratoId: contrato.id
             }
           });
         }

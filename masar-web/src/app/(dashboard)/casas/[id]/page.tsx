@@ -12,7 +12,6 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
     include: {
       empreendimento: {
         include: {
-          custosGlobais: true,
           casas: {
             select: { id: true }
           }
@@ -30,11 +29,11 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
           }
         }
       },
-      apropriacoes: {
+      transacoes: {
         include: {
           insumo: true
         },
-        orderBy: { dataAplicacao: 'desc' }
+        orderBy: { dataVencimento: 'desc' }
       },
       diarios: {
         orderBy: { data: 'desc' }
@@ -67,9 +66,10 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
       dataCriacao: m.dataCriacao.toISOString(),
       dataAtualizacao: m.dataAtualizacao.toISOString(),
     })),
-    apropriacoes: casa.apropriacoes.map(ap => ({
-      ...ap,
-      dataAplicacao: ap.dataAplicacao.toISOString(),
+    transacoes: casa.transacoes.map(t => ({
+      ...t,
+      dataVencimento: t.dataVencimento.toISOString(),
+      dataPagamento: t.dataPagamento ? t.dataPagamento.toISOString() : null,
     })),
     diarios: casa.diarios.map(d => ({
       ...d,

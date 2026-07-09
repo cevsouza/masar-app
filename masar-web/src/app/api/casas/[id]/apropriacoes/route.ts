@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { registerFinancialTransaction } from '@/lib/transactions';
 
 export async function POST(
   request: NextRequest,
@@ -9,13 +8,12 @@ export async function POST(
   try {
     const { id: casaId } = await params;
     const body = await request.json();
-    const { insumoId, quantidadeReal, custoTotal, comprovanteUrl } = body;
+    const { insumoId, quantidadeReal, custoTotal } = body;
 
     if (!insumoId || !quantidadeReal || !custoTotal) {
       return NextResponse.json({ error: 'Insumo, quantidade e custo total são obrigatórios' }, { status: 400 });
     }
 
-    // 1. Load Casa and Insumo details
     const casa = await db.casa.findUnique({
       where: { id: casaId },
       include: { orcamento: { include: { itens: true } } }
@@ -29,12 +27,11 @@ export async function POST(
       return NextResponse.json({ error: 'Casa ou Insumo não encontrados' }, { status: 404 });
     }
 
-    // 2. Trava de Empreiteiro (Mão de Obra correspondente à etapa concluída)
+    // 1. Trava de Empreiteiro (Mão de Obra correspondente à etapa concluída)
     if (insumo.categoria === 'MAO_DE_OBRA') {
       const insumoNomeLower = insumo.nome.toLowerCase();
       const statusObra = casa.statusObra;
 
-      // Define dependency rules between task name and construction stage
       let isStageMet = true;
       let requiredStageLabel = '';
 
@@ -62,51 +59,59 @@ export async function POST(
       }
     }
 
-    // 3. Validação de Orçamento (Overbudget Trigger)
+    // 2. Validação de Orçamento (Overbudget Trigger)
     const budgetItem = casa.orcamento?.itens.find(item => item.insumoId === insumoId);
     
-    // Sum previous approved/pending appropriations for this insumo
-    const prevAppr = await db.apropriacaoCusto.aggregate({
-      where: { casaId, insumoId },
-      _sum: { custoTotal: true }
+    // Sum previous approved/paid transactions for this insumo in this house
+    const prevTransacoes = await db.transacaoFinanceira.aggregate({
+      where: { 
+        casaId, 
+        insumoId, 
+        natureza: 'DESPESA', 
+        status: 'PAGO' 
+      },
+      _sum: { valor: true }
     });
 
     const totalCustoPrevisto = budgetItem 
       ? budgetItem.quantidadePlanejada * budgetItem.custoUnitarioPrevisto 
-      : 0; // if not budgeted, total allowed is 0
+      : 0;
 
-    const prevSum = prevAppr._sum.custoTotal || 0;
+    const prevSum = prevTransacoes._sum.valor || 0;
     const isOverbudget = (prevSum + parseFloat(custoTotal)) > totalCustoPrevisto;
 
-    // 4. Save Apropriacao
-    const apropriacao = await db.apropriacaoCusto.create({
+    // 3. Save as TransacaoFinanceira
+    const transacao = await db.transacaoFinanceira.create({
       data: {
+        descricao: `Apropriação - ${insumo.nome}`,
+        valor: parseFloat(custoTotal),
+        dataVencimento: new Date(),
+        dataPagamento: isOverbudget ? null : new Date(),
+        natureza: 'DESPESA',
+        status: isOverbudget ? 'PENDENTE' : 'PAGO',
+        categoria: insumo.categoria === 'MAO_DE_OBRA' ? 'MAO_DE_OBRA' : 'MATERIAL',
+        empreendimentoId: casa.empreendimentoId,
         casaId,
         insumoId,
-        quantidadeReal: parseFloat(quantidadeReal),
-        custoTotal: parseFloat(custoTotal),
-        comprovanteUrl: comprovanteUrl || null,
-        aprovado: !isOverbudget, // pending if overbudget
+        quantidade: parseFloat(quantidadeReal)
       },
       include: {
         insumo: true
       }
     });
 
-    if (apropriacao.aprovado) {
-      await registerFinancialTransaction(
-        apropriacao.custoTotal,
-        'DEBITO',
-        `Apropriação de Custo Obra - Lote Qd ${casa.quadra}, Casa ${casa.numero} | Insumo: ${apropriacao.insumo.nome}`
-      );
-    }
-
     return NextResponse.json({
-      ...apropriacao,
+      id: transacao.id,
+      casaId: transacao.casaId,
+      insumoId: transacao.insumoId,
+      quantidadeReal: transacao.quantidade,
+      custoTotal: transacao.valor,
+      aprovado: transacao.status === 'PAGO',
+      insumo: transacao.insumo,
       warning: isOverbudget ? 'OVERBUDGET_DETECTION' : null,
       message: isOverbudget 
         ? 'Aviso: Esta despesa ultrapassou o orçamento previsto e foi registrada como "Pendente" para aprovação do sócio.' 
-        : 'Custo apropriado com sucesso.'
+        : 'Custo apropriado com sucesso no livro-caixa.'
     }, { status: 201 });
   } catch (error) {
     console.error('Erro ao apropriar custo:', error);
@@ -114,81 +119,55 @@ export async function POST(
   }
 }
 
-// Support updating cost appropriation details or approval status (Partner/Office View)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
-    const { apropriacaoId, aprovado, quantidadeReal, custoTotal, comprovanteUrl } = body;
+    const { apropriacaoId, aprovado, quantidadeReal, custoTotal } = body;
 
     if (!apropriacaoId) {
-      return NextResponse.json({ error: 'ID da apropriação é obrigatório' }, { status: 400 });
+      return NextResponse.json({ error: 'ID da transação (apropriação) é obrigatório' }, { status: 400 });
     }
 
-    const current = await db.apropriacaoCusto.findUnique({
+    const current = await db.transacaoFinanceira.findUnique({
       where: { id: apropriacaoId }
     });
 
     if (!current) {
-      return NextResponse.json({ error: 'Apropriação não encontrada' }, { status: 404 });
+      return NextResponse.json({ error: 'Transação não encontrada' }, { status: 404 });
     }
 
     const updateData: any = {};
-    if (aprovado !== undefined) updateData.aprovado = Boolean(aprovado);
-    if (quantidadeReal !== undefined) updateData.quantidadeReal = parseFloat(quantidadeReal);
-    if (custoTotal !== undefined) updateData.custoTotal = parseFloat(custoTotal);
-    if (comprovanteUrl !== undefined) updateData.comprovanteUrl = comprovanteUrl;
+    if (aprovado !== undefined) {
+      updateData.status = aprovado ? 'PAGO' : 'PENDENTE';
+      updateData.dataPagamento = aprovado ? new Date() : null;
+    }
+    if (quantidadeReal !== undefined) updateData.quantidade = parseFloat(quantidadeReal);
+    if (custoTotal !== undefined) updateData.valor = parseFloat(custoTotal);
 
-    const isNewlyApproved = !current.aprovado && aprovado === true;
-    const isNewlyUnapproved = current.aprovado && aprovado === false;
-    const wasAlreadyApproved = current.aprovado && aprovado === true;
-
-    const apropriacao = await db.apropriacaoCusto.update({
+    const transacao = await db.transacaoFinanceira.update({
       where: { id: apropriacaoId },
       data: updateData,
       include: { insumo: true }
     });
 
-    if (isNewlyApproved) {
-      const finalCusto = custoTotal !== undefined ? parseFloat(custoTotal) : current.custoTotal;
-      await registerFinancialTransaction(
-        finalCusto,
-        'DEBITO',
-        `Apropriação Aprovada - Custo Obra Lote Qd ${current.casaId} | Insumo: ${apropriacao.insumo.nome}`
-      );
-    } else if (isNewlyUnapproved) {
-      await registerFinancialTransaction(
-        current.custoTotal,
-        'CREDITO',
-        `Estorno de Apropriação - Custo Obra Lote Qd ${current.casaId} | Insumo: ${apropriacao.insumo.nome}`
-      );
-    } else if (wasAlreadyApproved && custoTotal !== undefined) {
-      const diff = parseFloat(custoTotal) - current.custoTotal;
-      if (diff > 0) {
-        await registerFinancialTransaction(
-          diff,
-          'DEBITO',
-          `Ajuste de Custo (Acréscimo) - Custo Obra Lote Qd ${current.casaId} | Insumo: ${apropriacao.insumo.nome}`
-        );
-      } else if (diff < 0) {
-        await registerFinancialTransaction(
-          Math.abs(diff),
-          'CREDITO',
-          `Ajuste de Custo (Desconto) - Custo Obra Lote Qd ${current.casaId} | Insumo: ${apropriacao.insumo.nome}`
-        );
-      }
-    }
-
-    return NextResponse.json(apropriacao);
+    return NextResponse.json({
+      id: transacao.id,
+      casaId: transacao.casaId,
+      insumoId: transacao.insumoId,
+      quantidadeReal: transacao.quantidade,
+      custoTotal: transacao.valor,
+      aprovado: transacao.status === 'PAGO',
+      insumo: transacao.insumo
+    });
   } catch (error) {
-    console.error('Erro ao atualizar apropriação:', error);
+    console.error('Erro ao atualizar transação de obra:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
 
-// DELETE: Excluir uma apropriação de custo
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -198,32 +177,24 @@ export async function DELETE(
     const apropriacaoId = searchParams.get('apropriacaoId');
 
     if (!apropriacaoId) {
-      return NextResponse.json({ error: 'ID da apropriação é obrigatório' }, { status: 400 });
+      return NextResponse.json({ error: 'ID da transação (apropriação) é obrigatório' }, { status: 400 });
     }
 
-    const current = await db.apropriacaoCusto.findUnique({
+    const current = await db.transacaoFinanceira.findUnique({
       where: { id: apropriacaoId }
     });
 
     if (!current) {
-      return NextResponse.json({ error: 'Apropriação não encontrada' }, { status: 404 });
+      return NextResponse.json({ error: 'Transação não encontrada' }, { status: 404 });
     }
 
-    if (current.aprovado) {
-      await registerFinancialTransaction(
-        current.custoTotal,
-        'CREDITO',
-        `Exclusão de Apropriação - Estorno Lote Qd ${current.casaId}`
-      );
-    }
-
-    await db.apropriacaoCusto.delete({
+    await db.transacaoFinanceira.delete({
       where: { id: apropriacaoId }
     });
 
-    return NextResponse.json({ success: true, message: 'Apropriação excluída com sucesso' });
+    return NextResponse.json({ success: true, message: 'Apropriação excluída com sucesso do livro-caixa' });
   } catch (error) {
-    console.error('Erro ao excluir apropriação:', error);
+    console.error('Erro ao excluir transação de obra:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

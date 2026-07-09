@@ -36,7 +36,12 @@ export default async function SociosCaixaPage() {
       orcamento: {
         include: { itens: true }
       },
-      apropriacoes: true
+      transacoes: {
+        where: {
+          natureza: 'DESPESA',
+          status: 'PAGO'
+        }
+      }
     }
   });
 
@@ -45,7 +50,7 @@ export default async function SociosCaixaPage() {
 
   activeHouses.forEach(h => {
     const orado = h.orcamento?.itens.reduce((acc, it) => acc + (it.quantidadePlanejada * it.custoUnitarioPrevisto), 0) || 0;
-    const real = h.apropriacoes.filter(ap => ap.aprovado).reduce((acc, ap) => acc + ap.custoTotal, 0) || 0;
+    const real = h.transacoes.filter(t => t.categoria === 'MATERIAL' || t.categoria === 'MAO_DE_OBRA').reduce((acc, t) => acc + t.valor, 0) || 0;
     totalOrcadoAtivas += orado;
     totalRealizadoAtivas += real;
   });
@@ -55,9 +60,10 @@ export default async function SociosCaixaPage() {
   // 3. Recebíveis de Curto Prazo (próximos 30 dias)
   const limit30Days = new Date();
   limit30Days.setDate(limit30Days.getDate() + 30);
-  const contasReceberSum = await db.contasAReceberCliente.aggregate({
+  const contasReceberSum = await db.transacaoFinanceira.aggregate({
     where: {
-      pago: false,
+      natureza: 'RECEITA',
+      status: 'PENDENTE',
       dataVencimento: { lte: limit30Days }
     },
     _sum: { valor: true }
@@ -89,8 +95,11 @@ export default async function SociosCaixaPage() {
     const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
     const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
 
-    const recMes = await db.contasAReceberCliente.aggregate({
+    const recMes = await db.transacaoFinanceira.aggregate({
       where: {
+        natureza: 'RECEITA',
+        status: 'PENDENTE',
+        categoria: 'ENTRADA_CLIENTE',
         dataVencimento: { gte: startOfMonth, lte: endOfMonth }
       },
       _sum: { valor: true }

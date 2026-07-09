@@ -4,20 +4,18 @@ import { hashPassword } from '@/lib/auth';
 
 export async function GET() {
   try {
+    const hoje = new Date();
     // 1. Limpar banco na ordem de dependência
     await db.user.deleteMany();
     await db.movimentacaoSocio.deleteMany();
     await db.socio.deleteMany();
     await db.contaBancaria.deleteMany();
-    await db.contasAReceberCliente.deleteMany();
+    await db.transacaoFinanceira.deleteMany();
     await db.contratoVenda.deleteMany();
     await db.corretor.deleteMany();
-    await db.custoGlobal.deleteMany();
-    await db.imposto.deleteMany();
 
     await db.diarioDeObra.deleteMany();
     await db.infraestruturaUnidade.deleteMany();
-    await db.apropriacaoCusto.deleteMany();
     await db.itemOrcamento.deleteMany();
     await db.orcamentoCasa.deleteMany();
     await db.insumoPadrao.deleteMany();
@@ -27,7 +25,7 @@ export async function GET() {
     await db.marcoBurocratico.deleteMany();
     await db.empreendimento.deleteMany();
 
-    // Criar usuários administradores padrão solicitados
+    // Criar usuários administradores padrão
     const adminPasswordHash = await hashPassword('V!to2017');
     await db.user.create({
       data: {
@@ -149,7 +147,6 @@ export async function GET() {
     // Demais insumos básicos
     await db.insumoPadrao.createMany({
       data: [
-        // MATERIAIS
         { nome: 'Pedra Brita nº 1', unidadeMedida: 'M3', categoria: 'MATERIAL' },
         { nome: 'Aço CA-50 8.0mm (Vara 12m)', unidadeMedida: 'KG', categoria: 'MATERIAL' },
         { nome: 'Tijolo Baiano 8 Furos (9x19x19cm)', unidadeMedida: 'SC', categoria: 'MATERIAL' },
@@ -171,22 +168,16 @@ export async function GET() {
         { nome: 'Caixa d\'Água Polietileno 500L', unidadeMedida: 'SC', categoria: 'MATERIAL' },
         { nome: 'Argamassa de Rejunte', unidadeMedida: 'KG', categoria: 'MATERIAL' },
         { nome: 'Gesso Liso para Gesso Acartonado', unidadeMedida: 'KG', categoria: 'MATERIAL' },
-
-        // MÃO DE OBRA
         { nome: 'Mão de Obra de Terraplenagem', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
         { nome: 'Mão de Obra de Instalações Elétricas', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
         { nome: 'Mão de Obra de Instalações Hidrossanitárias', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
         { nome: 'Mão de Obra de Acabamentos e Revestimentos', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
         { nome: 'Mão de Obra de Pintura e Textura', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
         { nome: 'Mão de Obra de Limpeza de Obra', unidadeMedida: 'EMPREITADA', categoria: 'MAO_DE_OBRA' },
-
-        // EQUIPAMENTOS
         { nome: 'Locação de Betoneira 400L (Mensal)', unidadeMedida: 'EMPREITADA', categoria: 'EQUIPAMENTO' },
         { nome: 'Locação de Andaime Metálico (Mensal)', unidadeMedida: 'EMPREITADA', categoria: 'EQUIPAMENTO' },
         { nome: 'Locação de Container para Ferramentas (Mensal)', unidadeMedida: 'EMPREITADA', categoria: 'EQUIPAMENTO' },
         { nome: 'Locação de Banheiro Químico (Mensal)', unidadeMedida: 'EMPREITADA', categoria: 'EQUIPAMENTO' },
-
-        // TAXAS
         { nome: 'Alvará de Construção (Prefeitura)', unidadeMedida: 'EMPREITADA', categoria: 'TAXA' },
         { nome: 'Taxa de Registro e Emolumentos de Cartório', unidadeMedida: 'EMPREITADA', categoria: 'TAXA' },
         { nome: 'CREA/ART de Execução de Obra', unidadeMedida: 'EMPREITADA', categoria: 'TAXA' },
@@ -246,17 +237,7 @@ export async function GET() {
       ]
     });
 
-    // 7. Criar Apropriações Iniciais de Custo (Realizado)
-    await db.apropriacaoCusto.createMany({
-      data: [
-        { casaId: casa1.id, insumoId: cimento.id, quantidadeReal: 95, custoTotal: 3610.0, aprovado: true },
-        { casaId: casa1.id, insumoId: aco.id, quantidadeReal: 410, custoTotal: 4920.0, aprovado: true },
-        { casaId: casa1.id, insumoId: retro.id, quantidadeReal: 20, custoTotal: 3200.0, aprovado: true },
-        { casaId: casa1.id, insumoId: maoFundacao.id, quantidadeReal: 1, custoTotal: 9500.0, aprovado: true }
-      ]
-    });
-
-    // 8. Criar Diários de Obra
+    // 7. Criar Diários de Obra
     await db.diarioDeObra.createMany({
       data: [
         {
@@ -276,7 +257,7 @@ export async function GET() {
       ]
     });
 
-    // 9. Criar Ligações de Utilidades/Infraestrutura
+    // 8. Criar Ligações de Utilidades/Infraestrutura
     await db.infraestruturaUnidade.create({
       data: {
         casaId: casa1.id,
@@ -299,7 +280,7 @@ export async function GET() {
       }
     });
 
-    // 10. Criar Medições Caixa
+    // 9. Criar Medições Caixa (Físico)
     await db.medicaoCaixa.createMany({
       data: [
         {
@@ -333,33 +314,17 @@ export async function GET() {
       ],
     });
 
-    // === ADICIONAIS FASE 5 (CONTA BANCÁRIA, SÓCIOS, RET RATEIOS, CONTRATOS, CORRETOR) ===
-
     // Criar Contas Bancárias
-    const contaCEF = await db.contaBancaria.create({
+    await db.contaBancaria.create({
       data: { nome: 'Conta Corrente CEF - Masar App', saldoAtual: 285000.00 }
     });
 
     // Criar Sócios cotistas
-    const socioInc = await db.socio.create({
+    await db.socio.create({
       data: { nome: 'Sócio Incorporador Principal', percentualCotas: 60.0 }
     });
-    const socioEmp = await db.socio.create({
+    await db.socio.create({
       data: { nome: 'Sócio Empreiteiro Operacional', percentualCotas: 40.0 }
-    });
-
-    // Criar Impostos (RET incorporação MCMV)
-    await db.imposto.create({
-      data: { nome: 'RET', percentual: 4.0 }
-    });
-
-    // Criar Custos Globais (Terreno geral para rateio contábil proporcional)
-    await db.custoGlobal.createMany({
-      data: [
-        { descricao: 'Terreno Geral Residencial Bela Vista', tipo: 'TERRENO', valor: 90000.00 },
-        { descricao: 'Marketing Geral Outdoor & Banners', tipo: 'MARKETING', valor: 12000.00 },
-        { descricao: 'Projetos Arquitetônicos & Topografia Bela Vista', tipo: 'PROJETOS', valor: 18000.00 }
-      ]
     });
 
     // Criar Corretor parceiro
@@ -384,18 +349,185 @@ export async function GET() {
       }
     });
 
-    // Criar parcelas do sinal a receber
-    const hoje = new Date();
-    await db.contasAReceberCliente.createMany({
+    // 10. Criar Transações Financeiras Consolidadas (Single Ledger)
+    await db.transacaoFinanceira.createMany({
       data: [
-        { contratoId: contratoCasa1.id, numeroParcela: 1, valor: 5000.00, dataVencimento: new Date(new Date().setDate(hoje.getDate() - 15)), pago: true },
-        { contratoId: contratoCasa1.id, numeroParcela: 2, valor: 5000.00, dataVencimento: new Date(new Date().setDate(hoje.getDate() - 5)), pago: true },
-        { contratoId: contratoCasa1.id, numeroParcela: 3, valor: 5000.00, dataVencimento: new Date(new Date().setDate(hoje.getDate() + 10)), pago: false },
-        { contratoId: contratoCasa1.id, numeroParcela: 4, valor: 5000.00, dataVencimento: new Date(new Date().setDate(hoje.getDate() + 40)), pago: false }
+        // Custos Globais (Sem casaId)
+        {
+          descricao: 'Terreno Geral Residencial Bela Vista',
+          valor: 90000.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 100)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 100)),
+          natureza: 'DESPESA',
+          status: 'PAGO',
+          categoria: 'TERRENO',
+          empreendimentoId: emp1.id
+        },
+        {
+          descricao: 'Marketing Geral Outdoor & Banners',
+          valor: 12000.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 80)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 80)),
+          natureza: 'DESPESA',
+          status: 'PAGO',
+          categoria: 'MATERIAL',
+          empreendimentoId: emp1.id
+        },
+        {
+          descricao: 'Projetos Arquitetônicos & Topografia Bela Vista',
+          valor: 18000.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 90)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 90)),
+          natureza: 'DESPESA',
+          status: 'PAGO',
+          categoria: 'PROJETOS',
+          empreendimentoId: emp1.id
+        },
+        
+        // Custos de Obras Realizados (Com casaId)
+        {
+          descricao: 'Apropriação - Cimento CP-II (95 sacos)',
+          valor: 3610.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 30)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 30)),
+          natureza: 'DESPESA',
+          status: 'PAGO',
+          categoria: 'MATERIAL',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id,
+          insumoId: cimento.id,
+          quantidade: 95
+        },
+        {
+          descricao: 'Apropriação - Aço CA-50 (410 kg)',
+          valor: 4920.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 28)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 28)),
+          natureza: 'DESPESA',
+          status: 'PAGO',
+          categoria: 'MATERIAL',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id,
+          insumoId: aco.id,
+          quantidade: 410
+        },
+        {
+          descricao: 'Apropriação - Locação de Máquinas (20h)',
+          valor: 3200.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 25)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 25)),
+          natureza: 'DESPESA',
+          status: 'PAGO',
+          categoria: 'MATERIAL',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id,
+          insumoId: retro.id,
+          quantidade: 20
+        },
+        {
+          descricao: 'Apropriação - Empreitada Mão de Obra Fundação',
+          valor: 9500.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 20)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 20)),
+          natureza: 'DESPESA',
+          status: 'PAGO',
+          categoria: 'MAO_DE_OBRA',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id,
+          insumoId: maoFundacao.id,
+          quantidade: 1
+        },
+
+        // Receitas CEF Realizadas (Com casaId)
+        {
+          descricao: 'Repasse CEF Medição 1 - Casa 101',
+          valor: 25000.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 60)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 60)),
+          natureza: 'RECEITA',
+          status: 'PAGO',
+          categoria: 'MEDICAO_CAIXA',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id
+        },
+        {
+          descricao: 'Repasse CEF Medição 2 - Casa 101',
+          valor: 25000.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 30)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 30)),
+          natureza: 'RECEITA',
+          status: 'PAGO',
+          categoria: 'MEDICAO_CAIXA',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id
+        },
+        {
+          descricao: 'Repasse CEF Medição 1 - Casa 102',
+          valor: 22000.00,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() - 30)),
+          dataPagamento: new Date(new Date().setDate(new Date().getDate() - 30)),
+          natureza: 'RECEITA',
+          status: 'PAGO',
+          categoria: 'MEDICAO_CAIXA',
+          empreendimentoId: emp1.id,
+          casaId: casa2.id
+        },
+
+        // Receitas Entrada Cliente Realizadas/Pendentes (Com casaId e clienteId)
+        {
+          descricao: 'Sinal de Entrada - Parcela 1/4 - Casa 101',
+          valor: 5000.00,
+          dataVencimento: new Date(new Date().setDate(hoje.getDate() - 15)),
+          dataPagamento: new Date(new Date().setDate(hoje.getDate() - 15)),
+          natureza: 'RECEITA',
+          status: 'PAGO',
+          categoria: 'ENTRADA_CLIENTE',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id,
+          clienteId: cli1.id,
+          contratoId: contratoCasa1.id
+        },
+        {
+          descricao: 'Sinal de Entrada - Parcela 2/4 - Casa 101',
+          valor: 5000.00,
+          dataVencimento: new Date(new Date().setDate(hoje.getDate() - 5)),
+          dataPagamento: new Date(new Date().setDate(hoje.getDate() - 5)),
+          natureza: 'RECEITA',
+          status: 'PAGO',
+          categoria: 'ENTRADA_CLIENTE',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id,
+          clienteId: cli1.id,
+          contratoId: contratoCasa1.id
+        },
+        {
+          descricao: 'Sinal de Entrada - Parcela 3/4 - Casa 101',
+          valor: 5000.00,
+          dataVencimento: new Date(new Date().setDate(hoje.getDate() + 10)),
+          natureza: 'RECEITA',
+          status: 'PENDENTE',
+          categoria: 'ENTRADA_CLIENTE',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id,
+          clienteId: cli1.id,
+          contratoId: contratoCasa1.id
+        },
+        {
+          descricao: 'Sinal de Entrada - Parcela 4/4 - Casa 101',
+          valor: 5000.00,
+          dataVencimento: new Date(new Date().setDate(hoje.getDate() + 40)),
+          natureza: 'RECEITA',
+          status: 'PENDENTE',
+          categoria: 'ENTRADA_CLIENTE',
+          empreendimentoId: emp1.id,
+          casaId: casa1.id,
+          clienteId: cli1.id,
+          contratoId: contratoCasa1.id
+        }
       ]
     });
 
-    return NextResponse.json({ success: true, message: 'Banco de dados de microgerenciamento e tesouraria societária (Fase 5) populado com sucesso!' });
+    return NextResponse.json({ success: true, message: 'Banco de dados de microgerenciamento e livro-caixa unificado populado com sucesso!' });
   } catch (error: any) {
     console.error('Erro ao rodar o seed via API:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

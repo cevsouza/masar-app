@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { verifySession } from '@/lib/auth';
-import { TipoCustoGlobal } from '@prisma/client';
-import { registerFinancialTransaction } from '@/lib/transactions';
 
 export async function POST(
   request: NextRequest,
@@ -32,41 +30,47 @@ export async function POST(
       return NextResponse.json({ error: 'Campos obrigatórios ausentes: descricao, tipo, valor.' }, { status: 400 });
     }
 
-    // Certifique-se de que o tipo é um valor enum válido
-    if (!Object.values(TipoCustoGlobal).includes(tipo)) {
-      return NextResponse.json({ error: 'Tipo de custo global inválido.' }, { status: 400 });
-    }
+    // Map TipoCustoGlobal enum to CategoriaFinanceira
+    let categoria: 'TERRENO' | 'PROJETOS' | 'MATERIAL' = 'MATERIAL';
+    if (tipo === 'TERRENO') categoria = 'TERRENO';
+    else if (tipo === 'PROJETOS') categoria = 'PROJETOS';
 
-    const newCost = await db.custoGlobal.create({
+    const transacao = await db.transacaoFinanceira.create({
       data: {
-        descricao,
-        tipo: tipo as TipoCustoGlobal,
+        descricao: `Custo Global [${tipo}] - ${descricao}`,
         valor: parseFloat(valor),
-        realizado: realizado === true,
-        data: data ? new Date(data) : new Date(),
-        empreendimentoId: id
+        dataVencimento: data ? new Date(data) : new Date(),
+        dataPagamento: realizado === true ? (data ? new Date(data) : new Date()) : null,
+        natureza: 'DESPESA',
+        status: realizado === true ? 'PAGO' : 'PENDENTE',
+        categoria,
+        empreendimentoId: id,
+        casaId: null
       }
     });
-
-    if (newCost.realizado) {
-      await registerFinancialTransaction(
-        newCost.valor,
-        'DEBITO',
-        `Custo Global Realizado [${newCost.tipo}] - ${newCost.descricao}`
-      );
-    }
 
     await logMutation({
       usuarioId: session.userId,
       usuarioNome: session.nome,
       acao: 'CREATE',
-      tabela: 'CustoGlobal',
-      registroId: newCost.id,
+      tabela: 'TransacaoFinanceira',
+      registroId: transacao.id,
       valoresAntigos: null,
-      valoresNovos: newCost
+      valoresNovos: transacao
     });
 
-    return NextResponse.json(newCost);
+    // Map newCost compatibility for client response
+    const legacyCost = {
+      id: transacao.id,
+      descricao: transacao.descricao,
+      tipo,
+      valor: transacao.valor,
+      realizado: transacao.status === 'PAGO',
+      data: transacao.dataVencimento,
+      empreendimentoId: transacao.empreendimentoId
+    };
+
+    return NextResponse.json(legacyCost);
   } catch (error: any) {
     console.error('Erro ao adicionar custo global:', error);
     return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });

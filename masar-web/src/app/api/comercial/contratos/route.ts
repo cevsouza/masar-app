@@ -8,7 +8,7 @@ export async function GET() {
         casa: { include: { empreendimento: true } },
         cliente: true,
         corretor: true,
-        contasReceber: true,
+        transacoes: true,
       },
       orderBy: { dataCriacao: 'desc' },
     });
@@ -98,15 +98,25 @@ export async function POST(request: NextRequest) {
 
     // 6. Cadastrar parcelas a receber
     if (parcelas && Array.isArray(parcelas) && parcelas.length > 0) {
+      const casa = await db.casa.findUnique({
+        where: { id: casaId },
+        select: { empreendimentoId: true }
+      });
+
       const parcelasData = parcelas.map((p: any, index: number) => ({
-        contratoId: contrato.id,
-        numeroParcela: index + 1,
+        descricao: `Sinal/Entrada - Parcela ${index + 1}/${parcelas.length}`,
         valor: parseFloat(p.valor),
         dataVencimento: new Date(p.dataVencimento),
-        pago: false,
+        natureza: 'RECEITA' as const,
+        status: 'PENDENTE' as const,
+        categoria: 'ENTRADA_CLIENTE' as const,
+        empreendimentoId: casa?.empreendimentoId || '',
+        casaId,
+        clienteId,
+        contratoId: contrato.id
       }));
 
-      await db.contasAReceberCliente.createMany({
+      await db.transacaoFinanceira.createMany({
         data: parcelasData
       });
     }

@@ -116,14 +116,8 @@ export default async function DashboardPage() {
   });
 
   // 3. Gráfico de Fluxo de Caixa Geral (Entradas vs. Saídas)
-  const medicoesPagas = await db.medicaoCaixa.findMany({
-    where: { status: 'PAGA' },
-    select: { valorLiberado: true, dataMedicao: true }
-  });
-
-  const parcelasPagas = await db.contasAReceberCliente.findMany({
-    where: { pago: true },
-    select: { valor: true, dataVencimento: true }
+  const transacoesPagas = await db.transacaoFinanceira.findMany({
+    where: { status: 'PAGO' }
   });
 
   const aportesSocios = await db.movimentacaoSocio.findMany({
@@ -131,17 +125,8 @@ export default async function DashboardPage() {
     select: { valor: true, data: true }
   });
 
-  const apropriacoesAprovadas = await db.apropriacaoCusto.findMany({
-    where: { aprovado: true },
-    select: { custoTotal: true, dataAplicacao: true }
-  });
-
   const retiradasSocios = await db.movimentacaoSocio.findMany({
     where: { tipo: { in: ['RETIRADA_LUCRO', 'PRO_LABORE'] } },
-    select: { valor: true, data: true }
-  });
-
-  const custosGlobais = await db.custoGlobal.findMany({
     select: { valor: true, data: true }
   });
 
@@ -153,16 +138,16 @@ export default async function DashboardPage() {
     return `${mesesNomes[date.getMonth()]}/${date.getFullYear()}`;
   };
 
-  medicoesPagas.forEach(med => {
-    const chave = getChave(med.dataMedicao);
+  transacoesPagas.forEach(t => {
+    const dataFoco = t.dataPagamento || t.dataVencimento;
+    const chave = getChave(dataFoco);
     if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
-    agruparPorMes[chave].previsto += med.valorLiberado;
-  });
-
-  parcelasPagas.forEach(parc => {
-    const chave = getChave(parc.dataVencimento);
-    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
-    agruparPorMes[chave].previsto += parc.valor;
+    
+    if (t.natureza === 'RECEITA') {
+      agruparPorMes[chave].previsto += t.valor;
+    } else {
+      agruparPorMes[chave].realizado += t.valor;
+    }
   });
 
   aportesSocios.forEach(ap => {
@@ -171,22 +156,10 @@ export default async function DashboardPage() {
     agruparPorMes[chave].previsto += ap.valor;
   });
 
-  apropriacoesAprovadas.forEach(ap => {
-    const chave = getChave(ap.dataAplicacao);
-    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
-    agruparPorMes[chave].realizado += ap.custoTotal;
-  });
-
   retiradasSocios.forEach(r => {
     const chave = getChave(r.data);
     if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
     agruparPorMes[chave].realizado += r.valor;
-  });
-
-  custosGlobais.forEach(cg => {
-    const chave = getChave(cg.data);
-    if (!agruparPorMes[chave]) agruparPorMes[chave] = { previsto: 0, realizado: 0 };
-    agruparPorMes[chave].realizado += cg.valor;
   });
 
   const chartData = Object.entries(agruparPorMes)
@@ -206,9 +179,8 @@ export default async function DashboardPage() {
     })
     .slice(-6);
 
-  const totalEntradasGerais = medicoesPagas.reduce((acc, m) => acc + m.valorLiberado, 0) +
-                              parcelasPagas.reduce((acc, p) => acc + p.valor, 0) +
-                              aportesSocios.reduce((acc, a) => acc + a.valor, 0);
+  const totalEntradasGerais = transacoesPagas.filter(t => t.natureza === 'RECEITA').reduce((acc: number, t: any) => acc + t.valor, 0) +
+                              aportesSocios.reduce((acc: number, a: any) => acc + a.valor, 0);
 
   // Casas com problemas/gargalos (Glosadas ou Aguardando)
   const casasGargalo = await db.casa.findMany({

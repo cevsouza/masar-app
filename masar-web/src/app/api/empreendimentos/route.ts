@@ -92,15 +92,18 @@ export async function POST(request: NextRequest) {
         data: housesData
       });
     }
-
     // Gatilho de Custo do Terreno
     if (valorCompraFloat && valorCompraFloat > 0) {
       const desc = `Aquisição do Terreno - ${nome}`;
-      await db.custoGlobal.create({
+      await db.transacaoFinanceira.create({
         data: {
-          descricao: desc,
-          tipo: 'TERRENO',
-          valor: valorCompraFloat
+          descricao: `Custo Global [TERRENO] - ${desc}`,
+          valor: valorCompraFloat,
+          dataVencimento: new Date(),
+          natureza: 'DESPESA',
+          status: 'PENDENTE',
+          categoria: 'TERRENO',
+          empreendimentoId: empreendimento.id
         }
       });
     }

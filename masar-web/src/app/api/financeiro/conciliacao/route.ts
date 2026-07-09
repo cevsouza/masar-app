@@ -27,9 +27,10 @@ export async function POST(request: NextRequest) {
       const dataMaxima = new Date(trx.data);
       dataMaxima.setDate(dataMaxima.getDate() + 7);
 
-      const contaAReceber = await db.contasAReceberCliente.findFirst({
+      const transacaoPendente = await db.transacaoFinanceira.findFirst({
         where: {
-          pago: false,
+          natureza: 'RECEITA',
+          status: 'PENDENTE',
           valor: trx.valor,
           dataVencimento: {
             gte: dataMinima,
@@ -37,24 +38,23 @@ export async function POST(request: NextRequest) {
           }
         },
         include: {
-          contrato: {
-            include: {
-              cliente: true
-            }
-          }
+          cliente: true
         }
       });
 
-      if (contaAReceber) {
+      if (transacaoPendente) {
         // 3. Executar conciliação em uma transação ACID
         await db.$transaction(async (tx) => {
-          // Marcar conta a receber como paga
-          await tx.contasAReceberCliente.update({
-            where: { id: contaAReceber.id },
-            data: { pago: true }
+          // Marcar transação como paga
+          await tx.transacaoFinanceira.update({
+            where: { id: transacaoPendente.id },
+            data: { 
+              status: 'PAGO',
+              dataPagamento: new Date(trx.data)
+            }
           });
 
-          // Marcar transação como conciliada
+          // Marcar transação bancária como conciliada
           await tx.transacaoBancaria.update({
             where: { id: trx.id },
             data: { conciliado: true }
@@ -75,17 +75,17 @@ export async function POST(request: NextRequest) {
             usuarioId: 'SYSTEM_CONCILIATION_ENGINE',
             usuarioNome: 'Motor Conciliação Open Finance',
             acao: 'AUTO_CONCILIATION_MATCH',
-            tabela: 'ContasAReceberCliente',
-            registroId: contaAReceber.id,
-            valoresAntigos: { pago: false },
-            valoresNovos: { pago: true, transacaoBancariaId: trx.id }
+            tabela: 'TransacaoFinanceira',
+            registroId: transacaoPendente.id,
+            valoresAntigos: { status: 'PENDENTE' },
+            valoresNovos: { status: 'PAGO', transacaoBancariaId: trx.id }
           });
         });
 
-        logger.info(`[Conciliação] Match efetuado com sucesso: Transação ${trx.id} conciliada com Parcela Cliente ${contaAReceber.id}`, {
+        logger.info(`[Conciliação] Match efetuado com sucesso: Transação ${trx.id} conciliada com Recebível ${transacaoPendente.id}`, {
           traceId,
           valor: trx.valor,
-          cliente: contaAReceber.contrato.cliente.nome
+          cliente: transacaoPendente.cliente?.nome || 'Cliente Desconhecido'
         });
 
         conciliadosContador++;
@@ -103,7 +103,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Permitir gatilho via chamada GET simplificada para testes de administrador
 export async function GET(request: NextRequest) {
   return POST(request);
 }

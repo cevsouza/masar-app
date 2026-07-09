@@ -1,7 +1,6 @@
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -154,7 +153,7 @@ model Empreendimento {
   documentos             DocumentoAnexo[]
   cotacoes               CotacaoMaterial[]
   solicitacoesCompra     SolicitacaoCompra[]
-  custosGlobais          CustoGlobal[]
+  transacoes             TransacaoFinanceira[]
   milestones             Milestone[]
 }
 
@@ -188,6 +187,7 @@ model Cliente {
   contratos          ContratoVenda[]
   documentos         DocumentoAnexo[]
   usuarioCliente     UsuarioCliente?
+  transacoes         TransacaoFinanceira[]
 }
 
 model InsumoPadrao {
@@ -196,7 +196,7 @@ model InsumoPadrao {
   unidadeMedida  UnidadeMedida
   categoria      CategoriaInsumo
   itensOrcamento ItemOrcamento[]
-  apropriacoes   ApropriacaoCusto[]
+  transacoes     TransacaoFinanceira[]
   solicitacoes   SolicitacaoCompra[]
   movimentacoesEstoque MovimentacaoEstoque[]
 }
@@ -228,7 +228,7 @@ model Casa {
   dataAtualizacao  DateTime               @updatedAt
   medicoes         MedicaoCaixa[]
   orcamento        OrcamentoCasa?
-  apropriacoes     ApropriacaoCusto[]
+  transacoes       TransacaoFinanceira[]
   diarios          DiarioDeObra[]
   infraestrutura   InfraestruturaUnidade?
   contrato         ContratoVenda?
@@ -256,18 +256,7 @@ model ItemOrcamento {
   custoUnitarioPrevisto Float
 }
 
-model ApropriacaoCusto {
-  id             String       @id @default(uuid())
-  casaId         String
-  casa           Casa         @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  insumoId       String
-  insumo         InsumoPadrao @relation(fields: [insumoId], references: [id], onDelete: Restrict)
-  quantidadeReal Float
-  custoTotal     Float
-  dataAplicacao  DateTime     @default(now())
-  comprovanteUrl String?
-  aprovado       Boolean      @default(true)
-}
+
 
 model DiarioDeObra {
   id                   String   @id @default(uuid())
@@ -329,23 +318,14 @@ model ContratoVenda {
   comissaoValor   Float                   @default(0.0)
   comissaoPaga    Boolean                 @default(false)
   status          StatusContrato          @default(EM_PROSPECCAO)
-  contasReceber   ContasAReceberCliente[]
+  transacoes      TransacaoFinanceira[]
   dataCriacao     DateTime                @default(now())
   dataAtualizacao DateTime                @updatedAt
   distrato        Distrato?
   assinatura      AssinaturaContrato?
 }
 
-model ContasAReceberCliente {
-  id             String        @id @default(uuid())
-  contratoId     String
-  contrato       ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
-  numeroParcela  Int
-  valor          Float
-  dataVencimento DateTime
-  pago           Boolean       @default(false)
-  dataCriacao    DateTime      @default(now())
-}
+
 
 model ContaBancaria {
   id              String              @id @default(uuid())
@@ -375,21 +355,56 @@ model MovimentacaoSocio {
   data             DateTime              @default(now())
 }
 
-model CustoGlobal {
-  id               String          @id @default(uuid())
-  descricao        String
-  tipo             TipoCustoGlobal
-  valor            Float
-  realizado        Boolean         @default(false)
-  empreendimentoId String?
-  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
-  data             DateTime        @default(now())
+enum NaturezaFinanceira {
+  RECEITA
+  DESPESA
 }
 
-model Imposto {
-  id         String @id @default(uuid())
-  nome       String @unique
-  percentual Float  @default(0.0)
+enum StatusFinanceiro {
+  PENDENTE
+  PAGO
+  ATRASADO
+}
+
+enum CategoriaFinanceira {
+  TERRENO
+  IMPOSTOS
+  PROJETOS
+  MATERIAL
+  MAO_DE_OBRA
+  MEDICAO_CAIXA
+  ENTRADA_CLIENTE
+}
+
+model TransacaoFinanceira {
+  id                String              @id @default(uuid())
+  descricao         String
+  valor             Float
+  dataVencimento    DateTime
+  dataPagamento     DateTime?
+  natureza          NaturezaFinanceira
+  status            StatusFinanceiro    @default(PENDENTE)
+  categoria         CategoriaFinanceira
+  
+  empreendimentoId  String
+  empreendimento    Empreendimento      @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  
+  casaId            String?
+  casa              Casa?               @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  
+  clienteId         String?
+  cliente           Cliente?            @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  
+  contratoId        String?
+  contrato          ContratoVenda?      @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  
+  insumoId          String?
+  insumo            InsumoPadrao?       @relation(fields: [insumoId], references: [id], onDelete: SetNull)
+  
+  quantidade        Float?              @default(1)
+  
+  dataCriacao       DateTime            @default(now())
+  dataAtualizacao   DateTime            @updatedAt
 }
 
 model LogAuditoria {

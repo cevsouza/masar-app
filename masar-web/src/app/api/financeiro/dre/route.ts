@@ -194,70 +194,57 @@ export async function GET(request: NextRequest) {
     const totalComissaoProjetada = totalVGVProjetado * 0.05;
     const totalComissaoRealizada = houses.reduce((acc, h) => acc + (h.contrato ? h.contrato.comissaoValor : 0), 0);
 
-    // 2. Calcular rateio de custos globais (Específicos do projeto + Compartilhados rateados)
-    const totalHouses = await db.casa.count();
-    const projectHouses = emp.casas.length;
-
-    // Projetado (realizado = false)
-    const custosEspecificosProj = await db.custoGlobal.groupBy({
-      where: { empreendimentoId, realizado: false },
-      by: ['tipo'],
-      _sum: { valor: true }
+    // 2. Calcular rateio de custos globais (Específicos do projeto - sem casaId)
+    const globalTransacoes = await db.transacaoFinanceira.findMany({
+      where: {
+        empreendimentoId,
+        casaId: null,
+        natureza: 'DESPESA'
+      }
     });
 
-    const custosCompartilhadosProj = await db.custoGlobal.groupBy({
-      where: { empreendimentoId: null, realizado: false },
-      by: ['tipo'],
-      _sum: { valor: true }
+    let rateioTerrenoProj = 0;
+    let rateioTerrenoReal = 0;
+    let rateioProjetosProj = 0;
+    let rateioProjetosReal = 0;
+    let rateioMarketingProj = 0;
+    let rateioMarketingReal = 0;
+    let rateioOutrosProj = 0;
+    let rateioOutrosReal = 0;
+
+    globalTransacoes.forEach(t => {
+      const isReal = t.status === 'PAGO';
+      const valor = t.valor;
+      const descLower = t.descricao.toLowerCase();
+      const cat = t.categoria;
+
+      if (cat === 'TERRENO' || descLower.includes('terreno')) {
+        if (isReal) rateioTerrenoReal += valor;
+        else rateioTerrenoProj += valor;
+      } else if (cat === 'PROJETOS' || descLower.includes('projeto') || descLower.includes('licenciamento')) {
+        if (isReal) rateioProjetosReal += valor;
+        else rateioProjetosProj += valor;
+      } else if (descLower.includes('marketing') || descLower.includes('publicidade') || descLower.includes('outdoor')) {
+        if (isReal) rateioMarketingReal += valor;
+        else rateioMarketingProj += valor;
+      } else {
+        if (isReal) rateioOutrosReal += valor;
+        else rateioOutrosProj += valor;
+      }
     });
 
-    // Realizado (realizado = true)
-    const custosEspecificosReal = await db.custoGlobal.groupBy({
-      where: { empreendimentoId, realizado: true },
-      by: ['tipo'],
-      _sum: { valor: true }
-    });
-
-    const custosCompartilhadosReal = await db.custoGlobal.groupBy({
-      where: { empreendimentoId: null, realizado: true },
-      by: ['tipo'],
-      _sum: { valor: true }
-    });
-
-    const getCustoGlobalProporcional = (
-      tipo: 'TERRENO' | 'PROJETOS' | 'MARKETING' | 'OUTRO',
-      isRealizado: boolean
-    ) => {
-      const espec = isRealizado ? custosEspecificosReal : custosEspecificosProj;
-      const comp = isRealizado ? custosCompartilhadosReal : custosCompartilhadosProj;
-
-      const itemEsp = espec.find(c => c.tipo === tipo);
-      const valorEsp = itemEsp?._sum.valor || 0;
-
-      const itemComp = comp.find(c => c.tipo === tipo);
-      const valorComp = itemComp?._sum.valor || 0;
-      const compProporcional = totalHouses > 0 ? (valorComp / totalHouses) * projectHouses : 0;
-
-      return valorEsp + compProporcional;
-    };
-
-    const rateioTerrenoProj = getCustoGlobalProporcional('TERRENO', false);
-    const rateioProjetosProj = getCustoGlobalProporcional('PROJETOS', false);
-    const rateioMarketingProj = getCustoGlobalProporcional('MARKETING', false);
-    const rateioOutrosProj = getCustoGlobalProporcional('OUTRO', false);
     const totalRateioProj = rateioTerrenoProj + rateioProjetosProj + rateioMarketingProj + rateioOutrosProj;
-
-    const rateioTerrenoReal = getCustoGlobalProporcional('TERRENO', true);
-    const rateioProjetosReal = getCustoGlobalProporcional('PROJETOS', true);
-    const rateioMarketingReal = getCustoGlobalProporcional('MARKETING', true);
-    const rateioOutrosReal = getCustoGlobalProporcional('OUTRO', true);
     const totalRateioReal = rateioTerrenoReal + rateioProjetosReal + rateioMarketingReal + rateioOutrosReal;
 
     // 3. Calcular Impostos (Regime Especial de Tributação - RET, padrão 4%)
-    const impostoRET = await db.imposto.findUnique({ where: { nome: 'RET' } });
-    const retPercent = impostoRET ? impostoRET.percentual : 4.0;
+    const retPercent = 4.0;
     const totalImpostoProjetado = (retPercent / 100) * totalVGVProjetado;
-    const totalImpostoRealizado = (retPercent / 100) * totalVGVRealizado;
+    
+    // RET Realizado: busca transações da categoria IMPOSTOS pagas, fallback para 4% do VGV realizado
+    const paidTaxes = globalTransacoes
+      .filter(t => t.categoria === 'IMPOSTOS' && t.status === 'PAGO')
+      .reduce((sum, t) => sum + t.valor, 0);
+    const totalImpostoRealizado = paidTaxes > 0 ? paidTaxes : (retPercent / 100) * totalVGVRealizado;
 
     // 4. Custos Diretos de Construção (Projetado vs Realizado por categoria MCMV)
     const orcadoItens = await db.itemOrcamento.findMany({
@@ -320,16 +307,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const apropriacoes = await db.apropriacaoCusto.findMany({
+    // Custos Diretos Realizados: transações pagas associadas a uma casa
+    const transacoesApropriadas = await db.transacaoFinanceira.findMany({
       where: {
-        aprovado: true,
-        casa: { empreendimentoId }
+        empreendimentoId,
+        casaId: { not: null },
+        natureza: 'DESPESA',
+        status: 'PAGO'
       },
-      select: {
-        custoTotal: true,
-        insumo: {
-          select: { nome: true, categoria: true }
-        }
+      include: {
+        insumo: true
       }
     });
 
@@ -352,32 +339,33 @@ export async function GET(request: NextRequest) {
     let realVariavelLogistica = 0;
     let realVariavelMaquinas = 0;
 
-    for (const ap of apropriacoes) {
-      totalDiretoRealizado += ap.custoTotal;
+    for (const ap of transacoesApropriadas) {
+      totalDiretoRealizado += ap.valor;
+      const insumoNome = ap.insumo?.nome || ap.descricao;
+      const insumoCategoria = ap.insumo?.categoria || (ap.categoria === 'MAO_DE_OBRA' ? 'MAO_DE_OBRA' : 'MATERIAL');
 
       // Legado
-      if (ap.insumo.categoria === 'MATERIAL') realMaterial += ap.custoTotal;
-      else if (ap.insumo.categoria === 'MAO_DE_OBRA') realMaoDeObra += ap.custoTotal;
-      else if (ap.insumo.categoria === 'EQUIPAMENTO') realEquipamento += ap.custoTotal;
-      else if (ap.insumo.categoria === 'TAXA') realTaxa += ap.custoTotal;
+      if (insumoCategoria === 'MATERIAL') realMaterial += ap.valor;
+      else if (insumoCategoria === 'MAO_DE_OBRA') realMaoDeObra += ap.valor;
+      else if (insumoCategoria === 'EQUIPAMENTO') realEquipamento += ap.valor;
+      else if (insumoCategoria === 'TAXA') realTaxa += ap.valor;
 
       // MCMV Novo
-      const classif = classificarInsumoMCMV(ap.insumo.nome, ap.insumo.categoria);
+      const classif = classificarInsumoMCMV(insumoNome, insumoCategoria);
       if (classif.tipo === 'FIXO') {
-        if (classif.subcategoria === 'EQUIPE_GESTAO') realFixoEquipeGestao += ap.custoTotal;
-        else if (classif.subcategoria === 'CANTEIRO') realFixoCanteiro += ap.custoTotal;
-        else if (classif.subcategoria === 'CONSUMO_CONTINUO') realFixoConsumo += ap.custoTotal;
-        else if (classif.subcategoria === 'LOCACAO_EQUIPAMENTOS') realFixoLocacao += ap.custoTotal;
-        else if (classif.subcategoria === 'TAXAS_SEGUROS') realFixoTaxasSeguros += ap.custoTotal;
+        if (classif.subcategoria === 'EQUIPE_GESTAO') realFixoEquipeGestao += ap.valor;
+        else if (classif.subcategoria === 'CANTEIRO') realFixoCanteiro += ap.valor;
+        else if (classif.subcategoria === 'CONSUMO_CONTINUO') realFixoConsumo += ap.valor;
+        else if (classif.subcategoria === 'LOCACAO_EQUIPAMENTOS') realFixoLocacao += ap.valor;
+        else if (classif.subcategoria === 'TAXAS_SEGUROS') realFixoTaxasSeguros += ap.valor;
       } else {
-        if (classif.subcategoria === 'MATERIAIS_CURVA_A') realVariavelMateriais += ap.custoTotal;
-        else if (classif.subcategoria === 'MAO_DE_OBRA_DIRETA') realVariavelMaoDireta += ap.custoTotal;
-        else if (classif.subcategoria === 'LOGISTICA_FRETES') realVariavelLogistica += ap.custoTotal;
-        else if (classif.subcategoria === 'MAQUINAS_CONSUMO') realVariavelMaquinas += ap.custoTotal;
+        if (classif.subcategoria === 'MATERIAIS_CURVA_A') realVariavelMateriais += ap.valor;
+        else if (classif.subcategoria === 'MAO_DE_OBRA_DIRETA') realVariavelMaoDireta += ap.valor;
+        else if (classif.subcategoria === 'LOGISTICA_FRETES') realVariavelLogistica += ap.valor;
+        else if (classif.subcategoria === 'MAQUINAS_CONSUMO') realVariavelMaquinas += ap.valor;
       }
     }
 
-    // Imposto RET entra como custo variável na DRE corporativa (Regime Especial de Tributação)
     const projVariavelImpostos = totalImpostoProjetado;
     const realVariavelImpostos = totalImpostoRealizado;
 
@@ -467,4 +455,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
-

@@ -337,8 +337,8 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
   // Budget stats
   const totalOrado = initialCasa.orcamento?.itens.reduce((acc: number, item: any) => acc + (item.quantidadePlanejada * item.custoUnitarioPrevisto), 0) || 0;
-  const totalRealAprovado = initialCasa.apropriacoes?.filter((ap: any) => ap.aprovado).reduce((acc: number, ap: any) => acc + ap.custoTotal, 0) || 0;
-  const totalRealPendente = initialCasa.apropriacoes?.filter((ap: any) => !ap.aprovado).reduce((acc: number, ap: any) => acc + ap.custoTotal, 0) || 0;
+  const totalRealAprovado = initialCasa.transacoes?.filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PAGO').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
+  const totalRealPendente = initialCasa.transacoes?.filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PENDENTE').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
 
   // Chart data
   const chartData = [
@@ -349,9 +349,9 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
   // ABC calculation
   const itemsABC = initialCasa.orcamento?.itens.map((item: any) => {
-    const realTotal = initialCasa.apropriacoes
-      ?.filter((ap: any) => ap.insumoId === item.insumoId && ap.aprovado)
-      .reduce((acc: number, ap: any) => acc + ap.custoTotal, 0) || 0;
+    const realTotal = initialCasa.transacoes
+      ?.filter((t: any) => t.insumoId === item.insumoId && t.natureza === 'DESPESA' && t.status === 'PAGO')
+      .reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
 
     const previstoTotal = item.quantidadePlanejada * item.custoUnitarioPrevisto;
     const desvio = realTotal - previstoTotal;
@@ -365,20 +365,20 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
     };
   }) || [];
 
-  const unbudgetedApropriacoes = initialCasa.apropriacoes
-    ?.filter((ap: any) => ap.aprovado && !initialCasa.orcamento?.itens.some((item: any) => item.insumoId === ap.insumoId))
-    .reduce((acc: any[], ap: any) => {
-      const existing = acc.find(item => item.insumoId === ap.insumoId);
+  const unbudgetedApropriacoes = initialCasa.transacoes
+    ?.filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PAGO' && t.insumoId && !initialCasa.orcamento?.itens.some((item: any) => item.insumoId === t.insumoId))
+    .reduce((acc: any[], t: any) => {
+      const existing = acc.find(item => item.insumoId === t.insumoId);
       if (existing) {
-        existing.realizado += ap.custoTotal;
-        existing.desvio += ap.custoTotal;
+        existing.realizado += t.valor;
+        existing.desvio += t.valor;
       } else {
         acc.push({
-          nome: ap.insumo.nome,
-          categoria: ap.insumo.categoria,
+          nome: t.insumo?.nome || t.descricao,
+          categoria: t.categoria,
           previsto: 0,
-          realizado: ap.custoTotal,
-          desvio: ap.custoTotal
+          realizado: t.valor,
+          desvio: t.valor
         });
       }
       return acc;
@@ -628,7 +628,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           <Hammer size={14} /> Geral & Vistoria Caixa Econômica Federal (CEF)
         </button>
         <button onClick={() => setActiveTab('financeiro')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'financeiro' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
-          <DollarSign size={14} /> Finanças & Custos
+          <DollarSign size={14} /> Extrato da Obra
         </button>
         <button onClick={() => setActiveTab('infra')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'infra' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
           <Lightbulb size={14} /> Diário & Utilidades
@@ -1027,476 +1027,132 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
       )}
 
       {activeTab === 'financeiro' && (() => {
-        const budgetItens = initialCasa.orcamento?.itens || [];
-        const budgetFixos = budgetItens.filter((item: any) => getInsumoMCMVType(item.insumo.nome, item.insumo.categoria) === 'FIXO');
-        const budgetVariaveis = budgetItens.filter((item: any) => getInsumoMCMVType(item.insumo.nome, item.insumo.categoria) === 'VARIAVEL');
-
-        const apropriacoesAppr = initialCasa.apropriacoes?.filter((ap: any) => ap.aprovado) || [];
-        const apropFixos = apropriacoesAppr.filter((ap: any) => getInsumoMCMVType(ap.insumo.nome, ap.insumo.categoria) === 'FIXO');
-        const apropVariaveis = apropriacoesAppr.filter((ap: any) => getInsumoMCMVType(ap.insumo.nome, ap.insumo.categoria) === 'VARIAVEL');
+        const transacoes = initialCasa.transacoes || [];
+        
+        // Sums
+        const receitasPagas = transacoes.filter((t: any) => t.natureza === 'RECEITA' && t.status === 'PAGO').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
+        const despesasPagas = transacoes.filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PAGO').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
+        
+        const receitasPendentes = transacoes.filter((t: any) => t.natureza === 'RECEITA' && t.status === 'PENDENTE').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
+        const despesasPendentes = transacoes.filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PENDENTE').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
+        
+        const margemLiquida = receitasPagas - despesasPagas;
+        const margemPorcentagem = receitasPagas > 0 ? (margemLiquida / receitasPagas) * 100 : 0;
 
         return (
-          <div className="space-y-6">
-            {/* Top Cards */}
+          <div className="space-y-6 animate-fadeIn">
+            {/* Resumo Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="glassmorphism p-5 rounded-2xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Orçamento Previsto (Planejado)</span>
-                <h3 className="text-xl font-bold text-indigo-400 font-mono mt-1.5">{formatCurrency(totalOrado)}</h3>
-              </div>
-              <div className="glassmorphism p-5 rounded-2xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Custo Efetivo Realizado</span>
-                <h3 className="text-xl font-bold text-emerald-400 font-mono mt-1.5">{formatCurrency(totalRealAprovado)}</h3>
-              </div>
-              <div className="glassmorphism p-5 rounded-2xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Bloqueado em Análise</span>
-                <h3 className="text-xl font-bold text-amber-500 font-mono mt-1.5">{formatCurrency(totalRealPendente)}</h3>
-              </div>
-            </div>
-
-            {/* DRE Unitário do Lote (Mecanismo de Rateio Dinâmico) */}
-            {(() => {
-              const totalHouses = initialCasa.empreendimento?.casas?.length || 1;
-              const custosGlobais = initialCasa.empreendimento?.custosGlobais || [];
-
-              // VGV da Unidade
-              const vgvProj = Number(initialCasa.valorVendaProjetado || 0);
-              const vgvReal = initialCasa.contrato ? initialCasa.contrato.valorVenda : 0;
-
-              // Comissões (5% projetada vs real)
-              const comissaoProj = vgvProj * 0.05;
-              const comissaoReal = initialCasa.contrato ? initialCasa.contrato.comissaoValor : 0;
-
-              // RET (4% padrão)
-              const retProj = vgvProj * 0.04;
-              const retReal = vgvReal * 0.04;
-
-              // Rateio Terreno
-              const terrProj = custosGlobais.filter((cg: any) => cg.tipo === 'TERRENO' && !cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
-              const terrReal = custosGlobais.filter((cg: any) => cg.tipo === 'TERRENO' && cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
-              const rateioTerrenoProj = terrProj / totalHouses;
-              const rateioTerrenoReal = terrReal / totalHouses;
-
-              // Rateio Projetos
-              const projProj = custosGlobais.filter((cg: any) => cg.tipo === 'PROJETOS' && !cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
-              const projReal = custosGlobais.filter((cg: any) => cg.tipo === 'PROJETOS' && cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
-              const rateioProjetosProj = projProj / totalHouses;
-              const rateioProjetosReal = projReal / totalHouses;
-
-              // Outros Rateios (Marketing + Outro)
-              const outrosProj = custosGlobais.filter((cg: any) => (cg.tipo === 'MARKETING' || cg.tipo === 'OUTRO') && !cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
-              const outrosReal = custosGlobais.filter((cg: any) => (cg.tipo === 'MARKETING' || cg.tipo === 'OUTRO') && cg.realizado).reduce((s: number, cg: any) => s + cg.valor, 0);
-              const rateioOutrosProj = outrosProj / totalHouses;
-              const rateioOutrosReal = outrosReal / totalHouses;
-
-              // Custos de Obra
-              const obraProj = totalOrado;
-              const obraReal = totalRealAprovado;
-
-              // Resultado Líquido
-              const lucroProj = vgvProj - comissaoProj - retProj - rateioTerrenoProj - rateioProjetosProj - rateioOutrosProj - obraProj;
-              const lucroReal = vgvReal - comissaoReal - retReal - rateioTerrenoReal - rateioProjetosReal - rateioOutrosReal - obraReal;
-
-              return (
-                <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 bg-[#0f1422]/10 space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-850 pb-2.5">
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                      <Calculator size={14} className="text-indigo-400" /> DRE Unitário do Lote (Resultado Individual)
-                    </h3>
-                    <span className="text-[9px] text-slate-500 italic">
-                      * Custos de Aquisição de Terreno e Projetos rateados entre as {totalHouses} unidades do projeto
-                    </span>
-                  </div>
-                  <div className="overflow-x-auto border border-slate-850 rounded-xl">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-slate-900/40 border-b border-slate-850 text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
-                          <th className="py-2.5 px-3.5">Demonstração de Resultado da Unidade</th>
-                          <th className="py-2.5 px-3.5 text-right">Projetado (Orçado)</th>
-                          <th className="py-2.5 px-3.5 text-right">Realizado (Efetivo)</th>
-                          <th className="py-2.5 px-3.5 text-right">Desvio</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-850/40 text-slate-350">
-                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-200">
-                          <td className="py-2 px-3.5">Receita Operacional Bruta (VGV do Lote)</td>
-                          <td className="py-2 px-3.5 text-right font-mono">{formatCurrency(vgvProj)}</td>
-                          <td className="py-2 px-3.5 text-right font-mono text-emerald-400">{formatCurrency(vgvReal)}</td>
-                          <td className={`py-2 px-3.5 text-right font-mono ${vgvReal - vgvProj >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(vgvReal - vgvProj)}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 text-slate-450 text-[10px]">
-                          <td className="py-1.5 px-3.5 pl-6">(-) Comissão de Vendas</td>
-                          <td className="py-1.5 px-3.5 text-right font-mono">-{formatCurrency(comissaoProj)}</td>
-                          <td className="py-1.5 px-3.5 text-right font-mono">-{formatCurrency(comissaoReal)}</td>
-                          <td className={`py-1.5 px-3.5 text-right font-mono ${comissaoReal > comissaoProj ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(comissaoProj - comissaoReal)}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 text-slate-450 text-[10px]">
-                          <td className="py-1.5 px-3.5 pl-6">(-) Tributos RET (4%)</td>
-                          <td className="py-1.5 px-3.5 text-right font-mono">-{formatCurrency(retProj)}</td>
-                          <td className="py-1.5 px-3.5 text-right font-mono">-{formatCurrency(retReal)}</td>
-                          <td className={`py-1.5 px-3.5 text-right font-mono ${retReal > retProj ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(retProj - retReal)}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-300">
-                          <td className="py-2 px-3.5">(-) Custos Globais Rateados</td>
-                          <td className="py-2 px-3.5 text-right font-mono">-{formatCurrency(rateioTerrenoProj + rateioProjetosProj + rateioOutrosProj)}</td>
-                          <td className="py-2 px-3.5 text-right font-mono">-{formatCurrency(rateioTerrenoReal + rateioProjetosReal + rateioOutrosReal)}</td>
-                          <td className={`py-2 px-3.5 text-right font-mono ${(rateioTerrenoProj + rateioProjetosProj + rateioOutrosProj) - (rateioTerrenoReal + rateioProjetosReal + rateioOutrosReal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency((rateioTerrenoProj + rateioProjetosProj + rateioOutrosProj) - (rateioTerrenoReal + rateioProjetosReal + rateioOutrosReal))}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 text-slate-500 text-[10px]">
-                          <td className="py-1 px-3.5 pl-8">Rateio Terreno / Fração Lote</td>
-                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioTerrenoProj)}</td>
-                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioTerrenoReal)}</td>
-                          <td className={`py-1 px-3.5 text-right font-mono ${rateioTerrenoProj - rateioTerrenoReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(rateioTerrenoProj - rateioTerrenoReal)}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 text-slate-500 text-[10px]">
-                          <td className="py-1 px-3.5 pl-8">Rateio Projetos & Alvarás</td>
-                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioProjetosProj)}</td>
-                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioProjetosReal)}</td>
-                          <td className={`py-1 px-3.5 text-right font-mono ${rateioProjetosProj - rateioProjetosReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(rateioProjetosProj - rateioProjetosReal)}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 text-slate-500 text-[10px]">
-                          <td className="py-1 px-3.5 pl-8">Rateio Outros (Marketing / Vendas)</td>
-                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioOutrosProj)}</td>
-                          <td className="py-1 px-3.5 text-right font-mono">-{formatCurrency(rateioOutrosReal)}</td>
-                          <td className={`py-1 px-3.5 text-right font-mono ${rateioOutrosProj - rateioOutrosReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(rateioOutrosProj - rateioOutrosReal)}
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-slate-800/5 font-semibold text-slate-300">
-                          <td className="py-2 px-3.5">(-) Custos Diretos de Obras (Construção Lote)</td>
-                          <td className="py-2 px-3.5 text-right font-mono">-{formatCurrency(obraProj)}</td>
-                          <td className="py-2 px-3.5 text-right font-mono">-{formatCurrency(obraReal)}</td>
-                          <td className={`py-2 px-3.5 text-right font-mono ${obraProj - obraReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(obraProj - obraReal)}
-                          </td>
-                        </tr>
-                        <tr className="bg-slate-900/40 font-extrabold text-xs text-white">
-                          <td className="py-2.5 px-3.5">(=) MARGEM LÍQUIDA DA UNIDADE</td>
-                          <td className="py-2.5 px-3.5 text-right font-mono">{formatCurrency(lucroProj)}</td>
-                          <td className={`py-2.5 px-3.5 text-right font-mono ${lucroReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(lucroReal)}
-                          </td>
-                          <td className={`py-2.5 px-3.5 text-right font-mono ${(lucroReal - lucroProj) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatCurrency(lucroReal - lucroProj)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Coluna Esquerda: Gráfico & Ações */}
-              <div className="lg:col-span-5 space-y-6">
-                <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 flex flex-col justify-between min-h-[320px]">
-                  <div>
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Previsto vs Realizado</h3>
-                  </div>
-                  
-                  {totalOrado === 0 && totalRealAprovado === 0 ? (
-                    <p className="text-xs text-slate-500 text-center py-10">Orçamento não cadastrado.</p>
-                  ) : (
-                    <div className="h-52 w-full mt-4">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-                          <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                          <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                          <Tooltip contentStyle={{ backgroundColor: '#0f1422', borderColor: '#1e293b' }} itemStyle={{ fontSize: '11px', color: '#fff' }} labelStyle={{ fontSize: '11px', fontWeight: 'bold' }} formatter={(val) => [formatCurrency(val as number), 'Valor']} />
-                          <Bar dataKey="valor" radius={[8, 8, 0, 0]}>
-                            {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </div>
-
-                {/* Painel de Ações Rápidas */}
-                <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 space-y-4">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Ações de Custos do Lote</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => {
-                        setApropInsumoId('');
-                        setApropQuantidade('');
-                        setApropCustoUnitario('');
-                        setIsApropModalOpen(true);
-                      }}
-                      className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-center transition cursor-pointer shadow-lg shadow-emerald-555/10"
-                    >
-                      Lançar Custo Real
-                    </button>
-                    <button
-                      onClick={() => {
-                        setBudgetInsumoId('');
-                        setBudgetQuantidade('');
-                        setBudgetCustoUnitario('');
-                        setIsBudgetModalOpen(true);
-                      }}
-                      className="py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-center transition cursor-pointer shadow-lg shadow-blue-555/10"
-                    >
-                      Novo Item de Orçamento
-                    </button>
-                  </div>
-                </div>
+              <div className="glassmorphism p-5 rounded-2xl border border-slate-800 bg-[#0f1422]/10">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Receitas Realizadas (Entradas)</span>
+                <h3 className="text-xl font-bold text-emerald-450 font-mono mt-1.5">{formatCurrency(receitasPagas)}</h3>
+                <p className="text-[9px] text-slate-500 mt-1">Previsão a receber: {formatCurrency(receitasPendentes)}</p>
               </div>
 
-              {/* Coluna Direita: Tabelas de Orçamento e Custos Realizados */}
-              <div className="lg:col-span-7 space-y-6">
-                {/* Orçamento Previsto */}
-                <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
-                  <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider flex justify-between items-center">
-                    <span>Orçamento Previsto (Itens do Lote)</span>
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {/* CUSTOS FIXOS */}
-                    <div>
-                      <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                        Custos Fixos (O Relógio Contra a Margem)
-                      </h4>
-                      <div className="overflow-x-auto border border-slate-800/60 rounded-xl max-h-[180px] overflow-y-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-slate-900/40 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                              <th className="py-2 px-3">Insumo</th>
-                              <th className="py-2 px-3 text-right">Qtd Prevista</th>
-                              <th className="py-2 px-3 text-right">Unitário</th>
-                              <th className="py-2 px-3 text-right">Total Previsto</th>
-                              <th className="py-2 px-3 text-center">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                            {budgetFixos.map((item: any) => (
-                              <tr key={item.id} className="hover:bg-slate-800/5">
-                                <td className="py-2 px-3 font-semibold text-slate-200">{item.insumo.nome}</td>
-                                <td className="py-2 px-3 text-right font-mono">{item.quantidadePlanejada} {item.insumo.unidadeMedida}</td>
-                                <td className="py-2 px-3 text-right font-mono">{formatCurrency(item.custoUnitarioPrevisto)}</td>
-                                <td className="py-2 px-3 text-right font-mono font-bold text-indigo-400">
-                                  {formatCurrency(item.quantidadePlanejada * item.custoUnitarioPrevisto)}
-                                </td>
-                                <td className="py-2 px-3 text-center flex justify-center gap-1.5">
-                                  <button
-                                    onClick={() => {
-                                      setBudgetInsumoId(item.insumoId);
-                                      setBudgetQuantidade(item.quantidadePlanejada.toString());
-                                      setBudgetCustoUnitario(item.custoUnitarioPrevisto.toString());
-                                      setIsBudgetModalOpen(true);
-                                    }}
-                                    className="p-1 hover:bg-slate-800 text-blue-400 hover:text-blue-300 rounded transition cursor-pointer"
-                                    title="Editar item"
-                                  >
-                                    <Edit2 size={12} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteBudget(item.insumoId)}
-                                    className="p-1 hover:bg-slate-800 text-red-400 hover:text-red-300 rounded transition cursor-pointer"
-                                    title="Excluir item"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            {budgetFixos.length === 0 && (
-                              <tr>
-                                <td colSpan={5} className="py-4 text-center text-slate-500 italic">Nenhum custo fixo planejado.</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+              <div className="glassmorphism p-5 rounded-2xl border border-slate-800 bg-[#0f1422]/10">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Custos Efetivos (Despesas)</span>
+                <h3 className="text-xl font-bold text-red-400 font-mono mt-1.5">{formatCurrency(despesasPagas)}</h3>
+                <p className="text-[9px] text-slate-500 mt-1">Custos previstos: {formatCurrency(despesasPendentes)}</p>
+              </div>
 
-                    {/* CUSTOS VARIÁVEIS */}
-                    <div>
-                      <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        Custos Variáveis (A Eficiência da Produção)
-                      </h4>
-                      <div className="overflow-x-auto border border-slate-800/60 rounded-xl max-h-[180px] overflow-y-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-slate-900/40 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                              <th className="py-2 px-3">Insumo</th>
-                              <th className="py-2 px-3 text-right">Qtd Prevista</th>
-                              <th className="py-2 px-3 text-right">Unitário</th>
-                              <th className="py-2 px-3 text-right">Total Previsto</th>
-                              <th className="py-2 px-3 text-center">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                            {budgetVariaveis.map((item: any) => (
-                              <tr key={item.id} className="hover:bg-slate-800/5">
-                                <td className="py-2 px-3 font-semibold text-slate-200">{item.insumo.nome}</td>
-                                <td className="py-2 px-3 text-right font-mono">{item.quantidadePlanejada} {item.insumo.unidadeMedida}</td>
-                                <td className="py-2 px-3 text-right font-mono">{formatCurrency(item.custoUnitarioPrevisto)}</td>
-                                <td className="py-2 px-3 text-right font-mono font-bold text-indigo-400">
-                                  {formatCurrency(item.quantidadePlanejada * item.custoUnitarioPrevisto)}
-                                </td>
-                                <td className="py-2 px-3 text-center flex justify-center gap-1.5">
-                                  <button
-                                    onClick={() => {
-                                      setBudgetInsumoId(item.insumoId);
-                                      setBudgetQuantidade(item.quantidadePlanejada.toString());
-                                      setBudgetCustoUnitario(item.custoUnitarioPrevisto.toString());
-                                      setIsBudgetModalOpen(true);
-                                    }}
-                                    className="p-1 hover:bg-slate-800 text-blue-400 hover:text-blue-300 rounded transition cursor-pointer"
-                                    title="Editar item"
-                                  >
-                                    <Edit2 size={12} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteBudget(item.insumoId)}
-                                    className="p-1 hover:bg-slate-800 text-red-400 hover:text-red-300 rounded transition cursor-pointer"
-                                    title="Excluir item"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            {budgetVariaveis.length === 0 && (
-                              <tr>
-                                <td colSpan={5} className="py-4 text-center text-slate-500 italic">Nenhum custo variável planejado (cimento, areia, etc).</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Custos Realizados */}
-                <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
-                  <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Histórico de Custos Realizados (Aprovados)</h3>
-                  
-                  <div className="space-y-4">
-                    {/* REALIZADO FIXO */}
-                    <div>
-                      <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                        Custos Fixos Realizados
-                      </h4>
-                      <div className="overflow-x-auto border border-slate-800/60 rounded-xl max-h-[180px] overflow-y-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-slate-900/40 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                              <th className="py-2 px-3">Data</th>
-                              <th className="py-2 px-3">Insumo</th>
-                              <th className="py-2 px-3 text-right">Qtd Efetiva</th>
-                              <th className="py-2 px-3 text-right">Unitário</th>
-                              <th className="py-2 px-3 text-right">Custo Total</th>
-                              <th className="py-2 px-3 text-center">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                            {apropFixos.map((ap: any) => (
-                              <tr key={ap.id} className="hover:bg-slate-800/5">
-                                <td className="py-2 px-3 font-mono text-slate-400">{formatDate(ap.dataAplicacao)}</td>
-                                <td className="py-2 px-3 font-semibold text-slate-200">{ap.insumo.nome}</td>
-                                <td className="py-2 px-3 text-right font-mono">{ap.quantidadeReal} {ap.insumo.unidadeMedida}</td>
-                                <td className="py-2 px-3 text-right font-mono">{formatCurrency(ap.quantidadeReal > 0 ? ap.custoTotal / ap.quantidadeReal : 0)}</td>
-                                <td className="py-2 px-3 text-right font-mono font-bold text-emerald-400">{formatCurrency(ap.custoTotal)}</td>
-                                <td className="py-2 px-3 text-center">
-                                  <button
-                                    onClick={() => handleDeleteApropriacao(ap.id)}
-                                    className="p-1 hover:bg-slate-800 text-red-400 hover:text-red-300 rounded transition cursor-pointer"
-                                    title="Estornar custo"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            {apropFixos.length === 0 && (
-                              <tr>
-                                <td colSpan={6} className="py-4 text-center text-slate-500 italic">Nenhum custo fixo realizado.</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* REALIZADO VARIÁVEL */}
-                    <div>
-                      <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        Custos Variáveis Realizados
-                      </h4>
-                      <div className="overflow-x-auto border border-slate-800/60 rounded-xl max-h-[180px] overflow-y-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-slate-900/40 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                              <th className="py-2 px-3">Data</th>
-                              <th className="py-2 px-3">Insumo</th>
-                              <th className="py-2 px-3 text-right">Qtd Efetiva</th>
-                              <th className="py-2 px-3 text-right">Unitário</th>
-                              <th className="py-2 px-3 text-right">Custo Total</th>
-                              <th className="py-2 px-3 text-center">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                            {apropVariaveis.map((ap: any) => (
-                              <tr key={ap.id} className="hover:bg-slate-800/5">
-                                <td className="py-2 px-3 font-mono text-slate-400">{formatDate(ap.dataAplicacao)}</td>
-                                <td className="py-2 px-3 font-semibold text-slate-200">{ap.insumo.nome}</td>
-                                <td className="py-2 px-3 text-right font-mono">{ap.quantidadeReal} {ap.insumo.unidadeMedida}</td>
-                                <td className="py-2 px-3 text-right font-mono">{formatCurrency(ap.quantidadeReal > 0 ? ap.custoTotal / ap.quantidadeReal : 0)}</td>
-                                <td className="py-2 px-3 text-right font-mono font-bold text-emerald-400">{formatCurrency(ap.custoTotal)}</td>
-                                <td className="py-2 px-3 text-center">
-                                  <button
-                                    onClick={() => handleDeleteApropriacao(ap.id)}
-                                    className="p-1 hover:bg-slate-800 text-red-400 hover:text-red-300 rounded transition cursor-pointer"
-                                    title="Estornar custo"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            {apropVariaveis.length === 0 && (
-                              <tr>
-                                <td colSpan={6} className="py-4 text-center text-slate-500 italic">Nenhum custo variável realizado (cimento, areia, etc).</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80 bg-[#0f1422]/10">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Margem Líquida do Lote</span>
+                <h3 className={`text-xl font-bold font-mono mt-1.5 ${margemLiquida >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatCurrency(margemLiquida)}
+                </h3>
+                <p className="text-[9px] text-slate-500 mt-1">Rentabilidade atual: <span className={`font-bold ${margemLiquida >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{margemPorcentagem.toFixed(1)}%</span></p>
               </div>
             </div>
 
-            {/* Curva ABC de Custos */}
+            {/* Extrato Ledger Table */}
+            <div className="glassmorphism p-6 rounded-2xl border border-slate-850">
+              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-1.5 uppercase tracking-wider">
+                <FileSpreadsheet size={16} className="text-indigo-400" /> Extrato Financeiro Completo da Obra
+              </h3>
+              
+              <div className="overflow-x-auto border border-slate-900 rounded-xl">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-950/80 border-b border-slate-900 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-4">Data Venc./Pag.</th>
+                      <th className="py-3 px-4">Descrição</th>
+                      <th className="py-3 px-4">Categoria</th>
+                      <th className="py-3 px-4 text-center">Status</th>
+                      <th className="py-3 px-4 text-right">Fluxo / Valor</th>
+                      <th className="py-3 px-4 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900/60 text-slate-300 font-mono">
+                    {transacoes.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-500 italic font-sans">
+                          Nenhuma transação lançada no livro-caixa para este lote.
+                        </td>
+                      </tr>
+                    ) : (
+                      transacoes.map((t: any) => {
+                        const isIncome = t.natureza === 'RECEITA';
+                        const isPaid = t.status === 'PAGO';
+                        const dateToUse = isPaid && t.dataPagamento ? t.dataPagamento : t.dataVencimento;
+
+                        return (
+                          <tr key={t.id} className="hover:bg-slate-900/20 transition-all">
+                            <td className="py-3.5 px-4 font-sans text-slate-400">
+                              {formatDate(dateToUse)}
+                            </td>
+                            <td className="py-3.5 px-4 font-sans font-medium text-slate-200">
+                              {t.descricao}
+                            </td>
+                            <td className="py-3.5 px-4 font-sans text-xs text-slate-400">
+                              {t.categoria === 'MEDICAO_CAIXA' && 'Medição CEF'}
+                              {t.categoria === 'ENTRADA_CLIENTE' && 'Entrada Cliente'}
+                              {t.categoria === 'MATERIAL' && 'Materiais'}
+                              {t.categoria === 'MAO_DE_OBRA' && 'Mão de Obra'}
+                              {t.categoria === 'TERRENO' && 'Aquisição Terreno'}
+                              {t.categoria === 'PROJETOS' && 'Projetos/Licença'}
+                              {t.categoria === 'IMPOSTOS' && 'Impostos RET'}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-sans font-bold leading-normal ${
+                                isPaid
+                                  ? 'bg-emerald-950/40 border border-emerald-800/40 text-emerald-400'
+                                  : 'bg-amber-950/40 border border-amber-800/40 text-amber-400'
+                              }`}>
+                                {isPaid ? 'Liquidado' : 'Pendente'}
+                              </span>
+                            </td>
+                            <td className={`py-3.5 px-4 text-right font-bold ${isIncome ? 'text-emerald-450' : 'text-red-400'}`}>
+                              {isIncome ? '+' : '-'}{formatCurrency(t.valor)}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <button
+                                onClick={() => handleDeleteApropriacao(t.id)}
+                                className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-red-400 transition cursor-pointer"
+                                title="Estornar Lançamento"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Curva ABC de Custos Simplificada */}
             <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
-              <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Curva ABC de Custos (Comparativo Lote)</h3>
+              <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Detalhamento por Insumos Utilizados</h3>
               <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-900/30 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Insumo</th>
+                      <th className="py-2.5 px-3">Insumo / Item</th>
                       <th className="py-2.5 px-3">Categoria</th>
-                      <th className="py-2.5 px-3 text-right">Previsto</th>
-                      <th className="py-2.5 px-3 text-right">Realizado</th>
+                      <th className="py-2.5 px-3 text-right">Planejado (Orçado)</th>
+                      <th className="py-2.5 px-3 text-right">Realizado (Efetivo)</th>
                       <th className="py-2.5 px-3 text-right">Desvio</th>
                     </tr>
                   </thead>
@@ -1516,46 +1172,16 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                         </tr>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Autorizações Pendentes */}
-            <div className="glassmorphism p-5 rounded-2xl border border-slate-850">
-              <h3 className="text-sm font-bold text-white mb-1.5 flex items-center gap-2">
-                <ShieldCheck className="text-amber-500" size={18} /> Autorizações de Estouro Pendentes
-              </h3>
-              <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-900/30 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                      <th className="py-3 px-4">Data</th>
-                      <th className="py-3 px-4">Insumo</th>
-                      <th className="py-3 px-4 text-right">Valor Total</th>
-                      <th className="py-3 px-4 text-center">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                    {initialCasa.apropriacoes?.filter((ap: any) => !ap.aprovado).map((ap: any) => (
-                      <tr key={ap.id}>
-                        <td className="py-3.5 px-4">{formatDate(ap.dataAplicacao)}</td>
-                        <td className="py-3.5 px-4 font-bold">{ap.insumo.nome}</td>
-                        <td className="py-3.5 px-4 font-mono font-bold text-amber-500">{formatCurrency(ap.custoTotal)}</td>
-                        <td className="py-3.5 px-4 text-center">
-                          <button onClick={() => handleApproveApropriacao(ap.id, true)} disabled={isUpdatingApproval === ap.id} className="px-2.5 py-1 bg-emerald-600 rounded text-[10px] font-bold cursor-pointer">Aprovar</button>
-                        </td>
-                      </tr>
-                    ))}
-                    {initialCasa.apropriacoes?.filter((ap: any) => !ap.aprovado).length === 0 && (
+                    {totalABC.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="py-6 text-center text-slate-500 italic">Nenhuma apropriação pendente de liberação.</td>
+                        <td colSpan={5} className="py-6 text-center text-slate-500 italic">Nenhum custo registrado para insumos neste lote.</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
+
           </div>
         );
       })()}

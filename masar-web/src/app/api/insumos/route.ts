@@ -160,7 +160,7 @@ export async function DELETE(request: NextRequest) {
 
     // Validar dependências no banco de dados para evitar erros de integridade referencial
     const itemOrcamentoCount = await db.itemOrcamento.count({ where: { insumoId: id } });
-    const apropriacaoCount = await db.apropriacaoCusto.count({ where: { insumoId: id } });
+    const apropriacaoCount = await db.transacaoFinanceira.count({ where: { insumoId: id } });
     const solicitacaoCount = await db.solicitacaoCompra.count({ where: { insumoId: id } });
 
     if (itemOrcamentoCount > 0 || apropriacaoCount > 0 || solicitacaoCount > 0) {
