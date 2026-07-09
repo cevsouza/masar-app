@@ -33,11 +33,15 @@ enum EtapaJornada {
 }
 
 enum StatusObra {
-  SEM_INICIO
-  FUNDACAO
-  ALVENARIA
-  COBERTURA
+  BACKLOG
+  APROVACOES
+  INFRAESTRUTURA
+  SUPRAESTRUTURA
+  INSTALACOES
   ACABAMENTO
+  VISTORIA_CAIXA
+  CARTORIO
+  VISITAS
   CONCLUIDA
 }
 
@@ -204,7 +208,7 @@ model Casa {
   empreendimento   Empreendimento         @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
   clienteId        String?
   cliente          Cliente?               @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  statusObra       StatusObra             @default(SEM_INICIO)
+  statusObra       StatusObra             @default(BACKLOG)
   percentualObra   Float                  @default(0.0)
   prazoFisico      DateTime?
   prazoFinanceiro  DateTime?
@@ -218,6 +222,7 @@ model Casa {
   vagasGaragem     Int                    @default(0)
   possuiQuintal    Boolean                @default(false)
   salaConjugada    Boolean                @default(false)
+  liberadaVenda    Boolean                @default(false)
   dataCriacao      DateTime               @default(now())
   dataAtualizacao  DateTime               @updatedAt
   medicoes         MedicaoCaixa[]

@@ -55,7 +55,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
   const [activeProjectNameForHouse, setActiveProjectNameForHouse] = useState('');
   const [newHouseNum, setNewHouseNum] = useState('');
   const [newHouseQuadra, setNewHouseQuadra] = useState('');
-  const [newHouseStatus, setNewHouseStatus] = useState('SEM_INICIO');
+  const [newHouseStatus, setNewHouseStatus] = useState('BACKLOG');
   const [newHousePercent, setNewHousePercent] = useState('0');
   const [isCreatingHouse, setIsCreatingHouse] = useState(false);
 
@@ -157,7 +157,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
       // Clear state
       setNewHouseNum('');
       setNewHouseQuadra('');
-      setNewHouseStatus('SEM_INICIO');
+      setNewHouseStatus('BACKLOG');
       setNewHousePercent('0');
       setActiveProjectIdForHouse(null);
 
@@ -483,12 +483,16 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                     onChange={(e) => setNewHouseStatus(e.target.value)}
                     className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500/50"
                   >
-                    <option value="SEM_INICIO">Sem Início</option>
-                    <option value="FUNDACAO">Fundação</option>
-                    <option value="ALVENARIA">Alvenaria</option>
-                    <option value="COBERTURA">Cobertura</option>
-                    <option value="ACABAMENTO">Acabamento</option>
-                    <option value="CONCLUIDA">Concluída</option>
+                    <option value="BACKLOG">Não Iniciado (Backlog)</option>
+                    <option value="APROVACOES">Burocracia e Aprovações</option>
+                    <option value="INFRAESTRUTURA">Infraestrutura (Base)</option>
+                    <option value="SUPRAESTRUTURA">Supraestrutura e Cobertura</option>
+                    <option value="INSTALACOES">Instalações (Embutidas)</option>
+                    <option value="ACABAMENTO">Acabamentos</option>
+                    <option value="VISTORIA_CAIXA">Aguardando Vistoria Caixa</option>
+                    <option value="CARTORIO">Legalização e Cartório</option>
+                    <option value="VISITAS">Liberado para Visitas</option>
+                    <option value="CONCLUIDA">Concluído / Entregue</option>
                   </select>
                 </div>
 

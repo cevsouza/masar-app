@@ -44,12 +44,16 @@ interface HouseDetailsProps {
 }
 
 const STAGES = [
-  { id: 'SEM_INICIO', label: 'Sem Início' },
-  { id: 'FUNDACAO', label: 'Fundação' },
-  { id: 'ALVENARIA', label: 'Alvenaria' },
-  { id: 'COBERTURA', label: 'Cobertura' },
-  { id: 'ACABAMENTO', label: 'Acabamento' },
-  { id: 'CONCLUIDA', label: 'Concluída' },
+  { id: 'BACKLOG', label: '1. Não Iniciado (Backlog)' },
+  { id: 'APROVACOES', label: '2. Burocracia e Aprovações' },
+  { id: 'INFRAESTRUTURA', label: '3. Infraestrutura (Base)' },
+  { id: 'SUPRAESTRUTURA', label: '4. Supraestrutura e Cobertura' },
+  { id: 'INSTALACOES', label: '5. Instalações (Embutidas)' },
+  { id: 'ACABAMENTO', label: '6. Acabamentos' },
+  { id: 'VISTORIA_CAIXA', label: '7. Aguardando Vistoria Caixa' },
+  { id: 'CARTORIO', label: '8. Legalização e Cartório' },
+  { id: 'VISITAS', label: '9. Liberado para Visitas' },
+  { id: 'CONCLUIDA', label: '10. Concluído / Entregue' },
 ];
 
 export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDetailsProps) {
@@ -92,6 +96,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   const [editVagas, setEditVagas] = useState(initialCasa.vagasGaragem.toString());
   const [editQuintal, setEditQuintal] = useState(initialCasa.possuiQuintal);
   const [editSalaConjugada, setEditSalaConjugada] = useState(initialCasa.salaConjugada);
+  const [editLiberadaVenda, setEditLiberadaVenda] = useState(initialCasa.liberadaVenda || false);
   const [isSavingHouse, setIsSavingHouse] = useState(false);
 
   useEffect(() => {
@@ -144,7 +149,8 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           quantidadeBanheiros: parseInt(editBanheiros, 10) || 0,
           vagasGaragem: parseInt(editVagas, 10) || 0,
           possuiQuintal: editQuintal === true,
-          salaConjugada: editSalaConjugada === true
+          salaConjugada: editSalaConjugada === true,
+          liberadaVenda: editLiberadaVenda === true
         })
       });
 
@@ -302,6 +308,17 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           <p className="text-sm text-slate-400 mt-1">
             Projeto: <strong>{initialCasa.empreendimento.nome}</strong>
           </p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {initialCasa.liberadaVenda ? (
+              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                ✓ Liberada para Venda (Comercial)
+              </span>
+            ) : (
+              <span className="text-[10px] text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                ✗ Bloqueada para Vendas (Interno)
+              </span>
+            )}
+          </div>
           {userRole === 'ADMIN' && (
             <div className="flex gap-2 items-center mt-3">
               <button
@@ -451,12 +468,16 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                     onChange={(e) => setStatusObra(e.target.value)}
                     className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500/50"
                   >
-                    <option value="SEM_INICIO">Sem Início</option>
-                    <option value="FUNDACAO">Fundação</option>
-                    <option value="ALVENARIA">Alvenaria</option>
-                    <option value="COBERTURA">Cobertura (Laje/Telhado)</option>
-                    <option value="ACABAMENTO">Acabamento</option>
-                    <option value="CONCLUIDA">Obra Concluída</option>
+                    <option value="BACKLOG">1. Não Iniciado (Backlog)</option>
+                    <option value="APROVACOES">2. Burocracia e Aprovações</option>
+                    <option value="INFRAESTRUTURA">3. Infraestrutura (Base)</option>
+                    <option value="SUPRAESTRUTURA">4. Supraestrutura e Cobertura</option>
+                    <option value="INSTALACOES">5. Instalações (Embutidas)</option>
+                    <option value="ACABAMENTO">6. Acabamentos</option>
+                    <option value="VISTORIA_CAIXA">7. Aguardando Vistoria Caixa</option>
+                    <option value="CARTORIO">8. Legalização e Cartório</option>
+                    <option value="VISITAS">9. Liberado para Visitas</option>
+                    <option value="CONCLUIDA">10. Concluído / Entregue</option>
                   </select>
                 </div>
 
@@ -948,6 +969,19 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                     className="rounded bg-[#0f1422] border-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
                   />
                   <label htmlFor="editSalaConjugada" className="text-[10px] text-slate-400 cursor-pointer select-none">Sala Conjugada</label>
+                </div>
+
+                <div className="flex items-center gap-2 pt-6 col-span-2">
+                  <input
+                    type="checkbox"
+                    id="editLiberadaVenda"
+                    checked={editLiberadaVenda}
+                    onChange={(e) => setEditLiberadaVenda(e.target.checked)}
+                    className="rounded bg-[#0f1422] border-slate-800 text-emerald-500 focus:ring-0 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="editLiberadaVenda" className="text-[10px] text-slate-400 cursor-pointer select-none font-bold text-emerald-400">
+                    Liberar Unidade para Venda no Comercial
+                  </label>
                 </div>
               </div>
 

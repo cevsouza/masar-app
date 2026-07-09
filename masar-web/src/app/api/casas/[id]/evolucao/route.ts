@@ -20,7 +20,7 @@ export async function PATCH(
     const userId = session?.userId || 'SYSTEM';
     const userName = session?.nome || 'Sistema';
 
-    const validStatuses = ['SEM_INICIO', 'FUNDACAO', 'ALVENARIA', 'COBERTURA', 'ACABAMENTO', 'CONCLUIDA'];
+    const validStatuses = ['BACKLOG', 'APROVACOES', 'INFRAESTRUTURA', 'SUPRAESTRUTURA', 'INSTALACOES', 'ACABAMENTO', 'VISTORIA_CAIXA', 'CARTORIO', 'VISITAS', 'CONCLUIDA'];
     if (!statusObra || !validStatuses.includes(statusObra)) {
       return NextResponse.json({ error: 'Status da obra inválido' }, { status: 400 });
     }

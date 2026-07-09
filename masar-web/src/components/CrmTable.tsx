@@ -30,6 +30,7 @@ interface House {
   quadra: string;
   statusObra: string;
   percentualObra: number;
+  liberadaVenda: boolean;
   empreendimento: {
     nome: string;
   };
@@ -136,8 +137,8 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
     }
   };
 
-  // Filter available houses (without adquirente) for the dropdown list
-  const availableHouses = initialHouses.filter(h => h.cliente === null);
+  // Filter available houses (without adquirente and released for sale) for the dropdown list
+  const availableHouses = initialHouses.filter(h => h.cliente === null && h.liberadaVenda === true);
 
   const handleStatusChange = async (clientId: string, newStatus: string) => {
     setUpdatingId(clientId);
@@ -398,9 +399,15 @@ export default function CrmTable({ initialHouses }: { initialHouses: House[] }) 
                 <p className="text-[9px] text-slate-500 truncate mt-0.5">{house.empreendimento.nome}</p>
               </div>
               <div className="mt-2.5 flex items-center justify-center gap-1.5">
-                <span className="text-[8px] font-bold text-slate-400 bg-slate-500/10 px-1.5 py-0.5 rounded border border-slate-500/10 uppercase">
-                  Estoque
-                </span>
+                {house.liberadaVenda ? (
+                  <span className="text-[8px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/10 uppercase" title="Liberada para Venda (Comercial)">
+                    Venda
+                  </span>
+                ) : (
+                  <span className="text-[8px] font-bold text-slate-500 bg-slate-500/5 px-1.5 py-0.5 rounded border border-slate-500/10 uppercase" title="Bloqueada para Vendas (Reserva)">
+                    Reserva
+                  </span>
+                )}
                 <Link 
                   href={`/casas/${house.id}`}
                   className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded border border-slate-700/60"

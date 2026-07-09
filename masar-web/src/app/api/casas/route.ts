@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const validStatuses = ['SEM_INICIO', 'FUNDACAO', 'ALVENARIA', 'COBERTURA', 'ACABAMENTO', 'CONCLUIDA'];
+    const validStatuses = ['BACKLOG', 'APROVACOES', 'INFRAESTRUTURA', 'SUPRAESTRUTURA', 'INSTALACOES', 'ACABAMENTO', 'VISTORIA_CAIXA', 'CARTORIO', 'VISITAS', 'CONCLUIDA'];
     const statusObraValido = statusObra && validStatuses.includes(statusObra) 
       ? statusObra 
-      : 'SEM_INICIO';
+      : 'BACKLOG';
 
     const percentualFloat = percentualObra ? parseFloat(percentualObra) : 0.0;
 

@@ -153,7 +153,7 @@ export async function GET() {
         quadra: 'A',
         empreendimentoId: emp1.id,
         clienteId: cli1.id,
-        statusObra: 'ALVENARIA',
+        statusObra: 'SUPRAESTRUTURA',
         percentualObra: 45.0,
       },
     });
@@ -164,8 +164,9 @@ export async function GET() {
         quadra: 'A',
         empreendimentoId: emp1.id,
         clienteId: cli2.id,
-        statusObra: 'FUNDACAO',
+        statusObra: 'INFRAESTRUTURA',
         percentualObra: 20.0,
+        liberadaVenda: true,
       },
     });
 

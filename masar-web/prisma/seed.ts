@@ -93,7 +93,7 @@ async function main() {
       quadra: 'A',
       empreendimentoId: emp1.id,
       clienteId: cli1.id,
-      statusObra: 'ALVENARIA',
+      statusObra: 'SUPRAESTRUTURA',
       percentualObra: 45.0,
     },
   });
@@ -104,7 +104,7 @@ async function main() {
       quadra: 'A',
       empreendimentoId: emp1.id,
       clienteId: cli2.id,
-      statusObra: 'FUNDACAO',
+      statusObra: 'INFRAESTRUTURA',
       percentualObra: 20.0,
     },
   });
@@ -127,8 +127,9 @@ async function main() {
       quadra: 'B',
       empreendimentoId: emp1.id,
       clienteId: null,
-      statusObra: 'SEM_INICIO',
+      statusObra: 'BACKLOG',
       percentualObra: 0.0,
+      liberadaVenda: true,
     },
   });
 
@@ -139,7 +140,7 @@ async function main() {
       quadra: 'X',
       empreendimentoId: emp2.id,
       clienteId: cli3.id,
-      statusObra: 'SEM_INICIO',
+      statusObra: 'BACKLOG',
       percentualObra: 0.0,
     },
   });

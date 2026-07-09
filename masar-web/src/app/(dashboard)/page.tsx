@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   const totalCasas = await db.casa.count();
   const casasEmObra = await db.casa.count({
     where: {
-      statusObra: { notIn: ['SEM_INICIO', 'CONCLUIDA'] }
+      statusObra: { notIn: ['BACKLOG', 'CONCLUIDA'] }
     }
   });
   

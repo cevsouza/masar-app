@@ -37,7 +37,8 @@ export async function PATCH(
       quantidadeBanheiros,
       vagasGaragem,
       possuiQuintal,
-      salaConjugada
+      salaConjugada,
+      liberadaVenda
     } = body;
 
     const updateData: any = {};
@@ -54,6 +55,7 @@ export async function PATCH(
     if (vagasGaragem !== undefined) updateData.vagasGaragem = parseInt(vagasGaragem, 10) || 0;
     if (possuiQuintal !== undefined) updateData.possuiQuintal = possuiQuintal === true;
     if (salaConjugada !== undefined) updateData.salaConjugada = salaConjugada === true;
+    if (liberadaVenda !== undefined) updateData.liberadaVenda = liberadaVenda === true;
 
     const updated = await db.casa.update({
       where: { id },

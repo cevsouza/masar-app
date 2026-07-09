@@ -37,18 +37,21 @@ export async function POST(
       let isStageMet = true;
       let requiredStageLabel = '';
 
-      if (insumoNomeLower.includes('fundação') && statusObra === 'SEM_INICIO') {
+      if (insumoNomeLower.includes('fundação') && ['BACKLOG', 'APROVACOES'].includes(statusObra)) {
         isStageMet = false;
-        requiredStageLabel = 'Fundação';
-      } else if (insumoNomeLower.includes('alvenaria') && ['SEM_INICIO', 'FUNDACAO'].includes(statusObra)) {
+        requiredStageLabel = 'Infraestrutura (Base)';
+      } else if (insumoNomeLower.includes('alvenaria') && ['BACKLOG', 'APROVACOES', 'INFRAESTRUTURA'].includes(statusObra)) {
         isStageMet = false;
-        requiredStageLabel = 'Alvenaria';
-      } else if ((insumoNomeLower.includes('telhado') || insumoNomeLower.includes('cobertura')) && ['SEM_INICIO', 'FUNDACAO', 'ALVENARIA'].includes(statusObra)) {
+        requiredStageLabel = 'Supraestrutura e Cobertura';
+      } else if ((insumoNomeLower.includes('telhado') || insumoNomeLower.includes('cobertura')) && ['BACKLOG', 'APROVACOES', 'INFRAESTRUTURA'].includes(statusObra)) {
         isStageMet = false;
-        requiredStageLabel = 'Cobertura';
-      } else if ((insumoNomeLower.includes('acabamento') || insumoNomeLower.includes('pintura')) && ['SEM_INICIO', 'FUNDACAO', 'ALVENARIA', 'COBERTURA'].includes(statusObra)) {
+        requiredStageLabel = 'Supraestrutura e Cobertura';
+      } else if ((insumoNomeLower.includes('instalação') || insumoNomeLower.includes('instalações') || insumoNomeLower.includes('elétrica') || insumoNomeLower.includes('hidráulica')) && ['BACKLOG', 'APROVACOES', 'INFRAESTRUTURA', 'SUPRAESTRUTURA'].includes(statusObra)) {
         isStageMet = false;
-        requiredStageLabel = 'Acabamento';
+        requiredStageLabel = 'Instalações (Embutidas)';
+      } else if ((insumoNomeLower.includes('acabamento') || insumoNomeLower.includes('pintura')) && ['BACKLOG', 'APROVACOES', 'INFRAESTRUTURA', 'SUPRAESTRUTURA', 'INSTALACOES'].includes(statusObra)) {
+        isStageMet = false;
+        requiredStageLabel = 'Acabamentos';
       }
 
       if (!isStageMet) {
