@@ -104,7 +104,12 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
           nome: newProjectName,
           localizacao: newProjectLoc,
           statusLegal: newProjectStatus,
-          orcamento: newProjectBudget ? parseFloat(newProjectBudget) : null,
+          orcamento: (() => {
+            if (!newProjectBudget) return null;
+            const clean = newProjectBudget.replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+            const num = parseFloat(clean);
+            return isNaN(num) ? null : num;
+          })(),
           dataInicio: newProjectStart ? new Date(newProjectStart) : null,
           dataFim: newProjectEnd ? new Date(newProjectEnd) : null,
         }),
@@ -367,11 +372,15 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                 <div>
                   <label className="text-xs text-slate-400 block mb-1.5 font-medium">Orçamento Previsto (R$)</label>
                   <input
-                    type="number"
-                    min="0"
-                    placeholder="Ex: 500000"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex: 500.000,00"
                     value={newProjectBudget}
-                    onChange={(e) => setNewProjectBudget(e.target.value)}
+                    onChange={(e) => {
+                      // Permitir apenas dígitos, pontos, vírgulas e espaço
+                      const val = e.target.value.replace(/[^0-9.,\s]/g, '');
+                      setNewProjectBudget(val);
+                    }}
                     className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
                   />
                 </div>
