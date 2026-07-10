@@ -16,20 +16,23 @@ import {
   HardHat,
   Percent,
   Banknote,
-  Wallet
+  Wallet,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, 
-  ComposedChart, 
-  Bar, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  Legend, 
-  CartesianGrid 
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid
 } from 'recharts';
 import DreWaterfallChart from '@/components/DreWaterfallChart';
+import FluxoCaixaCockpit from '@/components/FluxoCaixaCockpit';
 
 const CATEGORY_META: Record<string, { icon: any; label: string; color: string }> = {
   TERRENO: { icon: Landmark, label: 'Aquisição Terreno', color: 'text-blue-400 bg-blue-500/10' },
@@ -53,17 +56,27 @@ function formatDayLabel(dateStr: string) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', weekday: 'short' });
 }
 
+function getUrlParam(name: string): string | null {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get(name);
+}
+
 export default function CentralFinanceiraPage() {
   const [empreendimentos, setEmpreendimentos] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [loadingProjects, setLoadingProjects] = useState(true);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'livro_caixa'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'livro_caixa' | 'projecao'>(() => {
+    const tabParam = getUrlParam('tab');
+    if (tabParam === 'livro_caixa' || tabParam === 'projecao' || tabParam === 'dashboard') return tabParam;
+    return 'dashboard';
+  });
 
   // DRE & DFC data
   const [dreData, setDreData] = useState<any>(null);
   const [dfcData, setDfcData] = useState<any[]>([]);
+  const [fluxoCaixaData, setFluxoCaixaData] = useState<any>(null);
   const [loadingData, setLoadingData] = useState(false);
 
   // Transactions (Livro-Caixa)
@@ -86,7 +99,9 @@ export default function CentralFinanceiraPage() {
         const res = await fetch('/api/empreendimentos').then(r => r.json());
         setEmpreendimentos(res || []);
         if (res && res.length > 0) {
-          setSelectedProjectId(res[0].id);
+          const empIdParam = getUrlParam('empreendimentoId');
+          const matched = empIdParam && res.find((e: any) => e.id === empIdParam);
+          setSelectedProjectId(matched ? matched.id : res[0].id);
         }
       } catch (err) {
         console.error('Erro ao buscar projetos:', err);
@@ -119,12 +134,14 @@ export default function CentralFinanceiraPage() {
     const fetchFinancialData = async () => {
       setLoadingData(true);
       try {
-        const [resDre, resDfc] = await Promise.all([
+        const [resDre, resDfc, resFluxo] = await Promise.all([
           fetch(`/api/financeiro/dre?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
-          fetch(`/api/financeiro/dfc?empreendimentoId=${selectedProjectId}`).then(r => r.json())
+          fetch(`/api/financeiro/dfc?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
+          fetch(`/api/financeiro/fluxo-de-caixa?empreendimentoId=${selectedProjectId}`).then(r => r.json())
         ]);
         setDreData(resDre);
         setDfcData(resDfc || []);
+        setFluxoCaixaData(resFluxo);
       } catch (err) {
         console.error('Erro ao carregar gráficos:', err);
       } finally {
@@ -269,7 +286,7 @@ export default function CentralFinanceiraPage() {
           </div>
           <div>
             <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block">Controladoria Central</span>
-            <h1 className="text-xl font-bold text-white mt-0.5">Livro-Caixa & DRE Universal</h1>
+            <h1 className="text-xl font-bold text-white mt-0.5">Central Financeira</h1>
           </div>
         </div>
 
@@ -300,7 +317,7 @@ export default function CentralFinanceiraPage() {
             }`}
           >
             <TrendingUp size={14} />
-            Dashboard Consolidado
+            Visão Geral
           </button>
           <button
             onClick={() => setActiveTab('livro_caixa')}
@@ -311,7 +328,18 @@ export default function CentralFinanceiraPage() {
             }`}
           >
             <FileSpreadsheet size={14} />
-            Extrato Livro-Caixa
+            Extrato
+          </button>
+          <button
+            onClick={() => setActiveTab('projecao')}
+            className={`flex-1 md:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'projecao'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            <Wallet size={14} />
+            Projeção de Caixa
           </button>
         </div>
 
@@ -337,11 +365,35 @@ export default function CentralFinanceiraPage() {
       )}
 
       {/* ========================================== */}
-      {/* VIEW TAB: DASHBOARD CONSOLIDADO */}
+      {/* VIEW TAB: VISÃO GERAL */}
       {/* ========================================== */}
       {!loadingData && activeTab === 'dashboard' && dreData && (
         <div className="space-y-6 animate-fadeIn">
-          
+
+          {/* Saldo em destaque */}
+          {fluxoCaixaData && (
+            <div className={`glassmorphism p-6 rounded-2xl border flex items-center justify-between gap-4 ${
+              fluxoCaixaData.caixaLivreReal >= 0 ? 'border-emerald-500/25 bg-emerald-950/5' : 'border-red-500/25 bg-red-950/5'
+            }`}>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Saldo Disponível Hoje</span>
+                <h2 className={`text-3xl font-extrabold font-mono mt-1 ${fluxoCaixaData.caixaLivreReal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatCurrency(fluxoCaixaData.caixaLivreReal)}
+                </h2>
+                <p className="text-xs text-slate-400 mt-1.5 max-w-md">
+                  O que sobra do caixa somando o que já está no banco e o que deve entrar em 30 dias, depois de reservar o que ainda falta pagar nas obras em andamento.
+                </p>
+              </div>
+              <div className={`p-3.5 rounded-2xl border shrink-0 ${
+                fluxoCaixaData.caixaLivreReal >= 0
+                  ? 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20'
+                  : 'bg-red-600/10 text-red-400 border-red-500/20'
+              }`}>
+                {fluxoCaixaData.caixaLivreReal >= 0 ? <ShieldCheck size={28} /> : <ShieldAlert size={28} />}
+              </div>
+            </div>
+          )}
+
           {/* Dashboard KPIs Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
             <div className="glassmorphism p-5 rounded-2xl border border-slate-850">
@@ -688,6 +740,20 @@ export default function CentralFinanceiraPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* VIEW TAB: PROJEÇÃO DE CAIXA */}
+      {/* ========================================== */}
+      {!loadingData && activeTab === 'projecao' && fluxoCaixaData && (
+        <div className="animate-fadeIn">
+          <FluxoCaixaCockpit
+            key={selectedProjectId}
+            empreendimentos={empreendimentos}
+            initialData={fluxoCaixaData}
+            defaultProjectId={selectedProjectId}
+          />
         </div>
       )}
 

@@ -34,7 +34,6 @@ import ModalNovoLancamento from './ModalNovoLancamento';
 const PROCESS_MENU_ITEMS = [
   { name: 'Empreendimentos', href: '/empreendimentos', icon: KanbanSquare, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
   { name: 'Vendas (Comercial)', href: '/comercial', icon: BadgeDollarSign, roles: ['ADMIN', 'FINANCEIRO', 'COMERCIAL'] },
-  { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
   { name: 'Suprimentos (Compras)', href: '/suprimentos', icon: ShoppingBag, roles: ['ADMIN', 'FINANCEIRO'] },
   { name: 'Obras (Casas/Lotes)', href: '/casas', icon: Home, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
   { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
@@ -45,6 +44,10 @@ const GERENCIAL_ITEMS = [
   { name: 'Dashboard Executivo', href: '/', icon: LayoutDashboard, roles: ['ADMIN'] },
   { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank, roles: ['ADMIN', 'FINANCEIRO'] },
   { name: 'Relatórios Gerenciais', href: '/relatorios', icon: FileText, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+];
+
+const CONFIG_ITEMS = [
+  { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
   { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users, roles: ['ADMIN'] },
 ];
 
@@ -69,6 +72,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isLancamentoModalOpen, setIsLancamentoModalOpen] = useState(false);
   const [isGerencialOpen, setIsGerencialOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   
   // Notifications states
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -129,8 +133,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   }, []);
 
   useEffect(() => {
-    if (['/', '/socios/caixa', '/relatorios', '/usuarios'].includes(pathname)) {
+    if (['/', '/socios/caixa', '/relatorios'].includes(pathname)) {
       setIsGerencialOpen(true);
+    }
+    if (['/insumos', '/usuarios'].includes(pathname)) {
+      setIsConfigOpen(true);
     }
   }, [pathname]);
 
@@ -343,6 +350,80 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       >
                         <Icon 
                           size={15} 
+                          className={cn(
+                            "transition-colors duration-150",
+                            isActive ? "text-blue-400" : "text-slate-500 group-hover:text-slate-350"
+                          )}
+                        />
+                        <span>{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Configurações Accordion Section */}
+        {(() => {
+          const role = user.role || 'COMERCIAL';
+          const allowedConfig = CONFIG_ITEMS.filter(item => item.roles.includes(role));
+          if (allowedConfig.length === 0) return null;
+
+          const isSubActive = allowedConfig.some(item => pathname === item.href);
+
+          return (
+            <div className="space-y-1.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsConfigOpen(!isConfigOpen)}
+                className={cn(
+                  "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium cursor-pointer",
+                  isSubActive && !isConfigOpen
+                    ? "bg-slate-800/30 text-slate-300 border border-slate-850"
+                    : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Settings
+                    size={18}
+                    className={cn(
+                      "transition-colors duration-200",
+                      isSubActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200"
+                    )}
+                  />
+                  <span>Configurações</span>
+                </div>
+                <ChevronDown
+                  size={14}
+                  className={cn(
+                    "transition-transform duration-200 text-slate-500 group-hover:text-slate-400",
+                    isConfigOpen ? "rotate-180 text-blue-400" : ""
+                  )}
+                />
+              </button>
+
+              {isConfigOpen && (
+                <div className="pl-4 space-y-1 border-l border-slate-805/50 ml-6">
+                  {allowedConfig.map((item) => {
+                    const isActive = pathname === item.href;
+                    const Icon = item.icon;
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onClose}
+                        className={cn(
+                          "flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg transition-all duration-150 group text-xs font-medium cursor-pointer",
+                          isActive
+                            ? "bg-blue-600/10 text-blue-400 border border-blue-500/15"
+                            : "text-slate-450 hover:bg-slate-800/30 hover:text-slate-350"
+                        )}
+                      >
+                        <Icon
+                          size={15}
                           className={cn(
                             "transition-colors duration-150",
                             isActive ? "text-blue-400" : "text-slate-500 group-hover:text-slate-350"

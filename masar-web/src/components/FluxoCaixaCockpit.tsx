@@ -30,10 +30,11 @@ import { CashFlowResult, CashFlowMonth } from '@/lib/cashFlowService';
 interface FluxoCaixaCockpitProps {
   empreendimentos: { id: string; nome: string }[];
   initialData: CashFlowResult;
+  defaultProjectId?: string;
 }
 
-export default function FluxoCaixaCockpit({ empreendimentos, initialData }: FluxoCaixaCockpitProps) {
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
+export default function FluxoCaixaCockpit({ empreendimentos, initialData, defaultProjectId }: FluxoCaixaCockpitProps) {
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(defaultProjectId || 'all');
   const [data, setData] = useState<CashFlowResult>(initialData);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
