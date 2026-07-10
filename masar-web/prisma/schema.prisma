@@ -106,6 +106,11 @@ enum RoleUsuario {
   COMERCIAL
 }
 
+enum EscopoCronograma {
+  GERAL
+  LOTE
+}
+
 model User {
   id          String      @id @default(uuid())
   email       String      @unique
@@ -155,6 +160,7 @@ model Empreendimento {
   solicitacoesCompra     SolicitacaoCompra[]
   transacoes             TransacaoFinanceira[]
   milestones             Milestone[]
+  atividadesCronograma   AtividadeCronograma[]
 }
 
 model MarcoBurocratico {
@@ -237,6 +243,7 @@ model Casa {
   solicitacoesCompra     SolicitacaoCompra[]
   movimentacoesEstoque   MovimentacaoEstoque[]
   milestones             Milestone[]
+  atividadesCronograma   AtividadeCronograma[]
 }
 
 model OrcamentoCasa {
@@ -582,4 +589,27 @@ model Milestone {
   casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: Cascade)
   dataCriacao      DateTime        @default(now())
   dataAtualizacao  DateTime        @updatedAt
+}
+
+model AtividadeCronograma {
+  id                 String           @id @default(uuid())
+  titulo             String
+  descricao          String?
+  escopo             EscopoCronograma
+  status             StatusObra       @default(BACKLOG)
+  ordem              Int              @default(0)
+  dataInicioPrevista DateTime
+  dataFimPrevista    DateTime
+  dataInicioReal     DateTime?
+  dataFimReal        DateTime?
+  percentualConcluido Float           @default(0)
+  empreendimentoId   String
+  empreendimento     Empreendimento   @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  casaId             String?
+  casa               Casa?            @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  dataCriacao        DateTime         @default(now())
+  dataAtualizacao    DateTime         @updatedAt
+
+  @@index([empreendimentoId])
+  @@index([casaId])
 }

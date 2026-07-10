@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import GedManager from '@/components/GedManager';
 import ModalNovoLancamento from './ModalNovoLancamento';
+import CronogramaPanel from './CronogramaPanel';
 import {
   BarChart,
   Bar,
@@ -111,7 +112,7 @@ export const getInsumoMCMVType = (nome: string, categoria: string): 'FIXO' | 'VA
 
 export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDetailsProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'geral' | 'financeiro' | 'infra' | 'ged'>('geral');
+  const [activeTab, setActiveTab] = useState<'geral' | 'financeiro' | 'infra' | 'ged' | 'cronograma'>('geral');
   const [isUpdatingApproval, setIsUpdatingApproval] = useState<string | null>(null);
 
   // Budget (Previsto) Form State
@@ -599,6 +600,9 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
         </button>
         <button onClick={() => setActiveTab('ged')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'ged' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
           <FileText size={14} /> Documentação - Gestão Eletrônica de Documentos (GED)
+        </button>
+        <button onClick={() => setActiveTab('cronograma')} className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer ${activeTab === 'cronograma' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
+          <Calendar size={14} /> Cronograma
         </button>
       </div>
 
@@ -1690,6 +1694,15 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
             </form>
           </div>
         </div>
+      )}
+
+      {activeTab === 'cronograma' && (
+        <CronogramaPanel
+          escopo="LOTE"
+          empreendimentoId={initialCasa.empreendimentoId}
+          casaId={initialCasa.id}
+          initialAtividades={initialCasa.atividadesCronograma || []}
+        />
       )}
 
       {isUniversalModalOpen && (

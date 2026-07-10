@@ -46,6 +46,10 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
           natureza: 'DESPESA'
         },
         orderBy: { dataVencimento: 'desc' }
+      },
+      atividadesCronograma: {
+        where: { escopo: 'GERAL' },
+        orderBy: [{ ordem: 'asc' }, { dataInicioPrevista: 'asc' }]
       }
     }
   });
@@ -132,6 +136,18 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
       tipo: cg.categoria === 'TERRENO' ? 'TERRENO' : (cg.categoria === 'PROJETOS' ? 'PROJETOS' : 'OUTRO'),
       valor: cg.valor,
       data: cg.dataVencimento.toISOString()
+    })),
+    atividadesCronograma: project.atividadesCronograma.map(a => ({
+      id: a.id,
+      titulo: a.titulo,
+      descricao: a.descricao,
+      status: a.status,
+      ordem: a.ordem,
+      dataInicioPrevista: a.dataInicioPrevista.toISOString(),
+      dataFimPrevista: a.dataFimPrevista.toISOString(),
+      dataInicioReal: a.dataInicioReal ? a.dataInicioReal.toISOString() : null,
+      dataFimReal: a.dataFimReal ? a.dataFimReal.toISOString() : null,
+      percentualConcluido: a.percentualConcluido
     }))
   };
 

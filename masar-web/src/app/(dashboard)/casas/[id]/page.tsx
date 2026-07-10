@@ -40,6 +40,10 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
       },
       medicoes: {
         orderBy: { dataMedicao: 'desc' }
+      },
+      atividadesCronograma: {
+        where: { escopo: 'LOTE' },
+        orderBy: [{ ordem: 'asc' }, { dataInicioPrevista: 'asc' }]
       }
     }
   });
@@ -79,7 +83,19 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
       ...casa.contrato,
       dataCriacao: casa.contrato.dataCriacao.toISOString(),
       dataAtualizacao: casa.contrato.dataAtualizacao.toISOString(),
-    } : null
+    } : null,
+    atividadesCronograma: casa.atividadesCronograma.map(a => ({
+      id: a.id,
+      titulo: a.titulo,
+      descricao: a.descricao,
+      status: a.status,
+      ordem: a.ordem,
+      dataInicioPrevista: a.dataInicioPrevista.toISOString(),
+      dataFimPrevista: a.dataFimPrevista.toISOString(),
+      dataInicioReal: a.dataInicioReal ? a.dataInicioReal.toISOString() : null,
+      dataFimReal: a.dataFimReal ? a.dataFimReal.toISOString() : null,
+      percentualConcluido: a.percentualConcluido
+    }))
   };
 
   return <HouseDetails initialCasa={serializedCasa} allInsumos={allInsumos} />;

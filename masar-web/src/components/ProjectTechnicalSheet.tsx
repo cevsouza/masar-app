@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import ModalNovoLancamento from './ModalNovoLancamento';
+import CronogramaPanel from './CronogramaPanel';
 
 interface Documento {
   id: string;
@@ -67,6 +68,18 @@ interface Empreendimento {
     valor: number;
     data: string;
   }[];
+  atividadesCronograma?: {
+    id: string;
+    titulo: string;
+    descricao: string | null;
+    status: string;
+    ordem: number;
+    dataInicioPrevista: string;
+    dataFimPrevista: string;
+    dataInicioReal: string | null;
+    dataFimReal: string | null;
+    percentualConcluido: number;
+  }[];
 }
 
 interface ProjectTechnicalSheetProps {
@@ -87,10 +100,10 @@ const TIPO_DOCS_GED = [
 
 export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheetProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre'>(() => {
+  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre' | 'cronograma'>(() => {
     if (typeof window !== 'undefined') {
       const tabParam = new URLSearchParams(window.location.search).get('tab');
-      if (tabParam === 'financeiro' || tabParam === 'cofre' || tabParam === 'ficha') {
+      if (tabParam === 'financeiro' || tabParam === 'cofre' || tabParam === 'ficha' || tabParam === 'cronograma') {
         return tabParam;
       }
     }
@@ -608,13 +621,21 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
             >
               Financeiro & Demonstração de Resultados
             </button>
-            <button 
-              onClick={() => setActiveTab('cofre')} 
+            <button
+              onClick={() => setActiveTab('cofre')}
               className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
                 activeTab === 'cofre' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               Cofre de Projetos
+            </button>
+            <button
+              onClick={() => setActiveTab('cronograma')}
+              className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
+                activeTab === 'cronograma' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/15' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Cronograma
             </button>
           </div>
 
@@ -1584,6 +1605,15 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
           </div>
 
         </div>
+      )}
+
+      {/* Conteúdo Aba 4: Cronograma Geral do Empreendimento */}
+      {activeTab === 'cronograma' && (
+        <CronogramaPanel
+          escopo="GERAL"
+          empreendimentoId={project.id}
+          initialAtividades={project.atividadesCronograma || []}
+        />
       )}
 
       {/* Modal: Editar Ficha Técnica */}
