@@ -1,6 +1,9 @@
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET não configurado. Defina a variável de ambiente JWT_SECRET antes de iniciar a aplicação.');
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET não configurado. Defina a variável de ambiente JWT_SECRET antes de iniciar a aplicação.');
+  }
+  return secret;
 }
 
 // Hash password natively using PBKDF2 and Web Crypto
@@ -51,7 +54,7 @@ export async function signSession(payload: any): Promise<string> {
 
   const key = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(JWT_SECRET),
+    encoder.encode(getJwtSecret()),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
@@ -79,7 +82,7 @@ export async function verifySession(token: string): Promise<any | null> {
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       "raw",
-      encoder.encode(JWT_SECRET),
+      encoder.encode(getJwtSecret()),
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["verify"]
