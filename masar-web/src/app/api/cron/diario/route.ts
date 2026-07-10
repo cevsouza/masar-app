@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/resend';
 
-const CRON_SECRET = process.env.CRON_SECRET || 'masar_cron_secret_token_123';
+const CRON_SECRET = process.env.CRON_SECRET;
 
 export async function GET(request: NextRequest) {
   try {
+    if (!CRON_SECRET) {
+      console.error('CRON_SECRET não configurado.');
+      return NextResponse.json({ error: 'Serviço não configurado' }, { status: 500 });
+    }
+
     // 1. Validar Bearer Token de Segurança
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
