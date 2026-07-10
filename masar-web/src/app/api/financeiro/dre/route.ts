@@ -218,7 +218,9 @@ export async function GET(request: NextRequest) {
       const descLower = t.descricao.toLowerCase();
       const cat = t.categoria;
 
-      if (cat === 'TERRENO' || descLower.includes('terreno')) {
+      if (cat === 'IMPOSTOS') {
+        // Impostos são contabilizados separadamente (ver seção 3), não entram no rateio "Outros"
+      } else if (cat === 'TERRENO' || descLower.includes('terreno')) {
         if (isReal) rateioTerrenoReal += valor;
         else rateioTerrenoProj += valor;
       } else if (cat === 'PROJETOS' || descLower.includes('projeto') || descLower.includes('licenciamento')) {
@@ -238,8 +240,13 @@ export async function GET(request: NextRequest) {
 
     // 3. Calcular Impostos (Regime Especial de Tributação - RET, padrão 4%)
     const retPercent = 4.0;
-    const totalImpostoProjetado = (retPercent / 100) * totalVGVProjetado;
-    
+
+    // RET Projetado: busca transações da categoria IMPOSTOS ainda não pagas, fallback para 4% do VGV projetado
+    const pendingTaxes = globalTransacoes
+      .filter(t => t.categoria === 'IMPOSTOS' && t.status !== 'PAGO')
+      .reduce((sum, t) => sum + t.valor, 0);
+    const totalImpostoProjetado = pendingTaxes > 0 ? pendingTaxes : (retPercent / 100) * totalVGVProjetado;
+
     // RET Realizado: busca transações da categoria IMPOSTOS pagas, fallback para 4% do VGV realizado
     const paidTaxes = globalTransacoes
       .filter(t => t.categoria === 'IMPOSTOS' && t.status === 'PAGO')
@@ -307,13 +314,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Custos Diretos Realizados: transações pagas associadas a uma casa
+    // Custos Diretos Realizados: regime de competência - toda despesa lançada para uma casa
+    // conta como custo incorrido, independente de já ter sido paga (o fluxo de caixa/DFC
+    // é quem distingue pago vs. pendente para fins de caixa).
     const transacoesApropriadas = await db.transacaoFinanceira.findMany({
       where: {
         empreendimentoId,
         casaId: { not: null },
-        natureza: 'DESPESA',
-        status: 'PAGO'
+        natureza: 'DESPESA'
       },
       include: {
         insumo: true

@@ -3,17 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  Building2, 
-  MapPin, 
-  Home, 
-  ArrowLeft, 
+import {
+  Building2,
+  MapPin,
+  Home,
+  ArrowLeft,
   ArrowRight,
+  ChevronRight,
   Loader2,
   Plus,
-  X,
-  Calendar,
-  DollarSign
+  X
 } from 'lucide-react';
 
 interface Project {
@@ -184,10 +183,6 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
     }).format(val);
   };
 
-  const formatDate = (dateStr: string | Date) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR');
-  };
-
   return (
     <div className="space-y-6">
       {/* Top action header */}
@@ -231,92 +226,101 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                     const isLast = column.id === 'EM_OBRA';
                     const isLoading = loadingId === project.id;
 
+                    const faseIndex = COLUMNS.findIndex(c => c.id === project.statusLegal);
+                    const fasePercent = ((faseIndex + 1) / COLUMNS.length) * 100;
+
                     return (
-                      <div 
-                        key={project.id} 
-                        className="glassmorphism p-4 rounded-xl border border-slate-800/80 hover:border-slate-700 transition relative flex flex-col justify-between"
+                      <div
+                        key={project.id}
+                        className="glassmorphism p-4 rounded-xl border border-slate-850 hover:border-slate-700/80 transition-all duration-200 space-y-3 flex flex-col justify-between"
                       >
-                        <div className="space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 overflow-hidden">
-                              <Building2 size={14} className="text-blue-400 shrink-0" />
-                              <h4 className="font-bold text-sm text-white leading-tight truncate">{project.nome}</h4>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setActiveProjectIdForHouse(project.id);
-                                setActiveProjectNameForHouse(project.nome);
-                              }}
-                              className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-md transition cursor-pointer"
-                              title="Adicionar Casa"
-                            >
-                              <Plus size={12} />
-                            </button>
-                          </div>
-                          
-                          <div className="flex items-center gap-2 text-xs text-slate-400">
-                            <MapPin size={12} className="shrink-0" />
-                            <span className="truncate">{project.localizacao}</span>
-                          </div>
-
-                          {project.orcamento && (
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
-                              <DollarSign size={12} className="shrink-0" />
-                              <span>Orçamento: <strong>{formatCurrency(project.orcamento)}</strong></span>
-                            </div>
-                          )}
-
-                          {(project.dataInicio || project.dataFim) && (
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                              <Calendar size={12} className="shrink-0" />
-                              <span>
-                                {project.dataInicio ? formatDate(project.dataInicio) : '—'} a {project.dataFim ? formatDate(project.dataFim) : '—'}
+                        {/* Top Info */}
+                        <div>
+                          <div className="flex justify-between items-start gap-2">
+                            <h4 className="text-xs font-bold text-slate-100 font-sans flex items-center gap-1.5 truncate">
+                              <Building2 size={12} className="text-blue-400 shrink-0" />
+                              {project.nome}
+                            </h4>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400">
+                                {project._count.casas} unidades
                               </span>
+                              <button
+                                onClick={() => {
+                                  setActiveProjectIdForHouse(project.id);
+                                  setActiveProjectNameForHouse(project.nome);
+                                }}
+                                className="p-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-500 hover:text-white rounded transition cursor-pointer"
+                                title="Adicionar Casa"
+                              >
+                                <Plus size={10} />
+                              </button>
                             </div>
-                          )}
-                          
-                          <div className="flex items-center gap-2 text-xs text-slate-400">
-                            <Home size={12} className="shrink-0" />
-                            <span>{project._count.casas} unidades habitacionais</span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                            <MapPin size={10} className="shrink-0" /> {project.localizacao}
+                          </p>
+                        </div>
+
+                        {/* Progresso da Fase do Empreendimento */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[9px] text-slate-400 font-medium">
+                            <span>Fase do Empreendimento</span>
+                            <span className="font-bold text-slate-200">{Math.round(fasePercent)}%</span>
+                          </div>
+                          <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className="bg-indigo-500 h-full rounded-full transition-all duration-300"
+                              style={{ width: `${fasePercent}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[8px] text-slate-500">
+                            <span>Status: <strong>{column.label}</strong></span>
                           </div>
                         </div>
 
-                        {/* Kanban Action Controls */}
-                        <div className="flex justify-between items-center mt-5 pt-3 border-t border-slate-800/50">
-                          <button
-                            onClick={() => moveProject(project.id, project.statusLegal, 'left')}
-                            disabled={isFirst || isLoading}
-                            className={`p-1.5 rounded-lg border border-slate-700/50 hover:bg-slate-800/80 hover:text-white transition disabled:opacity-20 disabled:hover:bg-transparent ${isFirst ? 'text-slate-600' : 'text-slate-400'}`}
-                            title="Recuar fase burocrática"
-                          >
-                            <ArrowLeft size={14} />
-                          </button>
-
-                          <div className="flex gap-1.5 items-center">
-                            <Link
-                              href={`/empreendimentos/${project.id}/ficha-tecnica?tab=financeiro`}
-                              className="flex items-center gap-1 px-2 py-1 text-[9px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded border border-indigo-500/20 transition font-bold"
-                            >
-                              DRE
-                            </Link>
-                            <Link
-                              href={`/empreendimentos/${project.id}/ficha-tecnica`}
-                              className="flex items-center gap-1 px-2 py-1 text-[9px] bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded border border-blue-500/20 transition font-bold"
-                            >
-                              Ficha
-                            </Link>
+                        {/* Rodapé Financeiro e Botão de Acesso */}
+                        <div className="flex justify-between items-center border-t border-slate-900/60 pt-2.5 mt-1">
+                          <div className="space-y-0.5">
+                            <span className="text-[8px] text-slate-500 block uppercase font-bold">Orçamento</span>
+                            <span className="text-[10px] font-bold text-slate-300 font-mono">
+                              {project.orcamento ? formatCurrency(project.orcamento) : '—'}
+                            </span>
                           </div>
-                          
-                          {isLoading && <Loader2 size={14} className="animate-spin text-slate-500" />}
 
-                          <button
-                            onClick={() => moveProject(project.id, project.statusLegal, 'right')}
-                            disabled={isLast || isLoading}
-                            className={`p-1.5 rounded-lg border border-slate-700/50 hover:bg-slate-800/80 hover:text-white transition disabled:opacity-20 disabled:hover:bg-transparent ${isLast ? 'text-slate-600' : 'text-slate-400'}`}
-                            title="Avançar fase burocrática"
-                          >
-                            <ArrowRight size={14} />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isFirst || isLoading}
+                              onClick={() => moveProject(project.id, project.statusLegal, 'left')}
+                              className="p-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white rounded text-slate-500 hover:text-slate-300 disabled:opacity-20 disabled:hover:bg-slate-900 disabled:hover:text-slate-500 transition cursor-pointer"
+                              title="Recuar fase do empreendimento"
+                            >
+                              <ArrowLeft size={10} />
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isLast || isLoading}
+                              onClick={() => moveProject(project.id, project.statusLegal, 'right')}
+                              className="p-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white rounded text-slate-500 hover:text-slate-300 disabled:opacity-20 disabled:hover:bg-slate-900 disabled:hover:text-slate-500 transition cursor-pointer"
+                              title="Avançar fase do empreendimento"
+                            >
+                              <ArrowRight size={10} />
+                            </button>
+
+                            {isLoading ? (
+                              <Loader2 size={14} className="animate-spin text-slate-500" />
+                            ) : (
+                              <Link
+                                href={`/empreendimentos/${project.id}/ficha-tecnica`}
+                                title="Ver Ficha Detalhada"
+                                className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white rounded-lg text-slate-400 transition cursor-pointer"
+                              >
+                                <ChevronRight size={14} />
+                              </Link>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

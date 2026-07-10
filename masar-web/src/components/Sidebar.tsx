@@ -32,7 +32,7 @@ import { useEffect, useState, useRef } from 'react';
 import ModalNovoLancamento from './ModalNovoLancamento';
 
 const PROCESS_MENU_ITEMS = [
-  { name: 'Fase Legal (Projetos)', href: '/empreendimentos', icon: KanbanSquare, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+  { name: 'Empreendimentos', href: '/empreendimentos', icon: KanbanSquare, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
   { name: 'Vendas (Comercial)', href: '/comercial', icon: BadgeDollarSign, roles: ['ADMIN', 'FINANCEIRO', 'COMERCIAL'] },
   { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
   { name: 'Suprimentos (Compras)', href: '/suprimentos', icon: ShoppingBag, roles: ['ADMIN', 'FINANCEIRO'] },
