@@ -1,21 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Calculator, 
-  TrendingUp, 
-  Loader2, 
-  DollarSign,
+import {
+  Building2,
+  Calculator,
+  TrendingUp,
+  Loader2,
   FileSpreadsheet,
-  Layers,
-  Filter,
-  CheckCircle,
-  Clock,
   Search,
-  RefreshCw,
   Trash2,
-  AlertOctagon
+  SlidersHorizontal,
+  ChevronDown,
+  Landmark,
+  Package,
+  HardHat,
+  Percent,
+  Banknote,
+  Wallet
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -29,6 +30,28 @@ import {
   CartesianGrid 
 } from 'recharts';
 import DreWaterfallChart from '@/components/DreWaterfallChart';
+
+const CATEGORY_META: Record<string, { icon: any; label: string; color: string }> = {
+  TERRENO: { icon: Landmark, label: 'Aquisição Terreno', color: 'text-blue-400 bg-blue-500/10' },
+  PROJETOS: { icon: FileSpreadsheet, label: 'Projetos/Licença', color: 'text-purple-400 bg-purple-500/10' },
+  MATERIAL: { icon: Package, label: 'Materiais', color: 'text-amber-400 bg-amber-500/10' },
+  MAO_DE_OBRA: { icon: HardHat, label: 'Mão de Obra', color: 'text-orange-400 bg-orange-500/10' },
+  IMPOSTOS: { icon: Percent, label: 'Impostos RET', color: 'text-red-400 bg-red-500/10' },
+  MEDICAO_CAIXA: { icon: Banknote, label: 'Medição CEF', color: 'text-emerald-400 bg-emerald-500/10' },
+  ENTRADA_CLIENTE: { icon: Wallet, label: 'Entrada Cliente', color: 'text-emerald-400 bg-emerald-500/10' }
+};
+
+function formatDayLabel(dateStr: string) {
+  const d = new Date(dateStr);
+  d.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - d.getTime()) / 86400000);
+  if (diffDays === 0) return 'Hoje';
+  if (diffDays === 1) return 'Ontem';
+  if (diffDays === -1) return 'Amanhã';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', weekday: 'short' });
+}
 
 export default function CentralFinanceiraPage() {
   const [empreendimentos, setEmpreendimentos] = useState<any[]>([]);
@@ -53,6 +76,7 @@ export default function CentralFinanceiraPage() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterCategoria, setFilterCategoria] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Fetch initial project list
   useEffect(() => {
@@ -181,6 +205,26 @@ export default function CentralFinanceiraPage() {
       return matchDesc || matchVal;
     }
     return true;
+  });
+
+  const activeFilterCount = [filterCasaId !== 'ALL', filterStatus !== 'ALL', filterCategoria !== 'ALL'].filter(Boolean).length;
+
+  // Agrupamento do extrato por dia (feed estilo extrato bancário)
+  const getDisplayDate = (t: any) => (t.status === 'PAGO' && t.dataPagamento ? t.dataPagamento : t.dataVencimento);
+  const sortedForFeed = [...filteredTransactions].sort(
+    (a, b) => new Date(getDisplayDate(b)).getTime() - new Date(getDisplayDate(a)).getTime()
+  );
+  const feedGroups: { key: string; label: string; net: number; items: any[] }[] = [];
+  sortedForFeed.forEach(t => {
+    const displayDate = getDisplayDate(t);
+    const dayKey = new Date(displayDate).toISOString().split('T')[0];
+    let group = feedGroups.find(g => g.key === dayKey);
+    if (!group) {
+      group = { key: dayKey, label: formatDayLabel(displayDate), net: 0, items: [] };
+      feedGroups.push(group);
+    }
+    group.items.push(t);
+    group.net += t.natureza === 'RECEITA' ? t.valor : -t.valor;
   });
 
   if (loadingProjects) {
@@ -482,32 +526,48 @@ export default function CentralFinanceiraPage() {
       )}
 
       {/* ========================================== */}
-      {/* VIEW TAB: EXTRATO LIVRO-CAIXA */}
+      {/* VIEW TAB: EXTRATO LIVRO-CAIXA (FEED) */}
       {/* ========================================== */}
       {!loadingData && activeTab === 'livro_caixa' && (
         <div className="space-y-4 animate-fadeIn">
-          
-          {/* Filters Bar */}
-          <div className="p-4 bg-[#0f1422] border border-slate-800/80 rounded-2xl grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="relative">
+
+          {/* Busca + botão de filtros discreto */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 type="text"
-                placeholder="Buscar descrição ou valor..."
+                placeholder="Buscar no extrato..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#070a13] border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-[#0f1422] border border-slate-800 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50"
               />
             </div>
+            <button
+              onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 border ${
+                showFilters || activeFilterCount > 0
+                  ? 'bg-indigo-600/10 border-indigo-500/40 text-indigo-400'
+                  : 'bg-[#0f1422] border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <SlidersHorizontal size={13} />
+              Filtros
+              {activeFilterCount > 0 && (
+                <span className="bg-indigo-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+              <ChevronDown size={12} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
 
-            {/* Casa filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-500 font-bold uppercase shrink-0">Lote:</span>
+          {showFilters && (
+            <div className="p-4 bg-[#0f1422] border border-slate-800/80 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-3 animate-fadeIn">
               <select
                 value={filterCasaId}
                 onChange={(e) => setFilterCasaId(e.target.value)}
-                className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-350 focus:outline-none"
+                className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-2.5 py-2 text-xs text-slate-350 focus:outline-none"
               >
                 <option value="ALL">Todos os Lotes</option>
                 <option value="GLOBAL">Apenas Global (Projetos/Terreno)</option>
@@ -515,15 +575,11 @@ export default function CentralFinanceiraPage() {
                   <option key={c.id} value={c.id}>Qd {c.quadra}, Casa {c.numero}</option>
                 ))}
               </select>
-            </div>
 
-            {/* Categoria filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-500 font-bold uppercase shrink-0">Cat:</span>
               <select
                 value={filterCategoria}
                 onChange={(e) => setFilterCategoria(e.target.value)}
-                className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-350 focus:outline-none"
+                className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-2.5 py-2 text-xs text-slate-350 focus:outline-none"
               >
                 <option value="ALL">Todas Categorias</option>
                 <option value="TERRENO">Terreno</option>
@@ -534,134 +590,103 @@ export default function CentralFinanceiraPage() {
                 <option value="MEDICAO_CAIXA">Medições CEF</option>
                 <option value="ENTRADA_CLIENTE">Entradas Cliente</option>
               </select>
-            </div>
 
-            {/* Status filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-500 font-bold uppercase shrink-0">Status:</span>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-350 focus:outline-none"
-              >
-                <option value="ALL">Todos</option>
-                <option value="PAGO">Pago / Liquidado</option>
-                <option value="PENDENTE">Pendente / Aberto</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Ledger Table */}
-          <div className="glassmorphism p-5 rounded-2xl border border-slate-850">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <FileSpreadsheet size={14} className="text-indigo-400" /> Livro-Caixa Consolidado ({filteredTransactions.length} registros)
-              </h3>
-              {searchTerm || filterCasaId !== 'ALL' || filterStatus !== 'ALL' || filterCategoria !== 'ALL' ? (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setFilterCasaId('ALL');
-                    setFilterStatus('ALL');
-                    setFilterCategoria('ALL');
-                  }}
-                  className="text-[10px] text-indigo-400 hover:text-indigo-350 transition flex items-center gap-1 cursor-pointer font-semibold"
+              <div className="flex gap-2">
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full bg-[#070a13] border border-slate-800 rounded-xl px-2.5 py-2 text-xs text-slate-350 focus:outline-none"
                 >
-                  Limpar Filtros
-                </button>
-              ) : null}
+                  <option value="ALL">Todos os Status</option>
+                  <option value="PAGO">Pago / Liquidado</option>
+                  <option value="PENDENTE">Pendente / Aberto</option>
+                </select>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={() => {
+                      setFilterCasaId('ALL');
+                      setFilterStatus('ALL');
+                      setFilterCategoria('ALL');
+                    }}
+                    className="text-[10px] text-indigo-400 hover:text-indigo-350 transition cursor-pointer font-semibold shrink-0 px-2"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Feed cronológico */}
+          <div className="glassmorphism rounded-2xl border border-slate-850 overflow-hidden">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-slate-900">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <FileSpreadsheet size={14} className="text-indigo-400" /> Extrato
+              </h3>
+              <span className="text-[10px] text-slate-500 font-mono">{filteredTransactions.length} lançamentos</span>
             </div>
 
-            <div className="overflow-x-auto border border-slate-900 rounded-xl">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-950/80 border-b border-slate-900 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-4">Data Venc.</th>
-                    <th className="py-3 px-4">Descrição</th>
-                    <th className="py-3 px-4">Lote / Vínculo</th>
-                    <th className="py-3 px-4">Categoria</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Fluxo / Valor</th>
-                    <th className="py-3 px-4 text-center">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-900/60 text-slate-300 font-mono">
-                  {loadingTransactions ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-500 italic font-sans">
-                        Carregando livro-caixa universal...
-                      </td>
-                    </tr>
-                  ) : filteredTransactions.map((t) => {
-                    const isIncome = t.natureza === 'RECEITA';
-                    const isPaid = t.status === 'PAGO';
-                    const displayDate = isPaid && t.dataPagamento ? t.dataPagamento : t.dataVencimento;
+            {loadingTransactions ? (
+              <div className="py-16 text-center text-slate-500 text-xs italic">Carregando extrato...</div>
+            ) : feedGroups.length === 0 ? (
+              <div className="py-16 text-center text-slate-500 text-xs italic">Nenhuma transação encontrada para os filtros selecionados.</div>
+            ) : (
+              <div className="divide-y divide-slate-900/60">
+                {feedGroups.map(group => (
+                  <div key={group.key}>
+                    <div className="flex justify-between items-center px-5 py-2 bg-slate-950/50">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{group.label}</span>
+                      <span className={`text-[10px] font-mono font-bold ${group.net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {group.net >= 0 ? '+' : ''}{formatCurrency(group.net)}
+                      </span>
+                    </div>
 
-                    return (
-                      <tr key={t.id} className="hover:bg-slate-900/20 transition-all">
-                        <td className="py-3 px-4 text-slate-400 font-sans">
-                          {new Date(displayDate).toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="py-3 px-4 font-sans font-medium text-slate-200">
-                          {t.descricao}
-                          {t.cliente?.nome && (
-                            <span className="text-[9px] text-indigo-400 bg-indigo-950/40 border border-indigo-900/40 rounded-md px-1.5 py-0.5 ml-2 font-sans font-normal">
-                              Padrão: {t.cliente.nome}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 font-sans">
-                          {t.casaId ? (
-                            <span className="text-slate-300 font-semibold">Lote Qd {t.casa.quadra}, Casa {t.casa.numero}</span>
-                          ) : (
-                            <span className="text-slate-500 italic">Custo Global Empr.</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 font-sans text-xs text-slate-400">
-                          {t.categoria === 'MEDICAO_CAIXA' && 'Medição CEF'}
-                          {t.categoria === 'ENTRADA_CLIENTE' && 'Entrada Cliente'}
-                          {t.categoria === 'MATERIAL' && 'Materiais'}
-                          {t.categoria === 'MAO_DE_OBRA' && 'Mão de Obra'}
-                          {t.categoria === 'TERRENO' && 'Aquisição Terreno'}
-                          {t.categoria === 'PROJETOS' && 'Projetos/Licença'}
-                          {t.categoria === 'IMPOSTOS' && 'Impostos RET'}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-sans font-bold leading-normal ${
-                            isPaid
-                              ? 'bg-emerald-950/40 border border-emerald-800/40 text-emerald-400'
-                              : 'bg-amber-950/40 border border-amber-800/40 text-amber-400'
-                          }`}>
-                            {isPaid ? <CheckCircle size={10} /> : <Clock size={10} />}
-                            {isPaid ? 'Liquidado' : 'Pendente'}
+                    {group.items.map(t => {
+                      const meta = CATEGORY_META[t.categoria] || { icon: FileSpreadsheet, label: t.categoria, color: 'text-slate-400 bg-slate-500/10' };
+                      const Icon = meta.icon;
+                      const isIncome = t.natureza === 'RECEITA';
+                      const isPaid = t.status === 'PAGO';
+
+                      return (
+                        <div key={t.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-900/20 transition group">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${meta.color}`}>
+                            <Icon size={16} />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-slate-100 truncate">{t.descricao}</span>
+                              {!isPaid && (
+                                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 shrink-0">
+                                  Pendente
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {meta.label}
+                              {t.casaId ? ` · Qd ${t.casa.quadra}, Casa ${t.casa.numero}` : ' · Custo Global'}
+                              {t.cliente?.nome ? ` · ${t.cliente.nome}` : ''}
+                            </p>
+                          </div>
+
+                          <span className={`text-xs font-bold font-mono shrink-0 ${isIncome ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {isIncome ? '+' : '-'}{formatCurrency(t.valor)}
                           </span>
-                        </td>
-                        <td className={`py-3 px-4 text-right font-bold ${isIncome ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {isIncome ? '+' : '-'}{formatCurrency(t.valor)}
-                        </td>
-                        <td className="py-3 px-4 text-center">
+
                           <button
                             onClick={() => handleDeleteTransaction(t.id, t.casaId === null)}
-                            className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-red-400 transition cursor-pointer"
+                            className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-red-400 transition cursor-pointer shrink-0"
                             title="Excluir Lançamento"
                           >
                             <Trash2 size={12} />
                           </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {!loadingTransactions && filteredTransactions.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-500 italic font-sans">
-                        Nenhuma transação encontrada para os filtros selecionados.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
