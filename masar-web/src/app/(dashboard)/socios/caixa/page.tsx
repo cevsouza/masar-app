@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import SocioCaixaForm from '@/components/SocioCaixaForm';
+import { calcularCaixaLivre } from '@/lib/socioGuardrail';
 
 export const revalidate = 0; // Real-time calculation of liquidity metrics
 
@@ -27,57 +28,12 @@ export default async function SociosCaixaPage() {
     orderBy: { data: 'desc' }
   });
 
-  // 2. Calcule o Custo a Incorrer
+  // 2-5. Custo a incorrer, recebíveis, saldo bancário e caixa livre
+  const { caixaLivre, saldoBancario, custoAIncorrer, recebiveisCurtoPrazo } = await calcularCaixaLivre();
+
   const activeHouses = await db.casa.findMany({
-    where: {
-      statusObra: { notIn: ['CONCLUIDA'] }
-    },
-    include: {
-      orcamento: {
-        include: { itens: true }
-      },
-      transacoes: {
-        where: {
-          natureza: 'DESPESA',
-          status: 'PAGO'
-        }
-      }
-    }
+    where: { statusObra: { notIn: ['CONCLUIDA'] } }
   });
-
-  let totalOrcadoAtivas = 0;
-  let totalRealizadoAtivas = 0;
-
-  activeHouses.forEach(h => {
-    const orado = h.orcamento?.itens.reduce((acc, it) => acc + (it.quantidadePlanejada * it.custoUnitarioPrevisto), 0) || 0;
-    const real = h.transacoes.filter(t => t.categoria === 'MATERIAL' || t.categoria === 'MAO_DE_OBRA').reduce((acc, t) => acc + t.valor, 0) || 0;
-    totalOrcadoAtivas += orado;
-    totalRealizadoAtivas += real;
-  });
-
-  const custoAIncorrer = Math.max(0, totalOrcadoAtivas - totalRealizadoAtivas);
-
-  // 3. Recebíveis de Curto Prazo (próximos 30 dias)
-  const limit30Days = new Date();
-  limit30Days.setDate(limit30Days.getDate() + 30);
-  const contasReceberSum = await db.transacaoFinanceira.aggregate({
-    where: {
-      natureza: 'RECEITA',
-      status: 'PENDENTE',
-      dataVencimento: { lte: limit30Days }
-    },
-    _sum: { valor: true }
-  });
-  const recebiveisCurtoPrazo = contasReceberSum._sum.valor || 0;
-
-  // 4. Saldo das Contas Bancárias
-  const contasSum = await db.contaBancaria.aggregate({
-    _sum: { saldoAtual: true }
-  });
-  const saldoBancario = contasSum._sum.saldoAtual || 0;
-
-  // 5. Caixa Livre
-  const caixaLivre = (saldoBancario + recebiveisCurtoPrazo) - custoAIncorrer;
 
   // 6. Projeção de fluxo de caixa simplificada para os próximos 6 meses (para o gráfico Recharts)
   // Receita projetada: parcelas a receber no mês + medições estimadas
@@ -127,7 +83,9 @@ export default async function SociosCaixaPage() {
   // Serialização de datas das movimentações para props simples
   const serializedMovs = movimentacoes.map(m => ({
     id: m.id,
+    socioId: m.socioId,
     socioNome: m.socio.nome,
+    empreendimentoId: m.empreendimentoId,
     empNome: m.empreendimento?.nome || 'Geral/Institucional',
     tipo: m.tipo,
     valor: m.valor,

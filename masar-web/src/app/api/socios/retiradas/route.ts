@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifySession } from '@/lib/auth';
+import { calcularCaixaLivre } from '@/lib/socioGuardrail';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const sessionToken = request.cookies.get('masar_session')?.value;
+    const session = sessionToken ? await verifySession(sessionToken) : null;
+    if (!session || !['ADMIN', 'FINANCEIRO'].includes(session.role || '')) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
     const movimentacoes = await db.movimentacaoSocio.findMany({
       include: {
         socio: true,
@@ -19,6 +27,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const sessionToken = request.cookies.get('masar_session')?.value;
+    const session = sessionToken ? await verifySession(sessionToken) : null;
+    if (!session || !['ADMIN', 'FINANCEIRO'].includes(session.role || '')) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { socioId, tipo, valor, empreendimentoId } = body;
 
@@ -33,56 +47,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Algoritmo de Caixa Livre e Custo a Incorrer (VITAL)
     if (tipo === 'RETIRADA_LUCRO') {
-      const activeHouses = await db.casa.findMany({
-        where: {
-          statusObra: { notIn: ['CONCLUIDA'] }
-        },
-        include: {
-          orcamento: {
-            include: { itens: true }
-          },
-          transacoes: {
-            where: {
-              natureza: 'DESPESA',
-              status: 'PAGO'
-            }
-          }
-        }
-      });
-
-      let totalOrcadoAtivas = 0;
-      let totalRealizadoAtivas = 0;
-
-      activeHouses.forEach(h => {
-        const orado = h.orcamento?.itens.reduce((acc, it) => acc + (it.quantidadePlanejada * it.custoUnitarioPrevisto), 0) || 0;
-        const real = h.transacoes.filter(t => t.categoria === 'MATERIAL' || t.categoria === 'MAO_DE_OBRA').reduce((acc, t) => acc + t.valor, 0) || 0;
-        totalOrcadoAtivas += orado;
-        totalRealizadoAtivas += real;
-      });
-
-      const custoAIncorrer = Math.max(0, totalOrcadoAtivas - totalRealizadoAtivas);
-
-      // Recebíveis de Curto Prazo (próximos 30 dias)
-      const limit30Days = new Date();
-      limit30Days.setDate(limit30Days.getDate() + 30);
-      const contasReceberSum = await db.transacaoFinanceira.aggregate({
-        where: {
-          natureza: 'RECEITA',
-          status: 'PENDENTE',
-          dataVencimento: { lte: limit30Days }
-        },
-        _sum: { valor: true }
-      });
-      const recebiveisCurtoPrazo = contasReceberSum._sum.valor || 0;
-
-      // Saldo das Contas Bancárias
-      const contasSum = await db.contaBancaria.aggregate({
-        _sum: { saldoAtual: true }
-      });
-      const saldoContas = contasSum._sum.saldoAtual || 0;
-
-      // Caixa Livre
-      const caixaLivre = (saldoContas + recebiveisCurtoPrazo) - custoAIncorrer;
+      const { caixaLivre, custoAIncorrer } = await calcularCaixaLivre();
 
       if (valorFloat > caixaLivre) {
         const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);

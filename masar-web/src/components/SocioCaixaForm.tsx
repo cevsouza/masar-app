@@ -2,17 +2,23 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  ArrowUpCircle, 
-  ArrowDownCircle, 
-  ShieldAlert, 
-  ShieldCheck, 
-  Users, 
+import {
+  DollarSign,
+  TrendingUp,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  ShieldAlert,
+  ShieldCheck,
+  Users,
   PiggyBank,
   History,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  Pencil,
+  X,
+  ChevronDown,
+  Split,
+  Loader2
 } from 'lucide-react';
 import {
   LineChart,
@@ -45,7 +51,9 @@ interface Project {
 
 interface Movimentacao {
   id: string;
+  socioId: string;
   socioNome: string;
+  empreendimentoId: string | null;
   empNome: string;
   tipo: string;
   valor: number;
@@ -84,6 +92,165 @@ export default function SocioCaixaForm({
   const [valorMov, setValorMov] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Extrato individual por sócio (expandir linha)
+  const [expandedSocioId, setExpandedSocioId] = useState<string | null>(null);
+
+  // Modal de criar/editar sócio
+  const [isSocioModalOpen, setIsSocioModalOpen] = useState(false);
+  const [editingSocioId, setEditingSocioId] = useState<string | null>(null);
+  const [socioNomeInput, setSocioNomeInput] = useState('');
+  const [socioCotasInput, setSocioCotasInput] = useState('');
+  const [isSavingSocio, setIsSavingSocio] = useState(false);
+  const [socioFeedback, setSocioFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Modal de distribuição de lucro
+  const [isDistribuirModalOpen, setIsDistribuirModalOpen] = useState(false);
+  const [distribuirProjectId, setDistribuirProjectId] = useState('');
+  const [distribuirValor, setDistribuirValor] = useState('');
+  const [dreLucroApurado, setDreLucroApurado] = useState<number | null>(null);
+  const [loadingDreDistribuicao, setLoadingDreDistribuicao] = useState(false);
+  const [isSavingDistribuicao, setIsSavingDistribuicao] = useState(false);
+  const [distribuicaoFeedback, setDistribuicaoFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const totalCotasCadastradas = socios.reduce((sum, s) => sum + s.percentualCotas, 0);
+
+  const extratoPorSocio = socios.map(s => {
+    const movs = initialMovimentacoes.filter(m => m.socioId === s.id);
+    const totalAportado = movs.filter(m => m.tipo === 'APORTE').reduce((sum, m) => sum + m.valor, 0);
+    const totalRetiradaLucro = movs.filter(m => m.tipo === 'RETIRADA_LUCRO').reduce((sum, m) => sum + m.valor, 0);
+    const totalProLabore = movs.filter(m => m.tipo === 'PRO_LABORE').reduce((sum, m) => sum + m.valor, 0);
+    return {
+      ...s,
+      totalAportado,
+      totalRetiradaLucro,
+      totalProLabore,
+      saldoCapitalInvestido: totalAportado - totalRetiradaLucro,
+      movimentacoes: movs
+    };
+  });
+
+  const jaDistribuidoNoProjeto = distribuirProjectId
+    ? initialMovimentacoes
+        .filter(m => m.tipo === 'RETIRADA_LUCRO' && m.empreendimentoId === distribuirProjectId)
+        .reduce((sum, m) => sum + m.valor, 0)
+    : 0;
+
+  const disponivelParaDistribuir = dreLucroApurado !== null
+    ? Math.max(0, dreLucroApurado - jaDistribuidoNoProjeto)
+    : 0;
+
+  const previewDistribuicao = socios
+    .filter(s => s.percentualCotas > 0)
+    .map(s => ({
+      ...s,
+      valor: totalCotasCadastradas > 0
+        ? Math.round((parseFloat(distribuirValor || '0') * (s.percentualCotas / totalCotasCadastradas)) * 100) / 100
+        : 0
+    }));
+
+  const openNewSocioModal = () => {
+    setEditingSocioId(null);
+    setSocioNomeInput('');
+    setSocioCotasInput('');
+    setSocioFeedback(null);
+    setIsSocioModalOpen(true);
+  };
+
+  const openEditSocioModal = (socio: Socio) => {
+    setEditingSocioId(socio.id);
+    setSocioNomeInput(socio.nome);
+    setSocioCotasInput(String(socio.percentualCotas));
+    setSocioFeedback(null);
+    setIsSocioModalOpen(true);
+  };
+
+  const handleSaveSocio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!socioNomeInput || !socioCotasInput) {
+      setSocioFeedback({ type: 'error', message: 'Preencha o nome e o percentual de cotas.' });
+      return;
+    }
+
+    setIsSavingSocio(true);
+    setSocioFeedback(null);
+    try {
+      const url = editingSocioId ? `/api/socios/${editingSocioId}` : '/api/socios';
+      const method = editingSocioId ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: socioNomeInput, percentualCotas: parseFloat(socioCotasInput) })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar sócio.');
+
+      setIsSocioModalOpen(false);
+      router.refresh();
+    } catch (err: any) {
+      setSocioFeedback({ type: 'error', message: err.message });
+    } finally {
+      setIsSavingSocio(false);
+    }
+  };
+
+  const openDistribuirModal = () => {
+    setDistribuirProjectId('');
+    setDistribuirValor('');
+    setDreLucroApurado(null);
+    setDistribuicaoFeedback(null);
+    setIsDistribuirModalOpen(true);
+  };
+
+  const handleDistribuirProjectChange = async (projectId: string) => {
+    setDistribuirProjectId(projectId);
+    setDreLucroApurado(null);
+    setDistribuirValor('');
+    if (!projectId) return;
+
+    setLoadingDreDistribuicao(true);
+    try {
+      const res = await fetch(`/api/financeiro/dre?empreendimentoId=${projectId}`);
+      const data = await res.json();
+      if (res.ok) {
+        setDreLucroApurado(data.lucroLiquidoRealizado || 0);
+        const jaDist = initialMovimentacoes
+          .filter(m => m.tipo === 'RETIRADA_LUCRO' && m.empreendimentoId === projectId)
+          .reduce((sum, m) => sum + m.valor, 0);
+        setDistribuirValor(String(Math.max(0, (data.lucroLiquidoRealizado || 0) - jaDist)));
+      }
+    } catch (err) {
+      console.error('Erro ao buscar DRE para distribuição:', err);
+    } finally {
+      setLoadingDreDistribuicao(false);
+    }
+  };
+
+  const handleConfirmDistribuicao = async () => {
+    if (!distribuirProjectId || !distribuirValor || parseFloat(distribuirValor) <= 0) {
+      setDistribuicaoFeedback({ type: 'error', message: 'Selecione o empreendimento e informe um valor válido.' });
+      return;
+    }
+
+    setIsSavingDistribuicao(true);
+    setDistribuicaoFeedback(null);
+    try {
+      const res = await fetch('/api/socios/distribuir-lucro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empreendimentoId: distribuirProjectId, valorTotal: parseFloat(distribuirValor) })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao distribuir lucro.');
+
+      setIsDistribuirModalOpen(false);
+      router.refresh();
+    } catch (err: any) {
+      setDistribuicaoFeedback({ type: 'error', message: err.message });
+    } finally {
+      setIsSavingDistribuicao(false);
+    }
+  };
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -243,24 +410,95 @@ export default function SocioCaixaForm({
 
         {/* Quadro Societário (Sócios Cotistas) */}
         <div className="lg:col-span-4 glassmorphism p-5 rounded-2xl border border-slate-800/80">
-          <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <Users size={16} className="text-blue-400" /> Quadro de Cotistas
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Users size={16} className="text-blue-400" /> Quadro de Cotistas
+            </h3>
+            <button
+              type="button"
+              onClick={openNewSocioModal}
+              className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
+              title="Adicionar Sócio"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
 
           <div className="divide-y divide-slate-800/60 text-xs">
-            {socios.map(socio => (
-              <div key={socio.id} className="py-3 flex justify-between items-center">
-                <span className="font-semibold text-slate-200">{socio.nome}</span>
-                <div className="text-right">
-                  <p className="font-mono font-bold text-white">{socio.percentualCotas}%</p>
-                  <p className="text-[9px] text-slate-500 uppercase">das cotas sociais</p>
+            {extratoPorSocio.map(socio => {
+              const isExpanded = expandedSocioId === socio.id;
+              return (
+                <div key={socio.id} className="py-1">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSocioId(isExpanded ? null : socio.id)}
+                    className="w-full py-2 flex justify-between items-center cursor-pointer text-left"
+                  >
+                    <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                      <ChevronDown size={12} className={`text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      {socio.nome}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-white">{socio.percentualCotas}%</p>
+                        <p className="text-[9px] text-slate-500 uppercase">das cotas</p>
+                      </div>
+                      <span
+                        role="button"
+                        onClick={(e) => { e.stopPropagation(); openEditSocioModal(socio); }}
+                        className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-white transition cursor-pointer"
+                        title="Editar Sócio"
+                      >
+                        <Pencil size={11} />
+                      </span>
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="pb-3 pl-4 pt-1 grid grid-cols-2 gap-2 text-[10px] animate-fadeIn">
+                      <div className="bg-slate-900/40 rounded-lg p-2">
+                        <span className="text-slate-500 block uppercase font-bold">Aportado</span>
+                        <span className="font-mono font-bold text-emerald-400">{formatCurrency(socio.totalAportado)}</span>
+                      </div>
+                      <div className="bg-slate-900/40 rounded-lg p-2">
+                        <span className="text-slate-500 block uppercase font-bold">Retirado (Lucro)</span>
+                        <span className="font-mono font-bold text-slate-200">{formatCurrency(socio.totalRetiradaLucro)}</span>
+                      </div>
+                      <div className="bg-slate-900/40 rounded-lg p-2">
+                        <span className="text-slate-500 block uppercase font-bold">Pró-labore Recebido</span>
+                        <span className="font-mono font-bold text-slate-200">{formatCurrency(socio.totalProLabore)}</span>
+                      </div>
+                      <div className="bg-slate-900/40 rounded-lg p-2">
+                        <span className="text-slate-500 block uppercase font-bold">Saldo de Capital</span>
+                        <span className={`font-mono font-bold ${socio.saldoCapitalInvestido >= 0 ? 'text-indigo-400' : 'text-red-400'}`}>
+                          {formatCurrency(socio.saldoCapitalInvestido)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {socios.length === 0 && (
               <p className="text-xs text-slate-500 text-center py-6">Nenhum sócio cadastrado.</p>
             )}
           </div>
+
+          {totalCotasCadastradas !== 100 && socios.length > 0 && (
+            <p className="text-[9px] text-amber-400 mt-3 flex items-start gap-1">
+              <AlertTriangle size={10} className="shrink-0 mt-0.5" />
+              Cotas somam {totalCotasCadastradas}%, não 100%. A distribuição de lucro é normalizada proporcionalmente.
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={openDistribuirModal}
+            className="w-full mt-4 py-2.5 bg-purple-650 hover:bg-purple-600 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-purple-650/10"
+          >
+            <Split size={13} />
+            Distribuir Lucro entre Sócios
+          </button>
         </div>
       </div>
 
@@ -405,6 +643,198 @@ export default function SocioCaixaForm({
           </div>
         </div>
       </div>
+
+      {/* Modal: Novo/Editar Sócio */}
+      {isSocioModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-sm rounded-2xl border border-slate-800 shadow-2xl p-6 relative">
+            <button
+              onClick={() => setIsSocioModalOpen(false)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            >
+              <X size={16} />
+            </button>
+
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-slate-850 pb-2 flex items-center gap-2">
+              <Users size={16} className="text-blue-400" /> {editingSocioId ? 'Editar Sócio' : 'Novo Sócio'}
+            </h4>
+
+            {socioFeedback && (
+              <div className={`p-3 rounded-xl border text-xs leading-relaxed mb-4 ${
+                socioFeedback.type === 'success'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-red-500/10 border-red-500/30 text-red-400'
+              }`}>
+                {socioFeedback.message}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSocio} className="space-y-4 text-xs text-slate-300">
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Nome do Sócio *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Carlos Eduardo Souza"
+                  value={socioNomeInput}
+                  onChange={(e) => setSocioNomeInput(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Percentual de Cotas (%) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  required
+                  placeholder="Ex: 50"
+                  value={socioCotasInput}
+                  onChange={(e) => setSocioCotasInput(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500/50 font-mono"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsSocioModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-xl font-bold transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSocio}
+                  className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  {isSavingSocio && <Loader2 size={12} className="animate-spin" />}
+                  {editingSocioId ? 'Salvar Alterações' : 'Cadastrar Sócio'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Distribuir Lucro entre Sócios */}
+      {isDistribuirModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-lg rounded-2xl border border-slate-800 shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsDistribuirModalOpen(false)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            >
+              <X size={16} />
+            </button>
+
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+              <Split size={16} className="text-purple-400" /> Distribuir Lucro entre Sócios
+            </h4>
+            <p className="text-[10px] text-slate-450 mb-4">
+              Gera uma retirada de lucro para cada sócio, proporcional ao percentual de cotas, direto na tesouraria.
+            </p>
+
+            {distribuicaoFeedback && (
+              <div className={`p-3 rounded-xl border text-xs leading-relaxed mb-4 ${
+                distribuicaoFeedback.type === 'success'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-red-500/10 border-red-500/30 text-red-400'
+              }`}>
+                {distribuicaoFeedback.message}
+              </div>
+            )}
+
+            <div className="space-y-4 text-xs text-slate-300">
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Empreendimento *</label>
+                <select
+                  value={distribuirProjectId}
+                  onChange={(e) => handleDistribuirProjectChange(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-purple-500/50"
+                >
+                  <option value="">-- Selecione o Empreendimento --</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              {loadingDreDistribuicao && (
+                <div className="flex items-center gap-2 text-slate-400 py-2">
+                  <Loader2 size={14} className="animate-spin" /> Calculando lucro apurado...
+                </div>
+              )}
+
+              {!loadingDreDistribuicao && dreLucroApurado !== null && (
+                <div className="grid grid-cols-3 gap-2 p-3 bg-slate-900/40 border border-slate-800 rounded-xl">
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase font-bold block">Lucro Apurado</span>
+                    <span className="font-mono font-bold text-emerald-400">{formatCurrency(dreLucroApurado)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase font-bold block">Já Distribuído</span>
+                    <span className="font-mono font-bold text-slate-300">{formatCurrency(jaDistribuidoNoProjeto)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase font-bold block">Disponível</span>
+                    <span className="font-mono font-bold text-indigo-400">{formatCurrency(disponivelParaDistribuir)}</span>
+                  </div>
+                </div>
+              )}
+
+              {distribuirProjectId && (
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Valor a Distribuir (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={distribuirValor}
+                    onChange={(e) => setDistribuirValor(e.target.value)}
+                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-purple-500/50 font-mono"
+                  />
+                </div>
+              )}
+
+              {distribuirProjectId && distribuirValor && parseFloat(distribuirValor) > 0 && (
+                <div className="border-t border-slate-850 pt-3">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold block mb-2">Prévia por Sócio</span>
+                  <div className="space-y-1.5">
+                    {previewDistribuicao.map(s => (
+                      <div key={s.id} className="flex justify-between items-center text-[11px] bg-slate-900/30 rounded-lg px-3 py-2">
+                        <span className="text-slate-300 font-medium">{s.nome} <span className="text-slate-500">({s.percentualCotas}%)</span></span>
+                        <span className="font-mono font-bold text-emerald-400">{formatCurrency(s.valor)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsDistribuirModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-xl font-bold transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingDistribuicao || !distribuirProjectId || !distribuirValor}
+                  onClick={handleConfirmDistribuicao}
+                  className="px-4 py-2 bg-purple-650 hover:bg-purple-600 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  {isSavingDistribuicao && <Loader2 size={12} className="animate-spin" />}
+                  Confirmar Distribuição
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
