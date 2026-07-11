@@ -335,20 +335,22 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
   // Budget stats
   const totalOrado = initialCasa.orcamento?.itens.reduce((acc: number, item: any) => acc + (item.quantidadePlanejada * item.custoUnitarioPrevisto), 0) || 0;
-  const totalRealAprovado = initialCasa.transacoes?.filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PAGO').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
+  // Regime de competência: toda despesa lançada para a casa conta como gasto incorrido,
+  // pago ou nao (consistente com o DRE - o extrato/livro-caixa e quem distingue pago vs pendente).
+  const totalGasto = initialCasa.transacoes?.filter((t: any) => t.natureza === 'DESPESA').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
   const totalRealPendente = initialCasa.transacoes?.filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PENDENTE').reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
 
   // Chart data
   const chartData = [
     { name: 'Previsto Orçado', valor: totalOrado, color: '#6366f1' },
-    { name: 'Real Aprovado', valor: totalRealAprovado, color: '#10b981' },
+    { name: 'Real Aprovado', valor: totalGasto, color: '#10b981' },
     { name: 'Excesso Pendente', valor: totalRealPendente, color: '#f59e0b' }
   ];
 
   // ABC calculation
   const itemsABC = initialCasa.orcamento?.itens.map((item: any) => {
     const realTotal = initialCasa.transacoes
-      ?.filter((t: any) => t.insumoId === item.insumoId && t.natureza === 'DESPESA' && t.status === 'PAGO')
+      ?.filter((t: any) => t.insumoId === item.insumoId && t.natureza === 'DESPESA')
       .reduce((acc: number, t: any) => acc + t.valor, 0) || 0;
 
     const previstoTotal = item.quantidadePlanejada * item.custoUnitarioPrevisto;
@@ -364,7 +366,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   }) || [];
 
   const unbudgetedApropriacoes = initialCasa.transacoes
-    ?.filter((t: any) => t.natureza === 'DESPESA' && t.status === 'PAGO' && t.insumoId && !initialCasa.orcamento?.itens.some((item: any) => item.insumoId === t.insumoId))
+    ?.filter((t: any) => t.natureza === 'DESPESA' && t.insumoId && !initialCasa.orcamento?.itens.some((item: any) => item.insumoId === t.insumoId))
     .reduce((acc: any[], t: any) => {
       const existing = acc.find(item => item.insumoId === t.insumoId);
       if (existing) {
@@ -732,38 +734,38 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                         cy="32"
                         r="26"
                         className={`${
-                          (totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) > parseFloat(percentualObra)
-                            ? (totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) - parseFloat(percentualObra) <= 10
+                          (totalOrado > 0 ? (totalGasto / totalOrado) * 100 : 0) > parseFloat(percentualObra)
+                            ? (totalOrado > 0 ? (totalGasto / totalOrado) * 100 : 0) - parseFloat(percentualObra) <= 10
                               ? 'stroke-amber-500'
                               : 'stroke-red-500'
                             : 'stroke-emerald-500'
                         } transition-all duration-500 ease-out`}
                         strokeWidth="5"
                         strokeDasharray={2 * Math.PI * 26}
-                        strokeDashoffset={2 * Math.PI * 26 - (Math.min(100, totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) / 100) * (2 * Math.PI * 26)}
+                        strokeDashoffset={2 * Math.PI * 26 - (Math.min(100, totalOrado > 0 ? (totalGasto / totalOrado) * 100 : 0) / 100) * (2 * Math.PI * 26)}
                         strokeLinecap="round"
                         fill="transparent"
                       />
                     </svg>
                     <span className="absolute font-mono font-black text-[11px] text-white">
-                      {(totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0).toFixed(1)}%
+                      {(totalOrado > 0 ? (totalGasto / totalOrado) * 100 : 0).toFixed(1)}%
                     </span>
                   </div>
                   <span className="text-[9px] text-slate-400 font-bold uppercase mt-2 block">Orçamento Consumido</span>
-                  <span className="text-[8px] text-slate-500 mt-0.5 block">Total Real: {formatCurrency(totalRealAprovado)}</span>
+                  <span className="text-[8px] text-slate-500 mt-0.5 block">Total Gasto: {formatCurrency(totalGasto)}</span>
                 </div>
               </div>
 
               {/* Alerta de Descompasso */}
-              {(totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) > parseFloat(percentualObra) && (
+              {(totalOrado > 0 ? (totalGasto / totalOrado) * 100 : 0) > parseFloat(percentualObra) && (
                 <div className={`p-2.5 rounded-xl text-[9px] border mb-5 flex items-start gap-1.5 ${
-                  (totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0) - parseFloat(percentualObra) <= 10
+                  (totalOrado > 0 ? (totalGasto / totalOrado) * 100 : 0) - parseFloat(percentualObra) <= 10
                     ? 'bg-amber-950/20 border-amber-500/20 text-amber-400'
                     : 'bg-red-950/20 border-red-500/20 text-red-400'
                 }`}>
                   <span className="font-bold">⚠️ DESCOMPASSO ATIVO:</span>
                   <span>
-                    O consumo financeiro ({((totalOrado > 0 ? (totalRealAprovado / totalOrado) * 100 : 0)).toFixed(1)}%) superou o avanço físico ({parseFloat(percentualObra).toFixed(1)}%).
+                    O consumo financeiro ({((totalOrado > 0 ? (totalGasto / totalOrado) * 100 : 0)).toFixed(1)}%) superou o avanço físico ({parseFloat(percentualObra).toFixed(1)}%).
                   </span>
                 </div>
               )}
@@ -1007,8 +1009,58 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
         const margemLiquida = receitasPagas - despesasPagas;
         const margemPorcentagem = receitasPagas > 0 ? (margemLiquida / receitasPagas) * 100 : 0;
 
+        const percentUsado = totalOrado > 0 ? (totalGasto / totalOrado) * 100 : 0;
+        const falta = totalOrado - totalGasto;
+        const percentObraNum = parseFloat(percentualObra) || 0;
+        const gastandoMaisRapido = percentUsado > percentObraNum;
+
         return (
           <div className="space-y-6 animate-fadeIn">
+            {/* Card único: Orçado -> Gasto -> Falta */}
+            <div className="glassmorphism p-6 rounded-2xl border border-slate-800 bg-[#0f1422]/10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Quanto essa casa já custou</span>
+                  <div className="flex items-baseline gap-2 mt-1 flex-wrap">
+                    <h2 className="text-2xl font-extrabold text-white font-mono">{formatCurrency(totalGasto)}</h2>
+                    <span className="text-xs text-slate-500">de {formatCurrency(totalOrado)} orçados</span>
+                  </div>
+                </div>
+                <div className={`px-4 py-2.5 rounded-xl border text-right shrink-0 ${
+                  falta >= 0 ? 'border-emerald-500/20 bg-emerald-950/10' : 'border-red-500/20 bg-red-950/10'
+                }`}>
+                  <span className="text-[9px] uppercase font-bold block text-slate-400">
+                    {falta >= 0 ? 'Ainda disponível' : 'Estourou o orçamento'}
+                  </span>
+                  <span className={`font-mono font-bold text-lg ${falta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatCurrency(Math.abs(falta))}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      percentUsado > 100 ? 'bg-red-500' : percentUsado > 90 ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${Math.min(100, percentUsado)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1.5">
+                  <span>{percentUsado.toFixed(0)}% do orçamento usado</span>
+                  <span>Obra {percentObraNum.toFixed(0)}% concluída</span>
+                </div>
+              </div>
+
+              {gastandoMaisRapido && (
+                <p className="text-[10px] text-amber-400 mt-3 flex items-center gap-1.5 bg-amber-950/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                  <AlertTriangle size={11} className="shrink-0" />
+                  Essa casa está gastando mais rápido do que a obra avança fisicamente - vale acompanhar de perto.
+                </p>
+              )}
+            </div>
+
             {/* Resumo Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="glassmorphism p-5 rounded-2xl border border-slate-800 bg-[#0f1422]/10">
@@ -1036,7 +1088,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
             <div className="glassmorphism p-6 rounded-2xl border border-slate-850">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
-                  <FileSpreadsheet size={16} className="text-indigo-400" /> Extrato Financeiro Completo da Obra
+                  <FileSpreadsheet size={16} className="text-indigo-400" /> Extrato da Obra
                 </h3>
                 <button
                   onClick={() => setIsUniversalModalOpen(true)}
@@ -1121,16 +1173,16 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
 
             {/* Curva ABC de Custos Simplificada */}
             <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
-              <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Detalhamento por Insumos Utilizados</h3>
+              <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Custos por Item</h3>
               <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-900/30 border-b border-slate-800 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Insumo / Item</th>
+                      <th className="py-2.5 px-3">Item</th>
                       <th className="py-2.5 px-3">Categoria</th>
-                      <th className="py-2.5 px-3 text-right">Planejado (Orçado)</th>
-                      <th className="py-2.5 px-3 text-right">Realizado (Efetivo)</th>
-                      <th className="py-2.5 px-3 text-right">Desvio</th>
+                      <th className="py-2.5 px-3 text-right">Orçado</th>
+                      <th className="py-2.5 px-3 text-right">Gasto</th>
+                      <th className="py-2.5 px-3 text-right">Diferença</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50 text-slate-300">
