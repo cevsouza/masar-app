@@ -18,9 +18,9 @@ export default async function EmpreendimentosPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl font-sans">Pipeline de Empreendimentos</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl font-sans">Empreendimentos</h1>
         <p className="text-sm text-slate-400 mt-1">
-          Acompanhamento burocrático e legal dos empreendimentos imobiliários antes da execução das obras.
+          Seus empreendimentos: licenças, unidades e o andamento de cada obra.
         </p>
       </div>
 

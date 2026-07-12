@@ -98,7 +98,7 @@ export default async function RelatoriosPage() {
           Relatórios Gerenciais
         </h1>
         <p className="text-sm text-slate-400 mt-1">
-          Geração SaaS de relatórios customizáveis de obras, cronograma legal de projetos e apropriação financeira.
+          Gere relatórios de obras, prazos e custos para exportar ou imprimir.
         </p>
       </div>
 

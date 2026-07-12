@@ -325,7 +325,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl font-sans">Dashboard Executivo</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Visão financeira e física unificada das medições da Caixa Econômica.
+            Sua visão do dia: caixa, andamento das obras e o que precisa de atenção.
           </p>
         </div>
         <div className="text-xs text-slate-500 font-medium bg-[#151b2c] border border-[#1e293b] px-3.5 py-1.5 rounded-full self-start md:self-auto">
@@ -436,7 +436,7 @@ export default async function DashboardPage() {
 
       {/* RADARES DE RISCO (PREVENÇÃO DE PREJUÍZOS) */}
       <div className="space-y-3">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Radares de Risco & Prevenção</h3>
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Riscos a evitar</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           
           {/* Radar 1: Projetos sem Alvará */}
@@ -501,8 +501,8 @@ export default async function DashboardPage() {
             </div>
             <p className="text-xs text-slate-400 mt-3 leading-relaxed">
               {casasDescompasso.length > 0 
-                ? 'Casas com desvio físico vs financeiro atestado CEF superior a 10% (Risco alto de glosa de vistoria).'
-                : 'Todas as unidades estão com o cronograma físico alinhado às medições pagas.'}
+                ? 'Casas onde a obra física e o que a Caixa já pagou estão descasados em mais de 10% — risco de glosa na vistoria.'
+                : 'Todas as unidades com a obra física alinhada ao que a Caixa já pagou.'}
             </p>
           </Link>
 
@@ -584,9 +584,9 @@ export default async function DashboardPage() {
             <Clock size={24} />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-amber-400 leading-tight">Atrasos de SLAs Detectados (Gargalos Burocráticos)</h3>
+            <h3 className="text-lg font-bold text-amber-400 leading-tight">Prazos de licenças estourados</h3>
             <div className="text-sm text-amber-200/80 mt-1.5 space-y-1.5 leading-relaxed">
-              <p>Os seguintes marcos burocráticos estouraram o prazo limite estabelecido e necessitam de ação imediata:</p>
+              <p>Estes marcos de licenciamento passaram do prazo e precisam de ação:</p>
               <ul className="list-disc pl-5 mt-1 space-y-1">
                 {marcosAtrasados.map(m => {
                   const dataLimite = new Date(m.dataProtocolo);
@@ -731,8 +731,8 @@ export default async function DashboardPage() {
   {/* Lista de Gargalos Físicos / Financeiros */}
       <div id="gargalos" className="glassmorphism rounded-2xl overflow-hidden">
         <div className="p-6 border-b border-[#1e293b]">
-          <h3 className="text-lg font-bold text-white">Pontos de Atenção & Gargalos</h3>
-          <p className="text-xs text-slate-400">Casas com pendências ou glosas ativas que impactam o fluxo de caixa imediato</p>
+          <h3 className="text-lg font-bold text-white">Casas que precisam de atenção</h3>
+          <p className="text-xs text-slate-400">Casas com medição pendente ou glosada, que travam a entrada de caixa</p>
         </div>
         
         {casasGargalo.length === 0 ? (
