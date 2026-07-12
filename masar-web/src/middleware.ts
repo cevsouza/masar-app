@@ -74,8 +74,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 3. Apenas ADMIN, FINANCEIRO e ENGENHARIA acessam projetos, casas e canteiro
-  if (pathname.startsWith('/canteiro') || pathname.startsWith('/empreendimentos') || pathname.startsWith('/casas')) {
+  // 3. Apenas ADMIN, FINANCEIRO e ENGENHARIA acessam projetos, casas, canteiro e agenda
+  if (pathname.startsWith('/canteiro') || pathname.startsWith('/empreendimentos') || pathname.startsWith('/casas') || pathname.startsWith('/agenda')) {
     if (!['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(userRole)) {
       const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
       redirectUrl.searchParams.set('unauthorized', 'true');

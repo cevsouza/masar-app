@@ -25,7 +25,8 @@ import {
   FileText,
   TrendingUp,
   ChevronDown,
-  Sliders
+  Sliders,
+  CalendarClock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -42,6 +43,7 @@ const PROCESS_MENU_ITEMS = [
 
 const GERENCIAL_ITEMS = [
   { name: 'Dashboard Executivo', href: '/', icon: LayoutDashboard, roles: ['ADMIN'] },
+  { name: 'Agenda de Prazos', href: '/agenda', icon: CalendarClock, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
   { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank, roles: ['ADMIN', 'FINANCEIRO'] },
   { name: 'Relatórios Gerenciais', href: '/relatorios', icon: FileText, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
 ];
@@ -133,7 +135,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   }, []);
 
   useEffect(() => {
-    if (['/', '/socios/caixa', '/relatorios'].includes(pathname)) {
+    if (['/', '/agenda', '/socios/caixa', '/relatorios'].includes(pathname)) {
       setIsGerencialOpen(true);
     }
     if (['/insumos', '/usuarios'].includes(pathname)) {
