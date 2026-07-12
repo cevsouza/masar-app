@@ -67,9 +67,9 @@ export default function CentralFinanceiraPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'livro_caixa' | 'projecao'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'livro_caixa' | 'projecao' | 'custos_casa'>(() => {
     const tabParam = getUrlParam('tab');
-    if (tabParam === 'livro_caixa' || tabParam === 'projecao' || tabParam === 'dashboard') return tabParam;
+    if (tabParam === 'livro_caixa' || tabParam === 'projecao' || tabParam === 'dashboard' || tabParam === 'custos_casa') return tabParam;
     return 'dashboard';
   });
 
@@ -82,6 +82,10 @@ export default function CentralFinanceiraPage() {
   // Transactions (Livro-Caixa)
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  // Portfólio de custo por casa
+  const [custosCasa, setCustosCasa] = useState<any>(null);
+  const [loadingCustosCasa, setLoadingCustosCasa] = useState(false);
 
   // Livro-Caixa Filters
   const [houses, setHouses] = useState<any[]>([]);
@@ -161,8 +165,21 @@ export default function CentralFinanceiraPage() {
       }
     };
 
+    const fetchCustosCasa = async () => {
+      setLoadingCustosCasa(true);
+      try {
+        const res = await fetch(`/api/financeiro/custos-por-casa?empreendimentoId=${selectedProjectId}`).then(r => r.json());
+        setCustosCasa(res);
+      } catch (err) {
+        console.error('Erro ao buscar custos por casa:', err);
+      } finally {
+        setLoadingCustosCasa(false);
+      }
+    };
+
     fetchFinancialData();
     fetchTransactions();
+    fetchCustosCasa();
   }, [selectedProjectId]);
 
   const handleDeleteTransaction = async (id: string, isGlobal: boolean) => {
@@ -340,6 +357,17 @@ export default function CentralFinanceiraPage() {
           >
             <Wallet size={14} />
             Projeção de Caixa
+          </button>
+          <button
+            onClick={() => setActiveTab('custos_casa')}
+            className={`flex-1 md:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'custos_casa'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            <HardHat size={14} />
+            Custos por Casa
           </button>
         </div>
 
@@ -754,6 +782,134 @@ export default function CentralFinanceiraPage() {
             initialData={fluxoCaixaData}
             defaultProjectId={selectedProjectId}
           />
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* VIEW TAB: CUSTOS POR CASA (portfólio) */}
+      {/* ========================================== */}
+      {activeTab === 'custos_casa' && (
+        <div className="animate-fadeIn space-y-5">
+          {loadingCustosCasa && (
+            <div className="flex flex-col items-center justify-center min-h-[30vh] gap-3">
+              <Loader2 className="animate-spin text-indigo-500" size={24} />
+              <p className="text-xs text-slate-500 font-mono">Carregando custos por casa...</p>
+            </div>
+          )}
+
+          {!loadingCustosCasa && custosCasa?.resumo && custosCasa.linhas.length === 0 && (
+            <div className="glassmorphism p-8 rounded-2xl text-center text-sm text-slate-500">
+              Nenhuma casa cadastrada neste empreendimento.
+            </div>
+          )}
+
+          {!loadingCustosCasa && custosCasa?.resumo && custosCasa.linhas.length > 0 && (() => {
+            const r = custosCasa.resumo;
+            return (
+              <>
+                {/* Resumo do portfólio */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="glassmorphism p-4 rounded-2xl border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">No orçamento</span>
+                    <p className="text-2xl font-bold text-emerald-400 mt-1">
+                      {r.casasDentro}<span className="text-sm text-slate-500 font-normal"> / {r.casasComOrcamento}</span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">casas com orçamento definido</p>
+                  </div>
+                  <div className={`glassmorphism p-4 rounded-2xl border ${r.casasEstouradas > 0 ? 'border-red-500/25' : 'border-slate-800'}`}>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Estourando</span>
+                    <p className={`text-2xl font-bold mt-1 ${r.casasEstouradas > 0 ? 'text-red-500' : 'text-slate-300'}`}>{r.casasEstouradas}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">gasto acima do orçado</p>
+                  </div>
+                  <div className="glassmorphism p-4 rounded-2xl border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Gasto / Orçado</span>
+                    <p className="text-base font-bold text-white mt-1.5 leading-tight">
+                      {formatCurrency(r.totalGasto)}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">de {formatCurrency(r.totalOrcado)} · {r.percentConsumidoGeral.toFixed(0)}%</p>
+                  </div>
+                  <div className="glassmorphism p-4 rounded-2xl border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Margem projetada</span>
+                    <p className={`text-base font-bold mt-1.5 leading-tight ${r.totalMargem >= 0 ? 'text-emerald-400' : 'text-red-500'}`}>
+                      {formatCurrency(r.totalMargem)}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {r.margemPercentGeral != null ? `${r.margemPercentGeral.toFixed(1)}% do VGV vendido` : 'sem vendas ainda'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tabela por casa */}
+                <div className="glassmorphism rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400">
+                          <th className="text-left font-semibold px-4 py-3">Casa</th>
+                          <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Obra</th>
+                          <th className="text-right font-semibold px-4 py-3">Orçado</th>
+                          <th className="text-right font-semibold px-4 py-3">Gasto</th>
+                          <th className="text-left font-semibold px-4 py-3">Consumido</th>
+                          <th className="text-right font-semibold px-4 py-3">Falta / Excedente</th>
+                          <th className="text-right font-semibold px-4 py-3">Margem</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-850">
+                        {custosCasa.linhas.map((l: any) => {
+                          const pct = Math.min(100, l.percentConsumido);
+                          return (
+                            <tr key={l.id} className="hover:bg-slate-800/20 transition">
+                              <td className="px-4 py-3">
+                                <a href={`/casas/${l.id}`} className="font-bold text-white hover:text-indigo-400 transition">
+                                  Qd {l.quadra} · Casa {l.numero}
+                                </a>
+                                <span className={`ml-2 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${l.vendida ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700/40 text-slate-400'}`}>
+                                  {l.vendida ? 'Vendida' : 'Estoque'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 hidden md:table-cell text-slate-400">
+                                {l.statusObra.replace(/_/g, ' ')} · {l.percentualObra}%
+                              </td>
+                              <td className="px-4 py-3 text-right text-slate-300">{l.orcado > 0 ? formatCurrency(l.orcado) : <span className="text-slate-600">—</span>}</td>
+                              <td className="px-4 py-3 text-right text-white font-semibold">{formatCurrency(l.gasto)}</td>
+                              <td className="px-4 py-3">
+                                {l.orcado > 0 ? (
+                                  <div className="flex items-center gap-2 min-w-[90px]">
+                                    <div className="h-1.5 flex-1 bg-slate-800 rounded-full overflow-hidden">
+                                      <div className={`h-full rounded-full ${l.estourou ? 'bg-red-500' : pct > 85 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <span className={`text-[10px] font-bold ${l.estourou ? 'text-red-400' : 'text-slate-400'}`}>{l.percentConsumido.toFixed(0)}%</span>
+                                  </div>
+                                ) : <span className="text-slate-600">—</span>}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {l.orcado > 0 ? (
+                                  l.falta >= 0
+                                    ? <span className="text-emerald-400">{formatCurrency(l.falta)}</span>
+                                    : <span className="text-red-400 font-semibold">−{formatCurrency(Math.abs(l.falta))}</span>
+                                ) : <span className="text-slate-600">—</span>}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {l.margem != null ? (
+                                  <span className={l.margem >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                    {formatCurrency(l.margem)}
+                                    {l.margemPercent != null && <span className="text-[10px] text-slate-500 ml-1">({l.margemPercent.toFixed(0)}%)</span>}
+                                  </span>
+                                ) : <span className="text-slate-600">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500 px-1">
+                  Gasto em regime de competência (inclui despesas pendentes). Margem projetada = valor de venda − custo total esperado (o maior entre orçado e já gasto).
+                </p>
+              </>
+            );
+          })()}
         </div>
       )}
 
