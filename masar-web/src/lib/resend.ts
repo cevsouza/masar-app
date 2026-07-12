@@ -17,7 +17,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
   try {
     if (resendClient) {
       const response = await resendClient.emails.send({
-        from: 'Masar ERP <onboarding@resend.dev>',
+        from: 'Masar Empreendimentos <nao-responda@masarempreendimentos.com.br>',
         to,
         subject,
         html,
