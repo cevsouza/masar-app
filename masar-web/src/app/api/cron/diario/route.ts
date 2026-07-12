@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/resend';
+import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 
 const CRON_SECRET = process.env.CRON_SECRET;
+
+const formatBRL = (val: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
 export async function GET(request: NextRequest) {
   try {
@@ -89,12 +93,46 @@ export async function GET(request: NextRequest) {
 
     const atividadesAtrasadas = atividadesAtivas.filter(a => new Date(a.dataFimPrevista) < today);
 
-    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length;
+    // 3.7 CRÍTICOS FINANCEIROS (comunicados ao sócio / financeiro)
+    // a) Ruptura de caixa projetada (runway negativo nos próximos meses)
+    const fluxo = await calcularFluxoCaixaProjetado();
+    const rupturaCaixa = fluxo.runwayAlert; // string | null
+
+    // b) Medições reprovadas/glosadas pela Caixa (retêm liberação de recursos)
+    const medicoesGlosadas = await db.medicaoCaixa.findMany({
+      where: { status: 'GLOSADA_REPROVADA' },
+      include: { casa: { include: { empreendimento: true } } }
+    });
+
+    // c) Casas ativas estourando o orçamento (regime de competência)
+    const casasBudget = await db.casa.findMany({
+      where: { statusObra: { notIn: ['CONCLUIDA'] } },
+      include: {
+        empreendimento: true,
+        orcamento: { include: { itens: true } },
+        transacoes: { where: { natureza: 'DESPESA' } }
+      }
+    });
+    const casasEstouradas = casasBudget
+      .map(c => {
+        const orcado = c.orcamento?.itens.reduce((acc, it) => acc + it.quantidadePlanejada * it.custoUnitarioPrevisto, 0) || 0;
+        const gasto = c.transacoes.reduce((acc, t) => acc + t.valor, 0);
+        return { casa: c, orcado, gasto, excedente: gasto - orcado };
+      })
+      .filter(x => x.orcado > 0 && x.gasto > x.orcado);
+
+    const totalCriticosFinanceiros = (rupturaCaixa ? 1 : 0) + medicoesGlosadas.length + casasEstouradas.length;
+
+    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length + totalCriticosFinanceiros;
 
     if (totalAlertas > 0) {
-      // 4. Carregar todos os administradores (ADMIN)
+      // 4. Carregar administradores (ADMIN) e o público financeiro (ADMIN + FINANCEIRO)
       const admins = await db.user.findMany({
         where: { role: 'ADMIN' }
+      });
+      // Sócios/financeiro recebem os críticos financeiros; superset dos admins.
+      const financeiroUsers = await db.user.findMany({
+        where: { role: { in: ['ADMIN', 'FINANCEIRO'] } }
       });
 
       // 5. Criar notificações in-app e disparar e-mails para cada ADMIN
@@ -156,8 +194,41 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // 5.5 Notificações in-app dos CRÍTICOS FINANCEIROS (ADMIN + FINANCEIRO)
+      if (rupturaCaixa) {
+        await db.notificacao.createMany({
+          data: financeiroUsers.map(u => ({
+            usuarioId: u.id,
+            mensagem: `🔴 Caixa: ${rupturaCaixa}`,
+            lida: false
+          }))
+        });
+      }
+
+      for (const m of medicoesGlosadas) {
+        const msg = `🔴 Glosa CEF: Casa ${m.casa.numero} Qd ${m.casa.quadra} (${m.casa.empreendimento.nome}) — ${formatBRL(m.valorLiberado)} retido pela Caixa.`;
+        await db.notificacao.createMany({
+          data: financeiroUsers.map(u => ({
+            usuarioId: u.id,
+            mensagem: msg,
+            lida: false
+          }))
+        });
+      }
+
+      for (const x of casasEstouradas) {
+        const msg = `🔴 Orçamento estourado: Casa ${x.casa.numero} Qd ${x.casa.quadra} (${x.casa.empreendimento.nome}) — gasto ${formatBRL(x.gasto)} vs orçado ${formatBRL(x.orcado)} (excedente ${formatBRL(x.excedente)}).`;
+        await db.notificacao.createMany({
+          data: financeiroUsers.map(u => ({
+            usuarioId: u.id,
+            mensagem: msg,
+            lida: false
+          }))
+        });
+      }
+
       // 6. Enviar e-mail sumário para cada administrador
-      const docListHtml = documentosExpirando.map(doc => 
+      const docListHtml = documentosExpirando.map(doc =>
         `<li><strong>${doc.nome}</strong> (Vence em: ${doc.dataVencimento?.toLocaleDateString('pt-BR')}) - Unidade Qd ${doc.casa?.quadra || ''}, Casa ${doc.casa?.numero || ''}</li>`
       ).join('');
 
@@ -174,12 +245,33 @@ export async function GET(request: NextRequest) {
         `<li><strong>${a.titulo}</strong> - ${a.casa ? `Lote Qd ${a.casa.quadra}, Casa ${a.casa.numero}` : `Proj. ${a.empreendimento.nome}`} (Prazo: ${new Date(a.dataFimPrevista).toLocaleDateString('pt-BR')}, Status: ${a.status})</li>`
       ).join('');
 
+      const glosaListHtml = medicoesGlosadas.map(m =>
+        `<li><strong>Casa ${m.casa.numero} - Qd ${m.casa.quadra}</strong> (${m.casa.empreendimento.nome}) — <strong style="color:#dc2626;">${formatBRL(m.valorLiberado)}</strong> retido/reprovado</li>`
+      ).join('');
+
+      const orcamentoListHtml = casasEstouradas.map(x =>
+        `<li><strong>Casa ${x.casa.numero} - Qd ${x.casa.quadra}</strong> (${x.casa.empreendimento.nome}) — gasto <strong style="color:#dc2626;">${formatBRL(x.gasto)}</strong> vs orçado ${formatBRL(x.orcado)} (excedente ${formatBRL(x.excedente)})</li>`
+      ).join('');
+
+      const financeiroHtml = `
+        ${rupturaCaixa ? `<p style="margin: 6px 0;"><strong style="color:#dc2626;">💸 Ruptura de Caixa:</strong> ${rupturaCaixa}</p>` : ''}
+        ${medicoesGlosadas.length > 0 ? `<p style="margin: 8px 0 2px;"><strong style="color:#dc2626;">🏦 Glosas da Caixa (recursos retidos):</strong></p><ul>${glosaListHtml}</ul>` : ''}
+        ${casasEstouradas.length > 0 ? `<p style="margin: 8px 0 2px;"><strong style="color:#dc2626;">📈 Casas acima do orçamento:</strong></p><ul>${orcamentoListHtml}</ul>` : ''}
+      `;
+
       const emailHtml = `
         <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
           <h2 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 8px;">Relatório Diário de Alertas - Masar ERP</h2>
-          <p>Prezado Administrador,</p>
-          <p>Identificamos ocorrências críticas no portfólio de obras e documentos que demandam atenção imediata:</p>
-          
+          <p>Prezado Sócio/Gestor,</p>
+          <p>Identificamos ocorrências críticas que demandam atenção imediata:</p>
+
+          ${totalCriticosFinanceiros > 0 ? `
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
+              <h3 style="color: #b91c1c; margin: 0 0 6px;">🔴 Críticos Financeiros (Sócios)</h3>
+              ${financeiroHtml}
+            </div>
+          ` : ''}
+
           ${documentosExpirando.length > 0 ? `
             <h3 style="color: #f59e0b;">⚠️ Documentos GED a expirar (15 dias):</h3>
             <ul>${docListHtml}</ul>
@@ -206,9 +298,10 @@ export async function GET(request: NextRequest) {
         </div>
       `;
 
-      for (const admin of admins) {
+      // Envia para ADMIN + FINANCEIRO (financeiroUsers é superset dos admins)
+      for (const dest of financeiroUsers) {
         await sendEmail({
-          to: admin.email,
+          to: dest.email,
           subject: `🚨 ALERTA DIÁRIO: ${totalAlertas} pendências críticas no Masar ERP`,
           html: emailHtml
         });
@@ -222,6 +315,9 @@ export async function GET(request: NextRequest) {
       milestonesAtrasados: milestonesAtrasados.length,
       milestonesProximos: milestonesProximos.length,
       atividadesCronogramaAtrasadas: atividadesAtrasadas.length,
+      rupturaCaixa: rupturaCaixa ? 1 : 0,
+      medicoesGlosadas: medicoesGlosadas.length,
+      casasAcimaOrcamento: casasEstouradas.length,
       alertasGerados: totalAlertas
     });
   } catch (error: any) {
