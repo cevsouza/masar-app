@@ -1,21 +1,28 @@
 import { db } from '@/lib/db';
 import CashFlowChart from '@/components/CashFlowChart';
-import { 
-  Building2, 
-  Home, 
-  Clock, 
-  AlertTriangle, 
-  TrendingUp, 
+import {
+  Building2,
+  Home,
+  Clock,
+  AlertTriangle,
+  TrendingUp,
   XCircle,
   ChevronRight,
   ShieldAlert,
   CalendarCheck2,
-  FileWarning
+  FileWarning,
+  Wallet,
+  PiggyBank,
+  Scale,
+  HardHat,
+  ArrowDownRight,
+  ArrowUpRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth';
 import DashboardMilestones from '@/components/DashboardMilestones';
+import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 
 export const revalidate = 0; // Disable server component caching to reflect real-time updates
 
@@ -25,6 +32,7 @@ export default async function DashboardPage() {
   const session = sessionToken ? await verifySession(sessionToken) : null;
   const userRole = session?.role || 'COMERCIAL';
   const hasProjectsAccess = ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(userRole);
+  const hasFinanceAccess = ['ADMIN', 'FINANCEIRO'].includes(userRole);
 
   const today = new Date();
 
@@ -235,6 +243,70 @@ export default async function DashboardPage() {
     casa: m.casa
   }));
 
+  // ===== PAINEL DO SÓCIO: caixa, resultado e saúde de orçamento (só ADMIN/FINANCEIRO) =====
+  let socioSnapshot: {
+    saldoConta: number;
+    caixaLivre: number;
+    custoAIncorrer: number;
+    runwayAlert: string | null;
+    receitasRecebidas: number;
+    despesasPagas: number;
+    resultadoCaixa: number;
+    orcadoAtivas: number;
+    gastoAtivas: number;
+    casasDentro: number;
+    casasEstouradas: number;
+    casasAtivas: number;
+  } | null = null;
+
+  if (hasFinanceAccess) {
+    const fluxo = await calcularFluxoCaixaProjetado();
+
+    const receitasRecebidas = transacoesPagas
+      .filter(t => t.natureza === 'RECEITA')
+      .reduce((acc, t) => acc + t.valor, 0);
+    const despesasPagas = transacoesPagas
+      .filter(t => t.natureza === 'DESPESA')
+      .reduce((acc, t) => acc + t.valor, 0);
+
+    // Saúde de orçamento das obras (regime de competência, consistente com a ficha da casa)
+    const casasAtivasBudget = await db.casa.findMany({
+      where: { statusObra: { notIn: ['CONCLUIDA'] } },
+      include: {
+        orcamento: { include: { itens: true } },
+        transacoes: { where: { natureza: 'DESPESA' } }
+      }
+    });
+
+    let orcadoAtivas = 0;
+    let gastoAtivas = 0;
+    let casasDentro = 0;
+    let casasEstouradas = 0;
+    casasAtivasBudget.forEach(c => {
+      const orcado = c.orcamento?.itens.reduce((acc, it) => acc + (it.quantidadePlanejada * it.custoUnitarioPrevisto), 0) || 0;
+      const gasto = c.transacoes.reduce((acc, t) => acc + t.valor, 0);
+      orcadoAtivas += orcado;
+      gastoAtivas += gasto;
+      if (orcado > 0 && gasto > orcado) casasEstouradas += 1;
+      else casasDentro += 1;
+    });
+
+    socioSnapshot = {
+      saldoConta: fluxo.currentBalance,
+      caixaLivre: fluxo.caixaLivreReal,
+      custoAIncorrer: fluxo.custoAIncorrerTotal,
+      runwayAlert: fluxo.runwayAlert,
+      receitasRecebidas,
+      despesasPagas,
+      resultadoCaixa: receitasRecebidas - despesasPagas,
+      orcadoAtivas,
+      gastoAtivas,
+      casasDentro,
+      casasEstouradas,
+      casasAtivas: casasAtivasBudget.length
+    };
+  }
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -260,6 +332,107 @@ export default async function DashboardPage() {
           Dados atualizados em tempo real
         </div>
       </div>
+
+      {/* PAINEL DO SÓCIO: caixa, resultado e saúde das obras */}
+      {socioSnapshot && (() => {
+        const s = socioSnapshot;
+        const percentConsumido = s.orcadoAtivas > 0 ? Math.min(100, (s.gastoAtivas / s.orcadoAtivas) * 100) : 0;
+        const estourouGeral = s.gastoAtivas > s.orcadoAtivas && s.orcadoAtivas > 0;
+        return (
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Painel do Sócio</h3>
+
+            {/* Runway (ruptura de caixa projetada) */}
+            {s.runwayAlert && (
+              <div className="bg-red-950/40 border border-red-500/30 rounded-2xl p-4 flex items-start gap-3">
+                <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={20} />
+                <div>
+                  <h4 className="text-sm font-bold text-red-400 leading-tight">Atenção ao caixa</h4>
+                  <p className="text-xs text-red-200/80 mt-1 leading-relaxed">{s.runwayAlert}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Manchete de caixa e resultado */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Caixa livre (herói) */}
+              <Link
+                href="/financeiro?tab=projecao"
+                className={`glassmorphism p-5 rounded-2xl border block transition hover:bg-slate-800/5 cursor-pointer ${s.caixaLivre >= 0 ? 'border-emerald-500/25 hover:border-emerald-500/40' : 'border-red-500/25 hover:border-red-500/40'}`}
+              >
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Caixa livre hoje</span>
+                  <span className={`p-2 rounded-lg ${s.caixaLivre >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}><PiggyBank size={18} /></span>
+                </div>
+                <h3 className={`text-2xl font-bold mt-3 ${s.caixaLivre >= 0 ? 'text-emerald-400' : 'text-red-500'}`}>{formatCurrency(s.caixaLivre)}</h3>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                  Saldo em conta + recebíveis de 30 dias, menos o custo de obra ainda a pagar ({formatCurrency(s.custoAIncorrer)}).
+                </p>
+              </Link>
+
+              {/* Saldo em conta */}
+              <Link
+                href="/socios/caixa"
+                className="glassmorphism p-5 rounded-2xl border border-slate-800 block transition hover:bg-slate-800/5 hover:border-blue-500/40 cursor-pointer"
+              >
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Saldo em conta</span>
+                  <span className="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><Wallet size={18} /></span>
+                </div>
+                <h3 className="text-2xl font-bold text-white mt-3">{formatCurrency(s.saldoConta)}</h3>
+                <p className="text-[11px] text-slate-500 mt-1">Somatório das contas bancárias da construtora.</p>
+              </Link>
+
+              {/* Resultado de caixa realizado */}
+              <div className="glassmorphism p-5 rounded-2xl border border-slate-800">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Resultado de caixa</span>
+                  <span className={`p-2 rounded-lg ${s.resultadoCaixa >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}><Scale size={18} /></span>
+                </div>
+                <h3 className={`text-2xl font-bold mt-3 ${s.resultadoCaixa >= 0 ? 'text-emerald-400' : 'text-red-500'}`}>{formatCurrency(s.resultadoCaixa)}</h3>
+                <div className="flex items-center gap-3 text-[11px] mt-1.5">
+                  <span className="flex items-center gap-1 text-emerald-400"><ArrowUpRight size={12} /> {formatCurrency(s.receitasRecebidas)}</span>
+                  <span className="flex items-center gap-1 text-red-400"><ArrowDownRight size={12} /> {formatCurrency(s.despesasPagas)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Saúde de orçamento das obras */}
+            <Link
+              href="/casas"
+              className="glassmorphism p-5 rounded-2xl border border-slate-800 block transition hover:bg-slate-800/5 hover:border-indigo-500/40 cursor-pointer"
+            >
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className={`p-2.5 rounded-xl ${estourouGeral ? 'bg-red-500/10 text-red-400' : 'bg-indigo-500/10 text-indigo-400'}`}><HardHat size={20} /></span>
+                  <div>
+                    <h4 className="text-sm font-bold text-white leading-tight">Saúde das obras</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {s.casasAtivas} casas em obra ·{' '}
+                      <span className="text-emerald-400 font-semibold">{s.casasDentro} no orçamento</span>
+                      {s.casasEstouradas > 0 && (
+                        <> · <span className="text-red-400 font-semibold">{s.casasEstouradas} estourando</span></>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-left md:text-right shrink-0">
+                  <p className="text-xs text-slate-400">
+                    Gasto <span className="font-bold text-white">{formatCurrency(s.gastoAtivas)}</span> de <span className="font-semibold text-slate-300">{formatCurrency(s.orcadoAtivas)}</span> orçados
+                  </p>
+                  <p className={`text-xs font-bold mt-0.5 ${estourouGeral ? 'text-red-400' : 'text-slate-300'}`}>{percentConsumido.toFixed(0)}% consumido</p>
+                </div>
+              </div>
+              <div className="mt-3 h-2 w-full bg-slate-800/60 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${estourouGeral ? 'bg-red-500' : percentConsumido > 85 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  style={{ width: `${percentConsumido}%` }}
+                />
+              </div>
+            </Link>
+          </div>
+        );
+      })()}
 
       {/* RADARES DE RISCO (PREVENÇÃO DE PREJUÍZOS) */}
       <div className="space-y-3">
