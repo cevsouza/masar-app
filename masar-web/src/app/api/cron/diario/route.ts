@@ -8,6 +8,10 @@ const CRON_SECRET = process.env.CRON_SECRET;
 const formatBRL = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
+// Destinatários extras do relatório diário, além dos usuários ADMIN/FINANCEIRO do app.
+// (só recebem e-mail; não há notificação in-app pois não têm conta.)
+const EXTRA_ALERT_EMAILS = ['cevsouza74@gmail.com'];
+
 export async function GET(request: NextRequest) {
   try {
     if (!CRON_SECRET) {
@@ -298,10 +302,14 @@ export async function GET(request: NextRequest) {
         </div>
       `;
 
-      // Envia para ADMIN + FINANCEIRO (financeiroUsers é superset dos admins)
-      for (const dest of financeiroUsers) {
+      // Envia para ADMIN + FINANCEIRO + destinatários extras (deduplicado por e-mail)
+      const recipientEmails = Array.from(new Set([
+        ...financeiroUsers.map(u => u.email),
+        ...EXTRA_ALERT_EMAILS
+      ]));
+      for (const email of recipientEmails) {
         await sendEmail({
-          to: dest.email,
+          to: email,
           subject: `🚨 ALERTA DIÁRIO: ${totalAlertas} pendências críticas no Masar ERP`,
           html: emailHtml
         });
