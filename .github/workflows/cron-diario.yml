@@ -1,0 +1,32 @@
+name: Alertas Diarios Masar
+
+# Dispara o relatorio diario de alertas (prazos + criticos financeiros) por e-mail via Resend.
+# Chama o endpoint protegido /api/cron/diario com o Bearer CRON_SECRET.
+on:
+  schedule:
+    - cron: '0 11 * * *' # 08:00 America/Sao_Paulo (UTC-3), todos os dias
+  workflow_dispatch: {} # permite disparo manual pela aba Actions (para testar)
+
+jobs:
+  disparar-alertas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar /api/cron/diario
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "ERRO: secret CRON_SECRET nao configurado no repositorio (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://masarempreendimentos.com.br/api/cron/diario)
+          echo "HTTP $code"
+          echo "Resposta:"
+          cat /tmp/resp.json || true
+          echo
+          if [ "$code" != "200" ]; then
+            echo "Falha: o endpoint retornou HTTP $code"
+            exit 1
+          fi
