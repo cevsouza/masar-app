@@ -1,6 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
+import { calcularCaixaLivre } from '@/lib/caixa';
 
 export interface CashFlowMonth {
   mes: string;          // Formato: "Mês/Ano" (ex: "Mai/26")
@@ -25,9 +26,12 @@ export interface CashFlowResult {
 }
 
 export async function calcularFluxoCaixaProjetado(empreendimentoId?: string): Promise<CashFlowResult> {
-  // 1. Obter o saldo atual de todas as contas bancárias
-  const contas = await db.contaBancaria.findMany();
-  const currentBalance = contas.reduce((sum, c) => sum + c.saldoAtual, 0);
+  // 1. Snapshot de caixa livre — FONTE ÚNICA de verdade (ver lib/caixa.ts)
+  const snapshot = await calcularCaixaLivre(empreendimentoId);
+  const currentBalance = snapshot.saldoBancario;
+  const custoAIncorrerTotal = snapshot.custoAIncorrer;
+  const recebiveisCurtoPrazo = snapshot.recebiveisCurtoPrazo;
+  const caixaLivreReal = snapshot.caixaLivre;
 
   // 2. Determinar a janela de tempo: 3 meses passados + mês atual + 6 meses futuros (total 10 meses)
   const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -70,43 +74,7 @@ export async function calcularFluxoCaixaProjetado(empreendimentoId?: string): Pr
     }
   });
 
-  // Calcular o Custo a Incorrer Geral (Orcado - Realizado Obra)
-  let totalOrcadoGeral = 0;
-  let totalRealizadoGeral = 0;
-
-  casas.forEach(c => {
-    if (c.statusObra !== 'CONCLUIDA') {
-      const orcado = c.orcamento?.itens.reduce((acc, it) => acc + (it.quantidadePlanejada * it.custoUnitarioPrevisto), 0) || 0;
-      // Realizado na obra da casa: despesas pagas das categorias MATERIAL ou MAO_DE_OBRA
-      const realizado = c.transacoes
-        .filter(t => t.categoria === 'MATERIAL' || t.categoria === 'MAO_DE_OBRA')
-        .reduce((acc, t) => acc + t.valor, 0);
-        
-      totalOrcadoGeral += orcado;
-      totalRealizadoGeral += realizado;
-    }
-  });
-
-  const custoAIncorrerTotal = Math.max(0, totalOrcadoGeral - totalRealizadoGeral);
-
-  // 4. Recebíveis de Curto Prazo (próximos 30 dias de receitas pendentes)
-  const limit30Days = new Date();
-  limit30Days.setDate(limit30Days.getDate() + 30);
-  
-  const contasReceberFilter: any = {
-    natureza: 'RECEITA',
-    status: 'PENDENTE',
-    dataVencimento: { lte: limit30Days }
-  };
-  if (empreendimentoId) {
-    contasReceberFilter.empreendimentoId = empreendimentoId;
-  }
-  const contasReceberSum = await db.transacaoFinanceira.aggregate({
-    where: contasReceberFilter,
-    _sum: { valor: true }
-  });
-  const recebiveisCurtoPrazo = contasReceberSum._sum.valor || 0;
-  const caixaLivreReal = (currentBalance + recebiveisCurtoPrazo) - custoAIncorrerTotal;
+  // (custo a incorrer, recebíveis de 30d e caixa livre já vêm do snapshot acima)
 
   // 5. Carregar todos os Milestones do cronograma físico das casas (para o Ciclo Caixa CEF)
   const milestoneFilter: any = { concluido: false };
