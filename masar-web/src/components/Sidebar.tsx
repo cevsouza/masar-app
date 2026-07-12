@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  KanbanSquare, 
-  BadgeDollarSign, 
-  Building2, 
+import {
+  LayoutDashboard,
+  KanbanSquare,
+  BadgeDollarSign,
+  Building2,
   AlertTriangle,
   LogOut,
   Settings,
@@ -26,31 +26,51 @@ import {
   TrendingUp,
   ChevronDown,
   Sliders,
-  CalendarClock
+  CalendarClock,
+  HardHat
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
 import ModalNovoLancamento from './ModalNovoLancamento';
 
-const PROCESS_MENU_ITEMS = [
-  { name: 'Empreendimentos', href: '/empreendimentos', icon: KanbanSquare, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
-  { name: 'Vendas (Comercial)', href: '/comercial', icon: BadgeDollarSign, roles: ['ADMIN', 'FINANCEIRO', 'COMERCIAL'] },
-  { name: 'Suprimentos (Compras)', href: '/suprimentos', icon: ShoppingBag, roles: ['ADMIN', 'FINANCEIRO'] },
-  { name: 'Obras (Casas/Lotes)', href: '/casas', icon: Home, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
-  { name: 'Apontamento Canteiro', href: '/canteiro', icon: Smartphone, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
-  { name: 'Central Financeira', href: '/financeiro', icon: TrendingUp, roles: ['ADMIN', 'FINANCEIRO'] },
-];
+// Item fixo no topo: a visão geral (Painel do Sócio). Só ADMIN acessa a home.
+const INICIO_ITEM = { name: 'Início', href: '/', icon: LayoutDashboard, roles: ['ADMIN'] };
 
-const GERENCIAL_ITEMS = [
-  { name: 'Dashboard Executivo', href: '/', icon: LayoutDashboard, roles: ['ADMIN'] },
-  { name: 'Agenda de Prazos', href: '/agenda', icon: CalendarClock, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
-  { name: 'Tesouraria Societária', href: '/socios/caixa', icon: PiggyBank, roles: ['ADMIN', 'FINANCEIRO'] },
-  { name: 'Relatórios Gerenciais', href: '/relatorios', icon: FileText, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
-];
-
-const CONFIG_ITEMS = [
-  { name: 'Catálogo de Insumos', href: '/insumos', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
-  { name: 'Gerenciar Equipe', href: '/usuarios', icon: Users, roles: ['ADMIN'] },
+// Navegação agrupada por intenção: Gestão (dinheiro/visão), Operação (tocar o
+// negócio) e Configurações. Cada grupo abre sozinho quando você está numa tela dele.
+const NAV_GROUPS = [
+  {
+    id: 'gestao',
+    label: 'Gestão',
+    icon: Sliders,
+    items: [
+      { name: 'Financeiro', href: '/financeiro', icon: TrendingUp, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Sócios', href: '/socios/caixa', icon: PiggyBank, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Agenda', href: '/agenda', icon: CalendarClock, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+      { name: 'Relatórios', href: '/relatorios', icon: FileText, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+    ],
+  },
+  {
+    id: 'operacao',
+    label: 'Operação',
+    icon: HardHat,
+    items: [
+      { name: 'Empreendimentos', href: '/empreendimentos', icon: KanbanSquare, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+      { name: 'Obras', href: '/casas', icon: Home, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+      { name: 'Vendas', href: '/comercial', icon: BadgeDollarSign, roles: ['ADMIN', 'FINANCEIRO', 'COMERCIAL'] },
+      { name: 'Compras', href: '/suprimentos', icon: ShoppingBag, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Canteiro', href: '/canteiro', icon: Smartphone, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+    ],
+  },
+  {
+    id: 'config',
+    label: 'Configurações',
+    icon: Settings,
+    items: [
+      { name: 'Insumos', href: '/insumos', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
+      { name: 'Equipe', href: '/usuarios', icon: Users, roles: ['ADMIN'] },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -61,21 +81,20 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
-  
+
   const [hasGlosa, setHasGlosa] = useState(false);
   const [user, setUser] = useState({ nome: 'Carregando...', email: 'gestor@masar.com', role: 'COMERCIAL' });
-  
+
   // Theme state
   const [theme, setTheme] = useState('dark');
-  
+
   // Dropdown/Modal states
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isLancamentoModalOpen, setIsLancamentoModalOpen] = useState(false);
-  const [isGerencialOpen, setIsGerencialOpen] = useState(false);
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-  
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
   // Notifications states
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -134,12 +153,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return () => clearInterval(interval);
   }, []);
 
+  // Abre automaticamente o grupo que contém a rota atual.
   useEffect(() => {
-    if (['/', '/agenda', '/socios/caixa', '/relatorios'].includes(pathname)) {
-      setIsGerencialOpen(true);
-    }
-    if (['/insumos', '/usuarios'].includes(pathname)) {
-      setIsConfigOpen(true);
+    const grupoAtivo = NAV_GROUPS.find(g => g.items.some(item => pathname === item.href));
+    if (grupoAtivo) {
+      setOpenGroups(prev => ({ ...prev, [grupoAtivo.id]: true }));
     }
   }, [pathname]);
 
@@ -201,7 +219,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      
+
       setTimeout(() => {
         setIsPasswordModalOpen(false);
         setPwdSuccess(null);
@@ -218,12 +236,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
   };
 
+  const role = user.role || 'COMERCIAL';
+
   return (
     <>
       {/* Backdrop de fundo no mobile */}
       {isOpen && (
-        <div 
-          onClick={onClose} 
+        <div
+          onClick={onClose}
           className="fixed inset-0 z-45 bg-black/60 backdrop-blur-xs md:hidden"
         />
       )}
@@ -261,157 +281,60 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
 
-        {/* Process Flow Menu Items */}
-        {PROCESS_MENU_ITEMS.filter((item) => {
-          const role = user.role || 'COMERCIAL';
-          return item.roles.includes(role);
-        }).map((item) => {
-          const isActive = pathname === item.href;
-          const Icon = item.icon;
-
+        {/* Início (visão geral) */}
+        {INICIO_ITEM.roles.includes(role) && (() => {
+          const isActive = pathname === INICIO_ITEM.href;
+          const Icon = INICIO_ITEM.icon;
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              href={INICIO_ITEM.href}
               onClick={onClose}
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium cursor-pointer",
-                isActive 
-                  ? "bg-blue-600/10 text-blue-400 border border-blue-500/20" 
+                isActive
+                  ? "bg-blue-600/10 text-blue-400 border border-blue-500/20"
                   : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
               )}
             >
-              <Icon 
-                size={18} 
-                className={cn(
-                  "transition-colors duration-200",
-                  isActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200"
-                )}
-              />
-              <span>{item.name}</span>
+              <Icon size={18} className={cn("transition-colors duration-200", isActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200")} />
+              <span>{INICIO_ITEM.name}</span>
             </Link>
-          );
-        })}
-
-        {/* Visão Gerencial Accordion Section */}
-        {(() => {
-          const role = user.role || 'COMERCIAL';
-          const allowedGerencial = GERENCIAL_ITEMS.filter(item => item.roles.includes(role));
-          if (allowedGerencial.length === 0) return null;
-
-          const isSubActive = allowedGerencial.some(item => pathname === item.href);
-
-          return (
-            <div className="space-y-1.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsGerencialOpen(!isGerencialOpen)}
-                className={cn(
-                  "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium cursor-pointer",
-                  isSubActive && !isGerencialOpen
-                    ? "bg-slate-800/30 text-slate-300 border border-slate-850"
-                    : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <Sliders 
-                    size={18} 
-                    className={cn(
-                      "transition-colors duration-200",
-                      isSubActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200"
-                    )}
-                  />
-                  <span>Visão Gerencial</span>
-                </div>
-                <ChevronDown 
-                  size={14} 
-                  className={cn(
-                    "transition-transform duration-200 text-slate-500 group-hover:text-slate-400",
-                    isGerencialOpen ? "rotate-180 text-blue-400" : ""
-                  )} 
-                />
-              </button>
-
-              {isGerencialOpen && (
-                <div className="pl-4 space-y-1 border-l border-slate-805/50 ml-6">
-                  {allowedGerencial.map((item) => {
-                    const isActive = pathname === item.href;
-                    const Icon = item.icon;
-
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onClose}
-                        className={cn(
-                          "flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg transition-all duration-150 group text-xs font-medium cursor-pointer",
-                          isActive 
-                            ? "bg-blue-600/10 text-blue-400 border border-blue-500/15" 
-                            : "text-slate-450 hover:bg-slate-800/30 hover:text-slate-350"
-                        )}
-                      >
-                        <Icon 
-                          size={15} 
-                          className={cn(
-                            "transition-colors duration-150",
-                            isActive ? "text-blue-400" : "text-slate-500 group-hover:text-slate-350"
-                          )}
-                        />
-                        <span>{item.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           );
         })()}
 
-        {/* Configurações Accordion Section */}
-        {(() => {
-          const role = user.role || 'COMERCIAL';
-          const allowedConfig = CONFIG_ITEMS.filter(item => item.roles.includes(role));
-          if (allowedConfig.length === 0) return null;
+        {/* Grupos de navegação */}
+        {NAV_GROUPS.map((group) => {
+          const allowed = group.items.filter(item => item.roles.includes(role));
+          if (allowed.length === 0) return null;
 
-          const isSubActive = allowedConfig.some(item => pathname === item.href);
+          const isSubActive = allowed.some(item => pathname === item.href);
+          const isOpenGroup = !!openGroups[group.id];
+          const GroupIcon = group.icon;
 
           return (
-            <div className="space-y-1.5 pt-2">
+            <div key={group.id} className="space-y-1.5 pt-2">
               <button
                 type="button"
-                onClick={() => setIsConfigOpen(!isConfigOpen)}
+                onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !prev[group.id] }))}
                 className={cn(
                   "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium cursor-pointer",
-                  isSubActive && !isConfigOpen
+                  isSubActive && !isOpenGroup
                     ? "bg-slate-800/30 text-slate-300 border border-slate-850"
                     : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Settings
-                    size={18}
-                    className={cn(
-                      "transition-colors duration-200",
-                      isSubActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200"
-                    )}
-                  />
-                  <span>Configurações</span>
+                  <GroupIcon size={18} className={cn("transition-colors duration-200", isSubActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200")} />
+                  <span>{group.label}</span>
                 </div>
-                <ChevronDown
-                  size={14}
-                  className={cn(
-                    "transition-transform duration-200 text-slate-500 group-hover:text-slate-400",
-                    isConfigOpen ? "rotate-180 text-blue-400" : ""
-                  )}
-                />
+                <ChevronDown size={14} className={cn("transition-transform duration-200 text-slate-500 group-hover:text-slate-400", isOpenGroup ? "rotate-180 text-blue-400" : "")} />
               </button>
 
-              {isConfigOpen && (
+              {isOpenGroup && (
                 <div className="pl-4 space-y-1 border-l border-slate-805/50 ml-6">
-                  {allowedConfig.map((item) => {
+                  {allowed.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
-
                     return (
                       <Link
                         key={item.href}
@@ -424,13 +347,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             : "text-slate-450 hover:bg-slate-800/30 hover:text-slate-350"
                         )}
                       >
-                        <Icon
-                          size={15}
-                          className={cn(
-                            "transition-colors duration-150",
-                            isActive ? "text-blue-400" : "text-slate-500 group-hover:text-slate-350"
-                          )}
-                        />
+                        <Icon size={15} className={cn("transition-colors duration-150", isActive ? "text-blue-400" : "text-slate-500 group-hover:text-slate-350")} />
                         <span>{item.name}</span>
                       </Link>
                     );
@@ -439,7 +356,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               )}
             </div>
           );
-        })()}
+        })}
       </nav>
 
       {/* Warning Footer if there's a glosed measurement */}
@@ -457,7 +374,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* User info / Settings Dropdown menu wrapper */}
       <div className="relative p-4 border-t border-[#1e293b] bg-[#0f1422]" ref={menuRef}>
-        
+
         {/* Settings Dropdown popover */}
         {showMenu && (
           <div className="absolute bottom-18 left-4 right-4 bg-[#151b2c] border border-slate-800 rounded-xl shadow-2xl p-2.5 space-y-1.5 z-50">
@@ -509,7 +426,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
               <span className="text-[10px] font-bold text-white uppercase tracking-wider">Notificações</span>
               {unreadCount > 0 && (
-                <button 
+                <button
                   onClick={async () => {
                     await fetch('/api/notificacoes', {
                       method: 'PATCH',
@@ -518,7 +435,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     });
                     setNotifications(prev => prev.map(n => ({ ...n, lida: true })));
                     setUnreadCount(0);
-                  }} 
+                  }}
                   className="text-[9px] font-bold text-blue-400 hover:text-blue-300 cursor-pointer"
                 >
                   Lidas
@@ -543,7 +460,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
 
         <div className="flex items-center justify-between">
-          <div 
+          <div
             onClick={() => setShowMenu(!showMenu)}
             className="flex items-center gap-3 overflow-hidden cursor-pointer hover:bg-slate-800/20 p-1.5 rounded-lg transition grow"
             title="Menu do usuário"
@@ -572,7 +489,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
               )}
             </button>
-            <button 
+            <button
               onClick={() => {
                 setShowMenu(!showMenu);
                 setShowNotifications(false);
