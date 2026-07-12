@@ -284,11 +284,11 @@ export default function CentralFinanceiraPage() {
 
   // Waterfall
   const chartDataWaterfall = dreData ? [
-    { name: 'VGV Comercial', valor: [0, Number(dreData.totalVGVRealizado)] as [number, number], display: Number(dreData.totalVGVRealizado), color: '#6366f1' },
-    { name: 'Corretagem', valor: [Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada)), Number(dreData.totalVGVRealizado)] as [number, number], display: Number(dreData.totalComissaoRealizada), color: '#f59e0b' },
+    { name: 'Vendas (VGV)', valor: [0, Number(dreData.totalVGVRealizado)] as [number, number], display: Number(dreData.totalVGVRealizado), color: '#6366f1' },
+    { name: 'Comissões', valor: [Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada)), Number(dreData.totalVGVRealizado)] as [number, number], display: Number(dreData.totalComissaoRealizada), color: '#f59e0b' },
     { name: 'Terreno / Lote', valor: [Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada) - Number(dreData.totalRateioReal)), Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada))] as [number, number], display: Number(dreData.totalRateioReal), color: '#3b82f6' },
-    { name: 'Tributação RET', valor: [Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada) - Number(dreData.totalRateioReal) - Number(dreData.totalImpostoRealizado)), Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada) - Number(dreData.totalRateioReal))] as [number, number], display: Number(dreData.totalImpostoRealizado), color: '#ef4444' },
-    { name: 'Custos Diretos', valor: [Math.max(0, Number(dreData.lucroLiquidoRealizado)), Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada) - Number(dreData.totalRateioReal) - Number(dreData.totalImpostoRealizado))] as [number, number], display: Number(dreData.totalDiretoRealizado), color: '#ec4899' },
+    { name: 'Impostos (RET)', valor: [Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada) - Number(dreData.totalRateioReal) - Number(dreData.totalImpostoRealizado)), Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada) - Number(dreData.totalRateioReal))] as [number, number], display: Number(dreData.totalImpostoRealizado), color: '#ef4444' },
+    { name: 'Custos de obra', valor: [Math.max(0, Number(dreData.lucroLiquidoRealizado)), Math.max(0, Number(dreData.totalVGVRealizado) - Number(dreData.totalComissaoRealizada) - Number(dreData.totalRateioReal) - Number(dreData.totalImpostoRealizado))] as [number, number], display: Number(dreData.totalDiretoRealizado), color: '#ec4899' },
     { name: 'Lucro Líquido', valor: [0, Math.max(0, Number(dreData.lucroLiquidoRealizado))] as [number, number], display: Number(dreData.lucroLiquidoRealizado), color: '#10b981' }
   ] : [];
 
@@ -433,13 +433,13 @@ export default function CentralFinanceiraPage() {
             <div className="glassmorphism p-5 rounded-2xl border border-slate-850">
               <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Custos Totais Realizados</span>
               <h3 className="text-xl font-bold text-red-400 font-mono mt-1.5">{formatCurrency(dreData.totalDiretoRealizado + dreData.totalRateioReal)}</h3>
-              <p className="text-[10px] text-slate-500 mt-1">Diretos obra + macro rateios</p>
+              <p className="text-[10px] text-slate-500 mt-1">Obra + custos do empreendimento</p>
             </div>
 
             <div className="glassmorphism p-5 rounded-2xl border border-slate-850">
               <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Impostos RET & Comissões</span>
               <h3 className="text-xl font-bold text-amber-500 font-mono mt-1.5">{formatCurrency(dreData.totalImpostoRealizado + dreData.totalComissaoRealizada)}</h3>
-              <p className="text-[10px] text-slate-500 mt-1">Tributação RET e intermediários</p>
+              <p className="text-[10px] text-slate-500 mt-1">Impostos (RET) e comissões de venda</p>
             </div>
 
             <div className="glassmorphism p-5 rounded-2xl border border-emerald-500/20 bg-emerald-950/5">
@@ -456,9 +456,9 @@ export default function CentralFinanceiraPage() {
             <div className="lg:col-span-7 glassmorphism p-6 rounded-2xl border border-slate-850 flex flex-col justify-between min-h-[360px]">
               <div>
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Calculator size={14} className="text-indigo-400" /> Demonstração do Resultado (DRE Cascata)
+                  <Calculator size={14} className="text-indigo-400" /> Do que foi vendido ao lucro (DRE)
                 </h3>
-                <p className="text-[10px] text-slate-400 mt-1">Quebra analítica de receitas, deduções e despesas por competência real</p>
+                <p className="text-[10px] text-slate-400 mt-1">De cada venda, o que sobra depois de comissões, impostos e custos.</p>
               </div>
               
               <div className="h-72 w-full mt-4">
@@ -500,23 +500,23 @@ export default function CentralFinanceiraPage() {
           {/* DRE tabular breakdown */}
           <div className="glassmorphism p-6 rounded-2xl border border-slate-850">
             <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-1.5">
-              <FileSpreadsheet size={14} className="text-indigo-400" /> Balancete Consolidado Comparativo (Projetado vs Realizado)
+              <FileSpreadsheet size={14} className="text-indigo-400" /> Resultado detalhado — Projetado vs Realizado
             </h3>
             
             <div className="overflow-x-auto border border-slate-900 rounded-xl">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-950/80 border-b border-slate-900 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-4">Rubrica Financeira</th>
+                    <th className="py-3 px-4">Item</th>
                     <th className="py-3 px-4 text-right">Previsto / Orçado</th>
                     <th className="py-3 px-4 text-right">Realizado / Pago</th>
-                    <th className="py-3 px-4 text-right">Desvio Econômico</th>
+                    <th className="py-3 px-4 text-right">Diferença</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-900/60 text-slate-300 font-mono">
                   {/* Receitas */}
                   <tr className="hover:bg-slate-900/10 font-sans">
-                    <td className="py-2.5 px-4 font-semibold text-slate-200">Receita Operacional Bruta (VGV)</td>
+                    <td className="py-2.5 px-4 font-semibold text-slate-200">Receita de vendas (VGV)</td>
                     <td className="py-2.5 px-4 text-right">{formatCurrency(dreData.totalVGVProjetado)}</td>
                     <td className="py-2.5 px-4 text-right text-emerald-400">{formatCurrency(dreData.totalVGVRealizado)}</td>
                     <td className={`py-2.5 px-4 text-right font-bold ${(dreData.totalVGVRealizado - dreData.totalVGVProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -525,7 +525,7 @@ export default function CentralFinanceiraPage() {
                   </tr>
                   {/* Comissoes */}
                   <tr className="hover:bg-slate-900/10 text-slate-400">
-                    <td className="py-2 px-4 pl-6">(-) Intermediação Corretagem</td>
+                    <td className="py-2 px-4 pl-6">(-) Comissões de venda</td>
                     <td className="py-2 px-4 text-right">-{formatCurrency(dreData.totalComissaoProjetada)}</td>
                     <td className="py-2 px-4 text-right">-{formatCurrency(dreData.totalComissaoRealizada)}</td>
                     <td className={`py-2 px-4 text-right ${dreData.totalComissaoRealizada > dreData.totalComissaoProjetada ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -534,7 +534,7 @@ export default function CentralFinanceiraPage() {
                   </tr>
                   {/* Impostos */}
                   <tr className="hover:bg-slate-900/10 text-slate-400">
-                    <td className="py-2 px-4 pl-6">(-) Tributação Faturamento (RET)</td>
+                    <td className="py-2 px-4 pl-6">(-) Impostos sobre vendas (RET)</td>
                     <td className="py-2 px-4 text-right">-{formatCurrency(dreData.totalImpostoProjetado)}</td>
                     <td className="py-2 px-4 text-right">-{formatCurrency(dreData.totalImpostoRealizado)}</td>
                     <td className={`py-2 px-4 text-right ${dreData.totalImpostoRealizado > dreData.totalImpostoProjetado ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -543,7 +543,7 @@ export default function CentralFinanceiraPage() {
                   </tr>
                   {/* Custos Globais */}
                   <tr className="hover:bg-slate-900/10 font-semibold text-slate-200">
-                    <td className="py-2.5 px-4">(-) Custos Globais Rateados (Terreno/Projetos/Mkt)</td>
+                    <td className="py-2.5 px-4">(-) Custos do empreendimento (terreno, projetos, marketing)</td>
                     <td className="py-2.5 px-4 text-right">-{formatCurrency(dreData.totalRateioProj)}</td>
                     <td className="py-2.5 px-4 text-right">-{formatCurrency(dreData.totalRateioReal)}</td>
                     <td className={`py-2.5 px-4 text-right ${dreData.totalRateioReal > dreData.totalRateioProj ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -570,7 +570,7 @@ export default function CentralFinanceiraPage() {
                   </tr>
                   {/* Custos Obras */}
                   <tr className="hover:bg-slate-900/10 font-semibold text-slate-200">
-                    <td className="py-2.5 px-4">(-) Custos Diretos de Obras das Casas</td>
+                    <td className="py-2.5 px-4">(-) Custos de obra das casas</td>
                     <td className="py-2.5 px-4 text-right">-{formatCurrency(dreData.totalDiretoProjetado)}</td>
                     <td className="py-2.5 px-4 text-right">-{formatCurrency(dreData.totalDiretoRealizado)}</td>
                     <td className={`py-2.5 px-4 text-right ${dreData.totalDiretoRealizado > dreData.totalDiretoProjetado ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -591,7 +591,7 @@ export default function CentralFinanceiraPage() {
                   </tr>
                   {/* Resultado */}
                   <tr className="bg-slate-950/40 text-emerald-400 font-sans font-bold border-t border-slate-800">
-                    <td className="py-3 px-4 text-sm font-extrabold">Lucro Líquido Operacional</td>
+                    <td className="py-3 px-4 text-sm font-extrabold">Lucro Líquido</td>
                     <td className="py-3 px-4 text-right text-sm">{formatCurrency(dreData.lucroLiquidoProjetado)}</td>
                     <td className="py-3 px-4 text-right text-sm">{formatCurrency(dreData.lucroLiquidoRealizado)}</td>
                     <td className={`py-3 px-4 text-right text-sm font-extrabold ${(dreData.lucroLiquidoRealizado - dreData.lucroLiquidoProjetado) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
