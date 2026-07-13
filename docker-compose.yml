@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    # Mesmo major da producao (Railway roda postgres-ssl:18). Manter igual e o
+    # que permite restaurar dumps de prod aqui e testar migrations com fidelidade.
+    image: postgres:18-alpine
     container_name: masar-postgres
     restart: always
     environment:
