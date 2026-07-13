@@ -88,6 +88,9 @@ export default function CentralFinanceiraPage() {
   const [custosCasa, setCustosCasa] = useState<any>(null);
   const [loadingCustosCasa, setLoadingCustosCasa] = useState(false);
 
+  // DRE consolidado: detalhamento por empreendimento (quando "Consolidado")
+  const [porEmpreendimento, setPorEmpreendimento] = useState<any[]>([]);
+
   // Contas a pagar/receber (aging)
   const [contasData, setContasData] = useState<any>(null);
   const [loadingContas, setLoadingContas] = useState(false);
@@ -145,14 +148,24 @@ export default function CentralFinanceiraPage() {
     const fetchFinancialData = async () => {
       setLoadingData(true);
       try {
-        const [resDre, resDfc, resFluxo] = await Promise.all([
-          fetch(`/api/financeiro/dre?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
-          fetch(`/api/financeiro/dfc?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
-          fetch(`/api/financeiro/fluxo-de-caixa?empreendimentoId=${selectedProjectId}`).then(r => r.json())
-        ]);
-        setDreData(resDre);
-        setDfcData(resDfc || []);
-        setFluxoCaixaData(resFluxo);
+        if (selectedProjectId === 'ALL') {
+          // Consolidado: só o DRE somado de todos + detalhamento por empreendimento.
+          const resDre = await fetch('/api/financeiro/dre/consolidado').then(r => r.json());
+          setDreData(resDre);
+          setPorEmpreendimento(resDre.porEmpreendimento || []);
+          setDfcData([]);
+          setFluxoCaixaData(null);
+        } else {
+          const [resDre, resDfc, resFluxo] = await Promise.all([
+            fetch(`/api/financeiro/dre?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
+            fetch(`/api/financeiro/dfc?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
+            fetch(`/api/financeiro/fluxo-de-caixa?empreendimentoId=${selectedProjectId}`).then(r => r.json())
+          ]);
+          setDreData(resDre);
+          setDfcData(resDfc || []);
+          setFluxoCaixaData(resFluxo);
+          setPorEmpreendimento([]);
+        }
       } catch (err) {
         console.error('Erro ao carregar gráficos:', err);
       } finally {
@@ -185,9 +198,17 @@ export default function CentralFinanceiraPage() {
     };
 
     fetchFinancialData();
-    fetchTransactions();
-    fetchCustosCasa();
-    fetchContas();
+    if (selectedProjectId === 'ALL') {
+      // Consolidado só tem a Visão Geral (as demais abas exigem um empreendimento).
+      setActiveTab('dashboard');
+      setTransactions([]);
+      setCustosCasa(null);
+      setContasData(null);
+    } else {
+      fetchTransactions();
+      fetchCustosCasa();
+      fetchContas();
+    }
   }, [selectedProjectId]);
 
   const fetchContas = async () => {
@@ -311,6 +332,8 @@ export default function CentralFinanceiraPage() {
     group.net += t.natureza === 'RECEITA' ? t.valor : -t.valor;
   });
 
+  const isConsolidado = selectedProjectId === 'ALL';
+
   if (loadingProjects) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
@@ -365,6 +388,7 @@ export default function CentralFinanceiraPage() {
             onChange={(e) => setSelectedProjectId(e.target.value)}
             className="bg-[#0b0f19] border border-slate-800 text-xs text-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500/50"
           >
+            <option value="ALL">🏢 Consolidado (todos)</option>
             {empreendimentos.map(emp => (
               <option key={emp.id} value={emp.id}>{emp.nome}</option>
             ))}
@@ -384,8 +408,9 @@ export default function CentralFinanceiraPage() {
             }`}
           >
             <TrendingUp size={14} />
-            Visão Geral
+            {isConsolidado ? 'Visão Consolidada' : 'Visão Geral'}
           </button>
+          {!isConsolidado && (<>
           <button
             onClick={() => setActiveTab('livro_caixa')}
             className={`flex-1 md:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
@@ -441,6 +466,7 @@ export default function CentralFinanceiraPage() {
             <HardHat size={14} />
             Custos por Casa
           </button>
+          </>)}
         </div>
 
         {/* Mini Balance summary */}
@@ -525,7 +551,7 @@ export default function CentralFinanceiraPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Waterfall DRE */}
-            <div className="lg:col-span-7 glassmorphism p-6 rounded-2xl border border-slate-850 flex flex-col justify-between min-h-[360px]">
+            <div className={`${isConsolidado ? 'lg:col-span-12' : 'lg:col-span-7'} glassmorphism p-6 rounded-2xl border border-slate-850 flex flex-col justify-between min-h-[360px]`}>
               <div>
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Calculator size={14} className="text-indigo-400" /> Do que foi vendido ao lucro (DRE)
@@ -538,7 +564,8 @@ export default function CentralFinanceiraPage() {
               </div>
             </div>
 
-            {/* DFC Line Chart */}
+            {/* DFC Line Chart (oculto no consolidado — DFC é por empreendimento) */}
+            {!isConsolidado && (
             <div className="lg:col-span-5 glassmorphism p-6 rounded-2xl border border-slate-850 flex flex-col justify-between min-h-[360px]">
               <div>
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -566,6 +593,7 @@ export default function CentralFinanceiraPage() {
                 </ResponsiveContainer>
               </div>
             </div>
+            )}
 
           </div>
 
@@ -674,6 +702,43 @@ export default function CentralFinanceiraPage() {
               </table>
             </div>
           </div>
+
+          {/* Detalhamento por empreendimento (só no consolidado) */}
+          {isConsolidado && porEmpreendimento.length > 0 && (
+            <div className="glassmorphism p-6 rounded-2xl border border-slate-850">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                <Building2 size={14} className="text-indigo-400" /> Resultado por empreendimento
+              </h3>
+              <div className="overflow-x-auto border border-slate-900 rounded-xl">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-950/80 border-b border-slate-900 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-4">Empreendimento</th>
+                      <th className="py-3 px-4 text-right">VGV Realizado</th>
+                      <th className="py-3 px-4 text-right">Custos Realizados</th>
+                      <th className="py-3 px-4 text-right">Lucro Líquido</th>
+                      <th className="py-3 px-4 text-right">Margem</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900/60 text-slate-300 font-mono">
+                    {porEmpreendimento.map((e: any) => {
+                      const custos = e.totalDiretoRealizado + e.totalRateioReal + e.totalImpostoRealizado + e.totalComissaoRealizada;
+                      const margemPct = e.totalVGVRealizado > 0 ? (e.lucroLiquidoRealizado / e.totalVGVRealizado) * 100 : 0;
+                      return (
+                        <tr key={e.empreendimentoId} className="hover:bg-slate-900/10">
+                          <td className="py-2.5 px-4 font-sans font-semibold text-slate-200">{e.empreendimentoNome}</td>
+                          <td className="py-2.5 px-4 text-right text-emerald-400">{formatCurrency(e.totalVGVRealizado)}</td>
+                          <td className="py-2.5 px-4 text-right text-red-400">-{formatCurrency(custos)}</td>
+                          <td className={`py-2.5 px-4 text-right font-bold ${e.lucroLiquidoRealizado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(e.lucroLiquidoRealizado)}</td>
+                          <td className="py-2.5 px-4 text-right text-slate-400">{margemPct.toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
