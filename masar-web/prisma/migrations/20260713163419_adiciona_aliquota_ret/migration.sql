@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Empreendimento" ADD COLUMN     "aliquotaRET" DOUBLE PRECISION NOT NULL DEFAULT 4.0;

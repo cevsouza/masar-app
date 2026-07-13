@@ -150,6 +150,8 @@ model Empreendimento {
   padraoVagasGaragem     Int                 @default(0)
   padraoPossuiQuintal    Boolean             @default(false)
   padraoSalaConjugada    Boolean             @default(false)
+  // Aliquota do RET (Regime Especial de Tributacao) em %. Padrao 4%; MCMV social = 1%.
+  aliquotaRET            Float               @default(4.0)
   dataCriacao            DateTime            @default(now())
   dataAtualizacao        DateTime            @updatedAt
   casas                  Casa[]
