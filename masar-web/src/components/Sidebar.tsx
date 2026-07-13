@@ -36,7 +36,8 @@ import {
   Percent,
   PackageCheck,
   Activity,
-  Target
+  Target,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -57,6 +58,7 @@ const NAV_GROUPS = [
       { name: 'Painel de Eficiência', href: '/gestao/eficiencia-diaria', icon: Target, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Indicadores', href: '/gestao/indicadores', icon: Sliders, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Desempenho (EVM)', href: '/gestao/evm', icon: Activity, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Linha de Base', href: '/gestao/linha-base', icon: Lock, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Eficiência de Material', href: '/gestao/eficiencia', icon: PackageCheck, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Necessidade de Materiais', href: '/gestao/materiais', icon: ShoppingCart, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Financeiro', href: '/financeiro', icon: TrendingUp, roles: ['ADMIN', 'FINANCEIRO'] },

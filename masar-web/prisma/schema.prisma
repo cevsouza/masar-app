@@ -252,6 +252,7 @@ model Casa {
   movimentacoesEstoque   MovimentacaoEstoque[]
   milestones             Milestone[]
   atividadesCronograma   AtividadeCronograma[]
+  linhaBase              LinhaBaseObra?
 }
 
 model OrcamentoCasa {
@@ -755,6 +756,21 @@ model AtividadeCronograma {
 
   @@index([empreendimentoId])
   @@index([casaId])
+}
+
+// Linha de base congelada da obra (Fase 6.2b): snapshot do plano (orcado +
+// prazo + itens) num instante, para medir o DRIFT do plano ao longo do tempo
+// (o quanto o orcamento/cronograma mudou desde o congelamento). 1:1 com Casa.
+model LinhaBaseObra {
+  id                  String    @id @default(uuid())
+  casaId              String    @unique
+  casa                Casa      @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  orcadoBaseline      Float     @default(0)
+  prazoInicioBaseline DateTime?
+  prazoFimBaseline    DateTime?
+  itensBaseline       Json? // snapshot [{insumoId, nome, quantidade, custoUnitario}]
+  dataSnapshot        DateTime  @default(now())
+  dataAtualizacao     DateTime  @updatedAt
 }
 
 // Metas de eficiencia da construtora (config singleton, id fixo "default").
