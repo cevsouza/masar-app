@@ -29,7 +29,8 @@ import {
   CalendarClock,
   HardHat,
   BookOpen,
-  Truck
+  Truck,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -64,6 +65,14 @@ const NAV_GROUPS = [
       { name: 'Fornecedores', href: '/fornecedores', icon: Truck, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Ponto', href: '/canteiro/ponto', icon: Smartphone, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
       { name: 'Diário de Obra', href: '/canteiro/diario', icon: BookOpen, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+    ],
+  },
+  {
+    id: 'sst',
+    label: 'Segurança',
+    icon: ShieldCheck,
+    items: [
+      { name: 'Trabalhadores', href: '/trabalhadores', icon: HardHat, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
     ],
   },
   {

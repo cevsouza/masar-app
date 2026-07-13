@@ -472,10 +472,37 @@ model PontoTrabalhador {
   id             String   @id @default(uuid())
   trabalhadorNome String
   trabalhadorCpf  String
+  trabalhadorId  String?
+  trabalhador    Trabalhador? @relation(fields: [trabalhadorId], references: [id])
   casaId         String
   casa           Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
   tipo           String   // ENTRADA, SAIDA
   dataRegistro   DateTime @default(now())
+}
+
+enum TipoVinculo {
+  PROPRIO
+  TERCEIRO
+  EMPREITEIRO
+}
+
+// Cadastro (registry) de trabalhador da obra — base do modulo de SST. ASO, EPI,
+// DDS, CAT e o ponto do canteiro referenciam este cadastro.
+model Trabalhador {
+  id              String            @id @default(uuid())
+  nome            String
+  cpf             String?           @unique
+  rg              String?
+  funcao          String? // pedreiro, servente, mestre de obras...
+  tipoVinculo     TipoVinculo       @default(PROPRIO)
+  empresa         String? // empreiteira/terceirizada (quando nao for proprio)
+  telefone        String?
+  dataAdmissao    DateTime?
+  observacoes     String?
+  ativo           Boolean           @default(true)
+  dataCriacao     DateTime          @default(now())
+  dataAtualizacao DateTime          @updatedAt
+  pontos          PontoTrabalhador[]
 }
 
 model TransacaoBancaria {
