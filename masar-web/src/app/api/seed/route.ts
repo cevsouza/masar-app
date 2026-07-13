@@ -1,9 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // 0. Trava de segurança: este endpoint APAGA e recria todo o banco.
+    // Exige o secret SEED_SECRET (mesmo padrão do cron) — antes era público,
+    // então qualquer visitante podia resetar a base de produção.
+    const seedSecret = process.env.SEED_SECRET;
+    const authHeader = request.headers.get('authorization');
+    if (!seedSecret || authHeader !== `Bearer ${seedSecret}`) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
+    // Senha do admin vem de variável de ambiente — nunca hardcoded no repositório.
+    const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (!seedAdminPassword) {
+      return NextResponse.json(
+        { error: 'SEED_ADMIN_PASSWORD não configurado. Defina a variável de ambiente antes de rodar o seed.' },
+        { status: 400 }
+      );
+    }
+
     const hoje = new Date();
     // 1. Limpar banco na ordem de dependência
     await db.user.deleteMany();
@@ -26,7 +44,7 @@ export async function GET() {
     await db.empreendimento.deleteMany();
 
     // Criar usuários administradores padrão
-    const adminPasswordHash = await hashPassword('V!to2017');
+    const adminPasswordHash = await hashPassword(seedAdminPassword);
     await db.user.create({
       data: {
         nome: 'Julio Souza',
