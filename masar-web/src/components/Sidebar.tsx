@@ -32,7 +32,8 @@ import {
   Truck,
   ShieldCheck,
   FolderLock,
-  Percent
+  Percent,
+  PackageCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -51,6 +52,7 @@ const NAV_GROUPS = [
     items: [
       { name: 'Painel Executivo', href: '/gestao/painel', icon: LayoutDashboard, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Indicadores', href: '/gestao/indicadores', icon: Sliders, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Eficiência de Material', href: '/gestao/eficiencia', icon: PackageCheck, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Financeiro', href: '/financeiro', icon: TrendingUp, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Sócios', href: '/socios/caixa', icon: PiggyBank, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Agenda', href: '/agenda', icon: CalendarClock, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },

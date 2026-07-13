@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+// Lista enxuta de casas (id/numero/quadra/status), opcionalmente por empreendimento.
+// Usada em seletores (ex.: Eficiência de material — Fase 6.1).
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const empreendimentoId = searchParams.get('empreendimentoId') || undefined;
+    const casas = await db.casa.findMany({
+      where: empreendimentoId ? { empreendimentoId } : {},
+      select: { id: true, numero: true, quadra: true, statusObra: true, empreendimentoId: true },
+      orderBy: [{ quadra: 'asc' }, { numero: 'asc' }],
+    });
+    return NextResponse.json(casas);
+  } catch (error) {
+    console.error('Erro ao listar casas:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
