@@ -1,0 +1,47 @@
+name: Backup do Banco Masar (pg_dump)
+
+# Faz um dump completo do Postgres de producao toda noite e guarda como
+# artifact do repositorio (privado). Rede de seguranca contra corrupcao de
+# volume, delete acidental ou incidente do Railway (que hoje NAO tem backup:
+# PITR nativo so no plano Pro).
+#
+# Requer o secret DATABASE_PUBLIC_URL no GitHub (Settings > Secrets and
+# variables > Actions) = a connection string publica do Postgres no Railway
+# (host hayabusa.proxy.rlwy.net). Fail-closed: sem o secret, o job falha.
+on:
+  schedule:
+    - cron: '0 6 * * *' # 03:00 America/Sao_Paulo (UTC-3), todos os dias
+  workflow_dispatch: {} # disparo manual pela aba Actions (para testar/backup sob demanda)
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    # container com pg_dump v18 (mesmo major do servidor). pg_dump precisa ser
+    # >= a versao do servidor, senao aborta com "server version mismatch".
+    container: postgres:18
+    steps:
+      - name: Gerar dump comprimido
+        env:
+          DATABASE_PUBLIC_URL: ${{ secrets.DATABASE_PUBLIC_URL }}
+        run: |
+          if [ -z "$DATABASE_PUBLIC_URL" ]; then
+            echo "ERRO: secret DATABASE_PUBLIC_URL nao configurado (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          STAMP=$(date -u +%Y%m%d-%H%M%SZ)
+          mkdir -p backups
+          # -Fc = formato custom (comprimido, restauravel com pg_restore).
+          # --no-owner/--no-privileges deixam o dump portavel para restaurar em
+          # qualquer banco novo (ex: staging ou um banco de recuperacao).
+          pg_dump --format=custom --no-owner --no-privileges \
+            "$DATABASE_PUBLIC_URL" -f "backups/masar-${STAMP}.dump"
+          echo "Dump gerado:"
+          ls -lh backups/
+
+      - name: Subir artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backups/*.dump
+          retention-days: 90 # maximo do plano gratuito
+          if-no-files-found: error
