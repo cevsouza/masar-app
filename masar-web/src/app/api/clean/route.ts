@@ -4,6 +4,14 @@ import { verifySession } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    // 0. Trava de segurança: só ADMIN autenticado pode limpar o banco.
+    // (Antes este endpoint apagava TODO o banco sem nenhuma verificação de sessão.)
+    const sessionToken = request.cookies.get('masar_session')?.value;
+    const session = sessionToken ? await verifySession(sessionToken) : null;
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
     // 1. Limpar todas as tabelas de dados na ordem de dependência para evitar violações de FK
     await db.logAuditoria.deleteMany();
     await db.documentoAnexo.deleteMany();

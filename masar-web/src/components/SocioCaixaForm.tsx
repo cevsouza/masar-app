@@ -18,7 +18,9 @@ import {
   X,
   ChevronDown,
   Split,
-  Loader2
+  Loader2,
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import {
   LineChart,
@@ -112,6 +114,12 @@ export default function SocioCaixaForm({
   const [loadingDreDistribuicao, setLoadingDreDistribuicao] = useState(false);
   const [isSavingDistribuicao, setIsSavingDistribuicao] = useState(false);
   const [distribuicaoFeedback, setDistribuicaoFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Exclusão de movimentação e reset da tesouraria
+  const [deletingMovId, setDeletingMovId] = useState<string | null>(null);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetFeedback, setResetFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const totalCotasCadastradas = socios.reduce((sum, s) => sum + s.percentualCotas, 0);
 
@@ -249,6 +257,42 @@ export default function SocioCaixaForm({
       setDistribuicaoFeedback({ type: 'error', message: err.message });
     } finally {
       setIsSavingDistribuicao(false);
+    }
+  };
+
+  const handleDeleteMovimentacao = async (mov: Movimentacao) => {
+    const sinal = mov.tipo === 'APORTE' ? 'devolvido (debitado)' : 'estornado (creditado)';
+    if (!window.confirm(
+      `Excluir esta movimentação de ${mov.tipo.replace('_', ' ')} de ${formatCurrency(mov.valor)} (${mov.socioNome})?\n\n` +
+      `O valor será ${sinal} no saldo em conta. Esta ação não pode ser desfeita.`
+    )) return;
+
+    setDeletingMovId(mov.id);
+    try {
+      const res = await fetch(`/api/socios/retiradas/${mov.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao excluir movimentação.');
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeletingMovId(null);
+    }
+  };
+
+  const handleResetTesouraria = async () => {
+    setIsResetting(true);
+    setResetFeedback(null);
+    try {
+      const res = await fetch('/api/socios/reset-tesouraria', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao resetar tesouraria.');
+      setIsResetModalOpen(false);
+      router.refresh();
+    } catch (err: any) {
+      setResetFeedback({ type: 'error', message: err.message });
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -590,9 +634,19 @@ export default function SocioCaixaForm({
 
         {/* Histórico das movimentações */}
         <div className="lg:col-span-7 glassmorphism p-5 rounded-2xl border border-slate-800/60">
-          <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <History size={16} className="text-slate-400" /> Histórico de Transações de Sócios
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <History size={16} className="text-slate-400" /> Histórico de Transações de Sócios
+            </h3>
+            <button
+              type="button"
+              onClick={() => { setResetFeedback(null); setIsResetModalOpen(true); }}
+              className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 bg-red-500/5 hover:bg-red-500/10 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+              title="Apaga todas as movimentações e zera o saldo das contas (mantém os sócios)"
+            >
+              <RotateCcw size={12} /> Zerar tesouraria
+            </button>
+          </div>
 
           <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
             <table className="w-full text-left border-collapse text-xs">
@@ -602,12 +656,13 @@ export default function SocioCaixaForm({
                   <th className="py-2.5 px-3">Sócio</th>
                   <th className="py-2.5 px-3">Tipo</th>
                   <th className="py-2.5 px-3 text-right">Valor</th>
+                  <th className="py-2.5 px-3 w-8"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50 text-slate-300">
                 {initialMovimentacoes.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-6 text-center text-slate-500">Nenhuma transação efetuada.</td>
+                    <td colSpan={5} className="py-6 text-center text-slate-500">Nenhuma transação efetuada.</td>
                   </tr>
                 ) : (
                   initialMovimentacoes.map(mov => {
@@ -633,6 +688,19 @@ export default function SocioCaixaForm({
                         </td>
                         <td className={`py-2.5 px-3 text-right font-mono font-bold ${isAdd ? 'text-emerald-400' : 'text-slate-200'}`}>
                           {isAdd ? '+' : '-'}{formatCurrency(mov.valor)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMovimentacao(mov)}
+                            disabled={deletingMovId === mov.id}
+                            className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer disabled:opacity-40"
+                            title="Excluir movimentação (estorna o saldo)"
+                          >
+                            {deletingMovId === mov.id
+                              ? <Loader2 size={13} className="animate-spin" />
+                              : <Trash2 size={13} />}
+                          </button>
                         </td>
                       </tr>
                     );
@@ -831,6 +899,67 @@ export default function SocioCaixaForm({
                   Confirmar Distribuição
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Zerar Tesouraria (reset limpo) */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glassmorphism w-full max-w-md rounded-2xl border border-red-500/30 shadow-2xl p-6 relative">
+            <button
+              onClick={() => setIsResetModalOpen(false)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            >
+              <X size={16} />
+            </button>
+
+            <h4 className="text-sm font-bold text-red-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+              <RotateCcw size={16} /> Zerar Tesouraria
+            </h4>
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              Esta ação, de forma <strong className="text-slate-200">irreversível</strong>:
+            </p>
+
+            <ul className="text-xs text-slate-300 space-y-2 mb-4">
+              <li className="flex items-start gap-2">
+                <span className="text-red-400 mt-0.5">•</span>
+                Apaga <strong>todas as {initialMovimentacoes.length} movimentações</strong> de sócios (aportes, retiradas e pró-labores).
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-red-400 mt-0.5">•</span>
+                Zera o <strong>saldo de todas as contas bancárias</strong> (hoje {formatCurrency(saldoBancario)}).
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-400 mt-0.5">•</span>
+                <span className="text-slate-400">Mantém os sócios e suas cotas cadastrados.</span>
+              </li>
+            </ul>
+
+            {resetFeedback && (
+              <div className="p-3 rounded-xl border text-xs leading-relaxed mb-4 bg-red-500/10 border-red-500/30 text-red-400">
+                {resetFeedback.message}
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-slate-850">
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-xl font-bold transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isResetting}
+                onClick={handleResetTesouraria}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+              >
+                {isResetting && <Loader2 size={12} className="animate-spin" />}
+                Zerar agora
+              </button>
             </div>
           </div>
         </div>
