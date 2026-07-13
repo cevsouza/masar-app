@@ -7,7 +7,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     const trabalhador = await db.trabalhador.findUnique({
       where: { id },
-      include: { pontos: { orderBy: { dataRegistro: 'desc' }, take: 20 } },
+      include: {
+        pontos: { orderBy: { dataRegistro: 'desc' }, take: 20 },
+        asos: { orderBy: { dataValidade: 'desc' } },
+        episEntregues: { orderBy: { dataEntrega: 'desc' } },
+      },
     });
     if (!trabalhador) {
       return NextResponse.json({ error: 'Trabalhador não encontrado' }, { status: 404 });

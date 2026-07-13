@@ -11,7 +11,10 @@ import {
   Ban,
   RotateCcw,
   X,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
+import TrabalhadorSstModal from '@/components/TrabalhadorSstModal';
 
 interface Trabalhador {
   id: string;
@@ -61,6 +64,28 @@ export default function TrabalhadoresPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // SST: modal de saúde/EPI e mapa de conformidade (trabalhadorId -> pior status)
+  const [sstTrab, setSstTrab] = useState<Trabalhador | null>(null);
+  const [conformidade, setConformidade] = useState<Record<string, 'VENCIDO' | 'A_VENCER'>>({});
+  const [resumoSST, setResumoSST] = useState<{ asosVencidos: number; asosAVencer: number; episVencidos: number; episAVencer: number } | null>(null);
+
+  const fetchVencimentos = async () => {
+    try {
+      const v = await fetch('/api/sst/vencimentos').then((r) => r.json());
+      setResumoSST(v.resumo || null);
+      const mapa: Record<string, 'VENCIDO' | 'A_VENCER'> = {};
+      for (const item of [...(v.asos || []), ...(v.epis || [])]) {
+        if (item.status === 'OK') continue;
+        const atual = mapa[item.trabalhadorId];
+        // VENCIDO tem prioridade sobre A_VENCER
+        if (item.status === 'VENCIDO' || !atual) mapa[item.trabalhadorId] = item.status;
+      }
+      setConformidade(mapa);
+    } catch (err) {
+      console.error('Erro ao buscar vencimentos SST:', err);
+    }
+  };
+
   const fetchTrabalhadores = async () => {
     try {
       setLoading(true);
@@ -75,6 +100,7 @@ export default function TrabalhadoresPage() {
 
   useEffect(() => {
     fetchTrabalhadores();
+    fetchVencimentos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incluirInativos]);
 
@@ -215,6 +241,19 @@ export default function TrabalhadoresPage() {
         </label>
       </div>
 
+      {/* Banner de conformidade SST (ASO/EPI vencidos ou a vencer) */}
+      {resumoSST && (resumoSST.asosVencidos + resumoSST.asosAVencer + resumoSST.episVencidos + resumoSST.episAVencer > 0) && (
+        <div className="p-3 bg-red-950/40 border border-red-500/30 text-red-300 rounded-xl text-xs flex items-start gap-2.5">
+          <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold text-red-400">Pendências de segurança</span>
+            <p className="text-[11px] text-red-300/80 mt-0.5">
+              ASO: {resumoSST.asosVencidos} vencido(s), {resumoSST.asosAVencer} a vencer · EPI: {resumoSST.episVencidos} vencido(s), {resumoSST.episAVencer} a vencer (janela 30 dias). Abra a saúde do trabalhador para regularizar.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Lista */}
       <div className="bg-slate-950/20 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl">
         {loading ? (
@@ -240,7 +279,7 @@ export default function TrabalhadoresPage() {
                   <th className="py-3 px-4">Função</th>
                   <th className="py-3 px-4">Vínculo</th>
                   <th className="py-3 px-4">Empresa</th>
-                  <th className="py-3 px-4">Contato</th>
+                  <th className="py-3 px-4 text-center">Conformidade</th>
                   <th className="py-3 px-4 text-center">Ações</th>
                 </tr>
               </thead>
@@ -263,8 +302,23 @@ export default function TrabalhadoresPage() {
                         <span className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase border ${vm.cls}`}>{vm.label}</span>
                       </td>
                       <td className="py-3.5 px-4">{t.empresa || '—'}</td>
-                      <td className="py-3.5 px-4">{t.telefone || '—'}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        {conformidade[t.id] === 'VENCIDO' ? (
+                          <span className="px-2 py-0.5 rounded font-bold text-[9px] uppercase border bg-red-500/10 text-red-400 border-red-500/25">Vencido</span>
+                        ) : conformidade[t.id] === 'A_VENCER' ? (
+                          <span className="px-2 py-0.5 rounded font-bold text-[9px] uppercase border bg-amber-500/10 text-amber-400 border-amber-500/25">A vencer</span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded font-bold text-[9px] uppercase border bg-emerald-500/10 text-emerald-400 border-emerald-500/25">Em dia</span>
+                        )}
+                      </td>
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => setSstTrab(t)}
+                          className="p-1.5 hover:bg-slate-900 text-emerald-400 hover:text-emerald-300 rounded-lg transition cursor-pointer inline-block"
+                          title="Saúde & EPIs (ASO/EPI)"
+                        >
+                          <ShieldCheck size={13} />
+                        </button>
                         <button
                           onClick={() => abrirEdicao(t)}
                           className="p-1.5 hover:bg-slate-900 text-blue-400 hover:text-blue-300 rounded-lg transition cursor-pointer inline-block"
@@ -393,6 +447,16 @@ export default function TrabalhadoresPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal Saúde & EPIs (SST) */}
+      {sstTrab && (
+        <TrabalhadorSstModal
+          trabalhadorId={sstTrab.id}
+          trabalhadorNome={sstTrab.nome}
+          onClose={() => setSstTrab(null)}
+          onChanged={fetchVencimentos}
+        />
       )}
     </div>
   );

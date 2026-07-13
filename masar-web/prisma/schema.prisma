@@ -503,6 +503,52 @@ model Trabalhador {
   dataCriacao     DateTime          @default(now())
   dataAtualizacao DateTime          @updatedAt
   pontos          PontoTrabalhador[]
+  asos            ASO[]
+  episEntregues   EntregaEPI[]
+}
+
+enum TipoASO {
+  ADMISSIONAL
+  PERIODICO
+  RETORNO_AO_TRABALHO
+  MUDANCA_DE_FUNCAO
+  DEMISSIONAL
+}
+
+enum ResultadoASO {
+  APTO
+  APTO_COM_RESTRICAO
+  INAPTO
+}
+
+// ASO — Atestado de Saude Ocupacional (exame). A validade dispara alerta no cron
+// e, na Fase 3.4, trava a liberacao de medicao se estiver vencida.
+model ASO {
+  id             String       @id @default(uuid())
+  trabalhadorId  String
+  trabalhador    Trabalhador  @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
+  tipo           TipoASO      @default(PERIODICO)
+  dataRealizacao DateTime
+  dataValidade   DateTime
+  resultado      ResultadoASO @default(APTO)
+  medico         String? // medico/clinica emitente
+  observacoes    String?
+  dataCriacao    DateTime     @default(now())
+}
+
+// Entrega de EPI (equipamento de protecao individual) a um trabalhador.
+model EntregaEPI {
+  id             String      @id @default(uuid())
+  trabalhadorId  String
+  trabalhador    Trabalhador @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
+  equipamento    String // capacete, botina, luva, cinto...
+  ca             String? // Certificado de Aprovacao
+  quantidade     Int         @default(1)
+  dataEntrega    DateTime
+  dataValidade   DateTime? // validade do EPI/CA (opcional)
+  devolvido      Boolean     @default(false)
+  observacoes    String?
+  dataCriacao    DateTime    @default(now())
 }
 
 model TransacaoBancaria {

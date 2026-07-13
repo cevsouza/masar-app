@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/resend';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
+import { buscarVencimentosSST } from '@/lib/sst';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -127,7 +128,11 @@ export async function GET(request: NextRequest) {
 
     const totalCriticosFinanceiros = (rupturaCaixa ? 1 : 0) + medicoesGlosadas.length + casasEstouradas.length;
 
-    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length + totalCriticosFinanceiros;
+    // 3.8 SEGURANÇA DO TRABALHO (SST): ASOs e EPIs vencidos ou a vencer (30 dias)
+    const sst = await buscarVencimentosSST();
+    const totalSST = sst.asosVencidos.length + sst.asosAVencer.length + sst.episVencidos.length + sst.episAVencer.length;
+
+    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length + totalCriticosFinanceiros + totalSST;
 
     if (totalAlertas > 0) {
       // 4. Carregar administradores (ADMIN) e o público financeiro (ADMIN + FINANCEIRO)
@@ -195,6 +200,22 @@ export async function GET(request: NextRequest) {
             mensagem: msg,
             lida: false
           }))
+        });
+      }
+
+      // 5.4 Notificações in-app de SST (ASO/EPI vencidos ou a vencer)
+      for (const a of [...sst.asosVencidos, ...sst.asosAVencer]) {
+        const venceu = a.status === 'VENCIDO';
+        const msg = `${venceu ? '🔴 ASO VENCIDO' : '⚠️ ASO a vencer'}: ${a.trabalhadorNome} — validade ${new Date(a.dataValidade).toLocaleDateString('pt-BR')}`;
+        await db.notificacao.createMany({
+          data: admins.map(admin => ({ usuarioId: admin.id, mensagem: msg, lida: false }))
+        });
+      }
+      for (const e of [...sst.episVencidos, ...sst.episAVencer]) {
+        const venceu = e.status === 'VENCIDO';
+        const msg = `${venceu ? '🔴 EPI VENCIDO' : '⚠️ EPI a vencer'}: ${e.equipamento} de ${e.trabalhadorNome} — validade ${e.dataValidade ? new Date(e.dataValidade).toLocaleDateString('pt-BR') : '—'}`;
+        await db.notificacao.createMany({
+          data: admins.map(admin => ({ usuarioId: admin.id, mensagem: msg, lida: false }))
         });
       }
 
@@ -296,6 +317,16 @@ export async function GET(request: NextRequest) {
             <ul>${atividadeListHtml}</ul>
           ` : ''}
 
+          ${totalSST > 0 ? `
+            <h3 style="color: #dc2626;">🦺 Segurança do Trabalho (ASO / EPI):</h3>
+            <ul>${[
+              ...sst.asosVencidos.map(a => `<li><strong style="color:#dc2626;">[ASO VENCIDO]</strong> ${a.trabalhadorNome} — validade ${new Date(a.dataValidade).toLocaleDateString('pt-BR')}</li>`),
+              ...sst.asosAVencer.map(a => `<li><strong style="color:#f59e0b;">[ASO a vencer]</strong> ${a.trabalhadorNome} — validade ${new Date(a.dataValidade).toLocaleDateString('pt-BR')}</li>`),
+              ...sst.episVencidos.map(e => `<li><strong style="color:#dc2626;">[EPI VENCIDO]</strong> ${e.equipamento} de ${e.trabalhadorNome}</li>`),
+              ...sst.episAVencer.map(e => `<li><strong style="color:#f59e0b;">[EPI a vencer]</strong> ${e.equipamento} de ${e.trabalhadorNome}</li>`)
+            ].join('')}</ul>
+          ` : ''}
+
           <p style="margin-top: 20px;">Por favor, acesse o painel administrativo para regularizar as pendências.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
           <p style="font-size: 11px; color: #9ca3af;">Masar Construtora ERP - Mensageria Integrada</p>
@@ -326,6 +357,10 @@ export async function GET(request: NextRequest) {
       rupturaCaixa: rupturaCaixa ? 1 : 0,
       medicoesGlosadas: medicoesGlosadas.length,
       casasAcimaOrcamento: casasEstouradas.length,
+      asosVencidos: sst.asosVencidos.length,
+      asosAVencer: sst.asosAVencer.length,
+      episVencidos: sst.episVencidos.length,
+      episAVencer: sst.episAVencer.length,
       alertasGerados: totalAlertas
     });
   } catch (error: any) {
