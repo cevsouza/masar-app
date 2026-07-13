@@ -47,7 +47,7 @@ export async function avaliarMetas() {
   if (cpi != null && cpi < meta.cpiMinimo) {
     violacoes.push({
       chave: 'cpi',
-      label: 'CPI geral abaixo da meta (custo acima do executado)',
+      label: 'Eficiência de custo abaixo da meta (gastando mais do que entregou)',
       meta: meta.cpiMinimo.toFixed(2),
       atual: cpi.toFixed(2),
       severidade: cpi < meta.cpiMinimo * 0.85 ? 'CRITICO' : 'ATENCAO',
@@ -56,7 +56,7 @@ export async function avaliarMetas() {
   if (spi != null && spi < meta.spiMinimo) {
     violacoes.push({
       chave: 'spi',
-      label: 'SPI geral abaixo da meta (cronograma atrasado)',
+      label: 'Eficiência de prazo abaixo da meta (cronograma atrasado)',
       meta: meta.spiMinimo.toFixed(2),
       atual: spi.toFixed(2),
       severidade: spi < meta.spiMinimo * 0.85 ? 'CRITICO' : 'ATENCAO',

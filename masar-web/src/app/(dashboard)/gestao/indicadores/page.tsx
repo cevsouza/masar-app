@@ -49,7 +49,7 @@ export default function IndicadoresPage() {
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2 mt-0.5">
             <Gauge className="text-indigo-400" size={24} /> Custo × Orçado × Cronograma
           </h1>
-          <p className="text-xs text-slate-400 mt-1">Cruza o gasto de cada obra com o orçado e o avanço físico. CPI &lt; 1 = custo acima do que foi executado.</p>
+          <p className="text-xs text-slate-400 mt-1">Cruza o gasto de cada obra com o orçado e o avanço físico. Eficiência de custo abaixo de 1 = custo acima do que foi executado.</p>
         </div>
         <select value={empId} onChange={(e) => setEmpId(e.target.value)} className="bg-[#0b0f19] border border-slate-800 text-xs text-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500/50">
           <option value="ALL">Todos os empreendimentos</option>
@@ -66,7 +66,7 @@ export default function IndicadoresPage() {
           {/* Resumo */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="glassmorphism p-4 rounded-2xl border border-slate-850">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">CPI geral</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Eficiência de custo</span>
               <p className={`text-xl font-bold font-mono mt-1.5 ${r.cpiGeral == null ? 'text-slate-400' : r.cpiGeral >= 1 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {r.cpiGeral == null ? '—' : r.cpiGeral.toFixed(2)}
               </p>
@@ -111,7 +111,7 @@ export default function IndicadoresPage() {
                       <th className="py-3 px-4 text-center">Físico</th>
                       <th className="py-3 px-4 text-center">Consumido</th>
                       <th className="py-3 px-4 text-center">Desvio</th>
-                      <th className="py-3 px-4 text-center">CPI</th>
+                      <th className="py-3 px-4 text-center">Efic. custo</th>
                       <th className="py-3 px-4 text-center">Atrasos</th>
                       <th className="py-3 px-4 text-center">Status</th>
                     </tr>
@@ -150,7 +150,7 @@ export default function IndicadoresPage() {
             )}
           </div>
           <p className="text-[11px] text-slate-500 px-1">
-            Desvio = % consumido − % físico (positivo = gastando mais rápido do que avança). CPI = valor agregado (orçado × % físico) ÷ gasto.
+            Desvio = % consumido − % físico (positivo = gastando mais rápido do que avança). Eficiência de custo = valor entregue (orçado × % físico) ÷ gasto (abaixo de 1 = custo acima do executado).
           </p>
         </>
       )}

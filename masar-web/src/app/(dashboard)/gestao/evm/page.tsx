@@ -54,7 +54,7 @@ export default function EvmPage() {
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2 mt-0.5">
             <Activity className="text-indigo-400" size={24} /> Desempenho de Obra (EVM)
           </h1>
-          <p className="text-xs text-slate-400 mt-1">Valor agregado: cruza custo e prazo para projetar o custo e a data de conclusão. CPI/SPI &lt; 1 = pior que o plano.</p>
+          <p className="text-xs text-slate-400 mt-1">Cruza custo e prazo (valor agregado) para projetar o custo e a data de conclusão. Eficiência abaixo de 1 = pior que o plano.</p>
         </div>
         <select value={empId} onChange={(e) => setEmpId(e.target.value)} className="bg-[#0b0f19] border border-slate-800 text-xs text-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500/50">
           <option value="ALL">Todos os empreendimentos</option>
@@ -71,14 +71,14 @@ export default function EvmPage() {
           {/* Resumo */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="glassmorphism p-4 rounded-2xl border border-slate-850">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">CPI geral (custo)</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Eficiência de custo</span>
               <p className={`text-xl font-bold font-mono mt-1.5 ${idxCls(r.cpiGeral)}`}>{idx(r.cpiGeral)}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">EV {fmt(r.totalEV)} / AC {fmt(r.totalAC)}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">valor entregue {fmt(r.totalEV)} · custo real {fmt(r.totalAC)}</p>
             </div>
             <div className="glassmorphism p-4 rounded-2xl border border-slate-850">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">SPI geral (prazo)</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Eficiência de prazo</span>
               <p className={`text-xl font-bold font-mono mt-1.5 ${idxCls(r.spiGeral)}`}>{idx(r.spiGeral)}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">EV {fmt(r.totalEV)} / PV {fmt(r.totalPV)}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">valor entregue {fmt(r.totalEV)} · planejado {fmt(r.totalPV)}</p>
             </div>
             <div className="glassmorphism p-4 rounded-2xl border border-slate-850">
               <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Custo final projetado</span>
@@ -105,11 +105,11 @@ export default function EvmPage() {
                 <thead>
                   <tr className="bg-slate-950/80 border-b border-slate-900 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                     <th className="py-3 px-4">Obra</th>
-                    <th className="py-3 px-4 text-center">Físico / Plan.</th>
-                    <th className="py-3 px-4 text-center">CPI</th>
-                    <th className="py-3 px-4 text-center">SPI</th>
-                    <th className="py-3 px-4 text-right">Custo projet. (EAC)</th>
-                    <th className="py-3 px-4 text-right">Variação (VAC)</th>
+                    <th className="py-3 px-4 text-center">Físico / Planejado</th>
+                    <th className="py-3 px-4 text-center">Efic. custo</th>
+                    <th className="py-3 px-4 text-center">Efic. prazo</th>
+                    <th className="py-3 px-4 text-right">Custo projetado</th>
+                    <th className="py-3 px-4 text-right">Variação final</th>
                     <th className="py-3 px-4 text-center">Fim plan. → projet.</th>
                     <th className="py-3 px-4 text-center">Atraso</th>
                     <th className="py-3 px-4 text-center">Status</th>
@@ -145,9 +145,11 @@ export default function EvmPage() {
               </table>
             </div>
           </div>
-          <p className="text-[11px] text-slate-500 px-1">
-            EV (valor agregado) = orçado × % físico. PV = orçado × % planejado até hoje (do cronograma). CPI = EV ÷ custo real; SPI = EV ÷ PV. EAC (custo final projetado) = orçado ÷ CPI; VAC = orçado − EAC (negativo = estouro projetado). Prazo projetado = duração planejada ÷ SPI. Obras sem orçamento ou sem cronograma aparecem como "sem base".
-          </p>
+          <div className="text-[11px] text-slate-500 px-1 space-y-1">
+            <p><strong className="text-slate-400">Valor entregue</strong> = orçado × % físico executado. <strong className="text-slate-400">Planejado</strong> = orçado × % que o cronograma previa concluído até hoje.</p>
+            <p><strong className="text-slate-400">Eficiência de custo</strong> = valor entregue ÷ custo real gasto (abaixo de 1 = gastando mais do que entregou). <strong className="text-slate-400">Eficiência de prazo</strong> = valor entregue ÷ planejado (abaixo de 1 = atrasado).</p>
+            <p><strong className="text-slate-400">Custo projetado</strong> = quanto a obra deve custar no fim, no ritmo atual. <strong className="text-slate-400">Variação final</strong> = orçado − custo projetado (negativo = estouro previsto). Obras sem orçamento ou sem cronograma aparecem como "sem base".</p>
+          </div>
         </>
       )}
     </div>

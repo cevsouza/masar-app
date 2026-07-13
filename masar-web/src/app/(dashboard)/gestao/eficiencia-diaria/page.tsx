@@ -85,12 +85,12 @@ export default function EficienciaDiariaPage() {
           {/* Indicadores atuais */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="glassmorphism p-4 rounded-2xl border border-slate-850">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">CPI geral</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Eficiência de custo</span>
               <p className={`text-xl font-bold font-mono mt-1.5 ${ind.cpiGeral == null ? 'text-slate-400' : ind.cpiGeral >= data.meta.cpiMinimo ? 'text-emerald-400' : 'text-red-400'}`}>{idx(ind.cpiGeral)}</p>
               <p className="text-[10px] text-slate-500 mt-0.5">meta ≥ {data.meta.cpiMinimo.toFixed(2)}</p>
             </div>
             <div className="glassmorphism p-4 rounded-2xl border border-slate-850">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">SPI geral</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Eficiência de prazo</span>
               <p className={`text-xl font-bold font-mono mt-1.5 ${ind.spiGeral == null ? 'text-slate-400' : ind.spiGeral >= data.meta.spiMinimo ? 'text-emerald-400' : 'text-red-400'}`}>{idx(ind.spiGeral)}</p>
               <p className="text-[10px] text-slate-500 mt-0.5">meta ≥ {data.meta.spiMinimo.toFixed(2)}</p>
             </div>
@@ -131,11 +131,11 @@ export default function EficienciaDiariaPage() {
             {form && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <label className="block">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">CPI mínimo</span>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Eficiência de custo mínima</span>
                   <input type="number" step="0.05" disabled={!isAdmin} value={form.cpiMinimo} onChange={(e) => setForm({ ...form, cpiMinimo: e.target.value })} className="mt-1 w-full bg-[#0b0f19] border border-slate-800 text-sm text-slate-200 rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-indigo-500/50 disabled:opacity-50" />
                 </label>
                 <label className="block">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">SPI mínimo</span>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Eficiência de prazo mínima</span>
                   <input type="number" step="0.05" disabled={!isAdmin} value={form.spiMinimo} onChange={(e) => setForm({ ...form, spiMinimo: e.target.value })} className="mt-1 w-full bg-[#0b0f19] border border-slate-800 text-sm text-slate-200 rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-indigo-500/50 disabled:opacity-50" />
                 </label>
                 <label className="block">
