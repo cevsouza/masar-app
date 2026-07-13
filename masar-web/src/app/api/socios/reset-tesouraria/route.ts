@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
+import { logMutation } from '@/lib/audit';
 
 /**
  * Reset limpo da tesouraria societária.
@@ -20,10 +21,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
+    // Saldo total antes de zerar, para a trilha de auditoria.
+    const saldoAntes = await db.contaBancaria.aggregate({ _sum: { saldoAtual: true } });
+
     const [movimentacoesRemovidas, contasZeradas] = await db.$transaction([
       db.movimentacaoSocio.deleteMany(),
       db.contaBancaria.updateMany({ data: { saldoAtual: 0 } }),
     ]);
+
+    // Trilha de auditoria: reset destrutivo fica registrado (quem, quando, o quê).
+    await logMutation({
+      usuarioId: session.userId,
+      usuarioNome: session.nome,
+      acao: 'SOCIO_TESOURARIA_RESET',
+      tabela: 'MovimentacaoSocio,ContaBancaria',
+      valoresAntigos: { saldoBancarioTotal: saldoAntes._sum.saldoAtual || 0 },
+      valoresNovos: {
+        movimentacoesRemovidas: movimentacoesRemovidas.count,
+        contasZeradas: contasZeradas.count,
+      },
+    });
 
     return NextResponse.json({
       success: true,

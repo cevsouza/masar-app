@@ -415,16 +415,17 @@ export default function SocioCaixaForm({
         {/* Gráfico Recharts de Curva S Acumulada */}
         <div className="lg:col-span-8 glassmorphism p-6 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-white">Curva J - Fluxo de Caixa Consolidado (Incorporação)</h3>
-            <p className="text-xs text-slate-400 mt-1">Evolução do Saldo de Caixa Acumulado: Desembolso inicial do Terreno/Projetos seguido pelo Breakeven e Lucro.</p>
+            <h3 className="text-base font-bold text-white">Projeção de Saldo de Caixa — próximos 6 meses</h3>
+            <p className="text-xs text-slate-400 mt-1">Parte do saldo atual em conta e projeta as entradas previstas (recebíveis + medições) menos o custo a incorrer distribuído no período.</p>
           </div>
 
           <div className="h-64 w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart 
+              <LineChart
                 data={(() => {
-                  // O caixa acumulado inicia negativo simulando o desembolso do Terreno + Projetos Globais do Empreendimento
-                  let cumSaldo = - (custoAIncorrer * 0.3 + 180000); 
+                  // Ponto de partida REAL: o saldo bancário consolidado de hoje.
+                  // A partir dele, acumula o líquido projetado de cada mês (receitas - despesas).
+                  let cumSaldo = saldoBancario;
                   return chartTimeline.map(item => {
                     cumSaldo += (item.receitas - item.despesas);
                     return {
@@ -432,7 +433,7 @@ export default function SocioCaixaForm({
                       "Saldo de Caixa": cumSaldo
                     };
                   });
-                })()} 
+                })()}
                 margin={{ top: 10, right: 10, left: 10, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.3} />
@@ -445,7 +446,7 @@ export default function SocioCaixaForm({
                   formatter={(val) => [formatCurrency(val as number), '']}
                 />
                 <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-                <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" label={{ value: 'Breakeven', fill: '#94a3b8', fontSize: 9, position: 'top' }} />
+                <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" label={{ value: 'Saldo zero', fill: '#94a3b8', fontSize: 9, position: 'top' }} />
                 <Line type="monotone" dataKey="Saldo de Caixa" stroke="#6366f1" activeDot={{ r: 8 }} strokeWidth={3} />
               </LineChart>
             </ResponsiveContainer>

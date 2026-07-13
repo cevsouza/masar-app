@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { orcadoTotal, realizadoObra, custoAIncorrer as calcCustoAIncorrer, caixaLivre as calcCaixaLivre } from '@/lib/caixaMath';
 
 /**
  * Fonte ÚNICA de verdade do "caixa livre" da construtora.
@@ -34,13 +35,11 @@ export async function calcularCaixaLivre(empreendimentoId?: string): Promise<{
   let totalRealizadoAtivas = 0;
 
   activeHouses.forEach(h => {
-    const orcado = h.orcamento?.itens.reduce((acc, it) => acc + (it.quantidadePlanejada * it.custoUnitarioPrevisto), 0) || 0;
-    const real = h.transacoes.filter(t => t.categoria === 'MATERIAL' || t.categoria === 'MAO_DE_OBRA').reduce((acc, t) => acc + t.valor, 0) || 0;
-    totalOrcadoAtivas += orcado;
-    totalRealizadoAtivas += real;
+    totalOrcadoAtivas += orcadoTotal(h.orcamento?.itens || []);
+    totalRealizadoAtivas += realizadoObra(h.transacoes);
   });
 
-  const custoAIncorrer = Math.max(0, totalOrcadoAtivas - totalRealizadoAtivas);
+  const custoAIncorrer = calcCustoAIncorrer(totalOrcadoAtivas, totalRealizadoAtivas);
 
   const limit30Days = new Date();
   limit30Days.setDate(limit30Days.getDate() + 30);
@@ -62,7 +61,7 @@ export async function calcularCaixaLivre(empreendimentoId?: string): Promise<{
   });
   const saldoBancario = contasSum._sum.saldoAtual || 0;
 
-  const caixaLivre = (saldoBancario + recebiveisCurtoPrazo) - custoAIncorrer;
+  const caixaLivre = calcCaixaLivre({ saldoBancario, recebiveisCurtoPrazo, custoAIncorrer });
 
   return { caixaLivre, saldoBancario, custoAIncorrer, recebiveisCurtoPrazo };
 }

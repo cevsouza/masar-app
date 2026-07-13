@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
+import { logMutation } from '@/lib/audit';
 
 /**
  * Exclui uma movimentação de sócio e ESTORNA o efeito dela no saldo bancário.
@@ -41,6 +42,23 @@ export async function DELETE(
           })]
         : []),
     ]);
+
+    // Trilha de auditoria: exclusão financeira não some sem registro.
+    await logMutation({
+      usuarioId: session.userId,
+      usuarioNome: session.nome,
+      acao: 'SOCIO_MOVIMENTACAO_DELETE',
+      tabela: 'MovimentacaoSocio',
+      registroId: id,
+      valoresAntigos: {
+        socioId: movimentacao.socioId,
+        tipo: movimentacao.tipo,
+        valor: movimentacao.valor,
+        empreendimentoId: movimentacao.empreendimentoId,
+        data: movimentacao.data,
+      },
+      valoresNovos: { estornoAplicado: estorno, contaId: conta?.id ?? null },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
