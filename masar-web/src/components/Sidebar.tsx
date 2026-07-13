@@ -76,6 +76,14 @@ const NAV_GROUPS = [
     ],
   },
   {
+    id: 'fiscal',
+    label: 'Fiscal',
+    icon: FileText,
+    items: [
+      { name: 'Notas de Entrada', href: '/fiscal/notas', icon: FileText, roles: ['ADMIN', 'FINANCEIRO'] },
+    ],
+  },
+  {
     id: 'config',
     label: 'Configurações',
     icon: Settings,

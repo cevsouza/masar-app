@@ -161,6 +161,7 @@ model Empreendimento {
   transacoes             TransacaoFinanceira[]
   milestones             Milestone[]
   atividadesCronograma   AtividadeCronograma[]
+  notasFiscaisEntrada    NotaFiscalEntrada[]
 }
 
 model MarcoBurocratico {
@@ -660,6 +661,28 @@ model Fornecedor {
   dataCriacao        DateTime            @default(now())
   dataAtualizacao    DateTime            @updatedAt
   cotacoes           CotacaoFornecedor[]
+  notasEntrada       NotaFiscalEntrada[]
+}
+
+// NF-e de entrada (compra): importada por XML, gera conta a pagar e, quando os
+// itens casam com o catalogo, entrada de estoque. Base do modulo Fiscal (Fase 4).
+model NotaFiscalEntrada {
+  id               String          @id @default(uuid())
+  chave            String?         @unique // chave de acesso (44 digitos)
+  numero           String?
+  serie            String?
+  emitenteCnpj     String?
+  emitenteNome     String?
+  valorTotal       Float
+  dataEmissao      DateTime?
+  fornecedorId     String?
+  fornecedor       Fornecedor?     @relation(fields: [fornecedorId], references: [id])
+  empreendimentoId String?
+  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+  contaPagarId     String? // TransacaoFinanceira (conta a pagar) gerada
+  itensGeraramEstoque Int          @default(0)
+  itens            Json? // itens parseados do XML
+  dataCriacao      DateTime        @default(now())
 }
 
 model OrdemCompra {
