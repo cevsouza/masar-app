@@ -27,7 +27,8 @@ import {
   ChevronDown,
   Sliders,
   CalendarClock,
-  HardHat
+  HardHat,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -59,7 +60,8 @@ const NAV_GROUPS = [
       { name: 'Obras', href: '/casas', icon: Home, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
       { name: 'Vendas', href: '/comercial', icon: BadgeDollarSign, roles: ['ADMIN', 'FINANCEIRO', 'COMERCIAL'] },
       { name: 'Compras', href: '/suprimentos', icon: ShoppingBag, roles: ['ADMIN', 'FINANCEIRO'] },
-      { name: 'Canteiro', href: '/canteiro', icon: Smartphone, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+      { name: 'Ponto', href: '/canteiro/ponto', icon: Smartphone, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+      { name: 'Diário de Obra', href: '/canteiro/diario', icon: BookOpen, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
     ],
   },
   {

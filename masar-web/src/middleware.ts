@@ -9,7 +9,7 @@ function getDefaultRouteForRole(role: string): string {
     case 'FINANCEIRO':
       return '/empreendimentos';
     case 'ENGENHARIA':
-      return '/canteiro';
+      return '/canteiro/ponto';
     case 'COMERCIAL':
       return '/comercial';
     default:
