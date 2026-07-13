@@ -332,9 +332,21 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // Criar Contas Bancárias
-    await db.contaBancaria.create({
+    // Criar Contas Bancárias — o saldo inicial é lançado no razão (SALDO_INICIAL),
+    // para a invariante saldoAtual = Σrazão valer desde o começo.
+    const contaSeed = await db.contaBancaria.create({
       data: { nome: 'Conta Corrente CEF - Masar App', saldoAtual: 285000.00 }
+    });
+    await db.transacaoBancaria.create({
+      data: {
+        contaBancariaId: contaSeed.id,
+        data: new Date(),
+        valor: 285000.00,
+        descricao: 'Saldo inicial (seed)',
+        tipo: 'CREDITO',
+        conciliado: true,
+        origem: 'SALDO_INICIAL',
+      }
     });
 
     // Criar Sócios cotistas

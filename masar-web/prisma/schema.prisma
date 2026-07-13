@@ -483,6 +483,7 @@ model TransacaoBancaria {
   tipo                 String        // CREDITO, DEBITO
   conciliado           Boolean       @default(false)
   documentoIdentificador String?     @unique
+  origem               String?       // Tag do que originou o lançamento: SOCIO_APORTE, DESPESA_PAGA, ESTORNO, RESET_AJUSTE, SALDO_INICIAL, etc. Null = importado/externo (conciliação).
   dataCriacao          DateTime      @default(now())
 }
 

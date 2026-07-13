@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { postLancamento } from '@/lib/ledger';
 
 export async function PATCH(
   request: NextRequest,
@@ -29,21 +30,25 @@ export async function PATCH(
       }, { status: 400 });
     }
 
-    const updatedContrato = await db.contratoVenda.update({
-      where: { id: contratoId },
-      data: { comissaoPaga: Boolean(comissaoPaga) }
-    });
+    // Atualiza o contrato e, se a comissão passou a paga, debita do caixa via razão
+    // — tudo na mesma transação (antes o débito rodava fora, sem atomicidade).
+    const updatedContrato = await db.$transaction(async (tx) => {
+      const upd = await tx.contratoVenda.update({
+        where: { id: contratoId },
+        data: { comissaoPaga: Boolean(comissaoPaga) }
+      });
 
-    // Se a comissão foi paga, debitar do saldo bancário principal
-    if (comissaoPaga && !contrato.comissaoPaga) {
-      const conta = await db.contaBancaria.findFirst();
-      if (conta) {
-        await db.contaBancaria.update({
-          where: { id: conta.id },
-          data: { saldoAtual: { decrement: contrato.comissaoValor } }
+      if (comissaoPaga && !contrato.comissaoPaga) {
+        await postLancamento(tx, {
+          valor: contrato.comissaoValor,
+          tipo: 'DEBITO',
+          descricao: `Comissão de corretagem paga — contrato ${contratoId}`,
+          origem: 'COMISSAO_PAGA',
         });
       }
-    }
+
+      return upd;
+    });
 
     return NextResponse.json(updatedContrato);
   } catch (error) {

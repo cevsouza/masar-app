@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 import { logMutation } from '@/lib/audit';
+import { postLancamento } from '@/lib/ledger';
 
 /**
  * Exclui uma movimentação de sócio e ESTORNA o efeito dela no saldo bancário.
@@ -24,24 +25,28 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const movimentacao = await db.movimentacaoSocio.findUnique({ where: { id } });
+    const movimentacao = await db.movimentacaoSocio.findUnique({
+      where: { id },
+      include: { socio: true },
+    });
     if (!movimentacao) {
       return NextResponse.json({ error: 'Movimentação não encontrada' }, { status: 404 });
     }
 
-    // Estorno: inverso do delta aplicado no POST (APORTE somou; retirada/pró-labore subtraiu).
-    const conta = await db.contaBancaria.findFirst();
-    const estorno = movimentacao.tipo === 'APORTE' ? -movimentacao.valor : movimentacao.valor;
+    // Estorno via razão: lançamento CONTRÁRIO ao original (APORTE creditou → debita;
+    // retirada/pró-labore debitou → credita). A movimentação sai, mas o estorno
+    // fica registrado no razão como uma linha nova — o histórico é preservado.
+    const tipoEstorno = movimentacao.tipo === 'APORTE' ? 'DEBITO' : 'CREDITO';
 
-    await db.$transaction([
-      db.movimentacaoSocio.delete({ where: { id } }),
-      ...(conta
-        ? [db.contaBancaria.update({
-            where: { id: conta.id },
-            data: { saldoAtual: { increment: estorno } },
-          })]
-        : []),
-    ]);
+    const conta = await db.$transaction(async (tx) => {
+      await tx.movimentacaoSocio.delete({ where: { id } });
+      return postLancamento(tx, {
+        valor: movimentacao.valor,
+        tipo: tipoEstorno,
+        descricao: `Estorno de movimentação de sócio (${movimentacao.tipo}) — ${movimentacao.socio.nome}`,
+        origem: 'ESTORNO',
+      });
+    });
 
     // Trilha de auditoria: exclusão financeira não some sem registro.
     await logMutation({
@@ -57,7 +62,7 @@ export async function DELETE(
         empreendimentoId: movimentacao.empreendimentoId,
         data: movimentacao.data,
       },
-      valoresNovos: { estornoAplicado: estorno, contaId: conta?.id ?? null },
+      valoresNovos: { estornoTipo: tipoEstorno, valor: movimentacao.valor, contaId: conta?.id ?? null },
     });
 
     return NextResponse.json({ success: true });

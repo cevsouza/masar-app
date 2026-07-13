@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 import { logMutation } from '@/lib/audit';
 import { calcularCaixaLivre } from '@/lib/socioGuardrail';
+import { postLancamento } from '@/lib/ledger';
 
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -70,13 +71,13 @@ export async function POST(request: NextRequest) {
         created.push(mov);
       }
 
-      const conta = await tx.contaBancaria.findFirst();
-      if (conta) {
-        await tx.contaBancaria.update({
-          where: { id: conta.id },
-          data: { saldoAtual: { decrement: valorFloat } }
-        });
-      }
+      // Débito único no razão pelo total distribuído.
+      await postLancamento(tx, {
+        valor: valorFloat,
+        tipo: 'DEBITO',
+        descricao: `Distribuição de lucro entre sócios — ${empreendimento.nome}`,
+        origem: 'DISTRIBUICAO_LUCRO',
+      });
 
       return created;
     });

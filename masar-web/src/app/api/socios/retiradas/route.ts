@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 import { calcularCaixaLivre } from '@/lib/socioGuardrail';
+import { postLancamento } from '@/lib/ledger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,28 +58,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Criar registro de movimentação
-    const movimentacao = await db.movimentacaoSocio.create({
-      data: {
-        socioId,
-        tipo,
-        valor: valorFloat,
-        empreendimentoId: empreendimentoId || null,
-      },
-      include: {
-        socio: true
-      }
-    });
-
-    // 3. Atualizar saldo bancário principal (add para APORTE, subtract para RETIRADA)
-    const conta = await db.contaBancaria.findFirst();
-    if (conta) {
-      const delta = tipo === 'APORTE' ? valorFloat : -valorFloat;
-      await db.contaBancaria.update({
-        where: { id: conta.id },
-        data: { saldoAtual: { increment: delta } }
+    // 2. Criar a movimentação E lançar no razão do caixa, atomicamente.
+    // APORTE credita o caixa; RETIRADA_LUCRO e PRO_LABORE debitam.
+    const tipoLancamento = tipo === 'APORTE' ? 'CREDITO' : 'DEBITO';
+    const movimentacao = await db.$transaction(async (tx) => {
+      const mov = await tx.movimentacaoSocio.create({
+        data: {
+          socioId,
+          tipo,
+          valor: valorFloat,
+          empreendimentoId: empreendimentoId || null,
+        },
+        include: { socio: true }
       });
-    }
+
+      await postLancamento(tx, {
+        valor: valorFloat,
+        tipo: tipoLancamento,
+        descricao: `Movimentação de sócio (${tipo}) — ${mov.socio.nome}`,
+        origem: `SOCIO_${tipo}`,
+      });
+
+      return mov;
+    });
 
     return NextResponse.json(movimentacao, { status: 201 });
   } catch (error) {

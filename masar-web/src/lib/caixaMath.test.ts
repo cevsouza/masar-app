@@ -5,6 +5,8 @@ import {
   custoAIncorrer,
   caixaLivre,
   retiradaBloqueada,
+  saldoDeLancamentos,
+  deltaLancamento,
 } from './caixaMath';
 
 describe('orcadoTotal', () => {
@@ -75,5 +77,31 @@ describe('retiradaBloqueada (guardrail)', () => {
 
   it('bloqueia qualquer retirada quando o caixa livre está negativo', () => {
     expect(retiradaBloqueada(1, -5000)).toBe(true);
+  });
+});
+
+describe('razão do caixa (ledger)', () => {
+  it('deltaLancamento: crédito soma, débito subtrai', () => {
+    expect(deltaLancamento('CREDITO', 1000)).toBe(1000);
+    expect(deltaLancamento('DEBITO', 1000)).toBe(-1000);
+  });
+
+  it('saldoDeLancamentos = Σ créditos − Σ débitos', () => {
+    const razao = [
+      { tipo: 'CREDITO', valor: 285000 }, // saldo inicial
+      { tipo: 'CREDITO', valor: 400000 }, // aporte
+      { tipo: 'DEBITO', valor: 50000 },   // retirada
+    ];
+    expect(saldoDeLancamentos(razao)).toBe(635000);
+  });
+
+  it('um estorno (lançamento contrário) zera o efeito do original', () => {
+    const original = { tipo: 'CREDITO', valor: 400000 };
+    const estorno = { tipo: 'DEBITO', valor: 400000 };
+    expect(saldoDeLancamentos([original, estorno])).toBe(0);
+  });
+
+  it('razão vazio tem saldo zero', () => {
+    expect(saldoDeLancamentos([])).toBe(0);
   });
 });

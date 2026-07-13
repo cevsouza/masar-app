@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 import { logMutation } from '@/lib/audit';
+import { postLancamento } from '@/lib/ledger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,20 +51,16 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 2. Se a transação já foi paga, atualizar o saldo da conta bancária padrão
+      // 2. Se a transação já foi paga, lançar no razão do caixa (receita credita,
+      // despesa debita). postLancamento cria a linha imutável e move o saldo.
       if (status === 'PAGO') {
-        const contaPadrao = await tx.contaBancaria.findFirst();
-        if (contaPadrao) {
-          const delta = natureza === 'RECEITA' ? parseFloat(valor) : -parseFloat(valor);
-          await tx.contaBancaria.update({
-            where: { id: contaPadrao.id },
-            data: {
-              saldoAtual: {
-                increment: delta
-              }
-            }
-          });
-        }
+        await postLancamento(tx, {
+          valor: parseFloat(valor),
+          tipo: natureza === 'RECEITA' ? 'CREDITO' : 'DEBITO',
+          descricao,
+          origem: natureza === 'RECEITA' ? 'RECEITA_PAGA' : 'DESPESA_PAGA',
+          data: dataPagamento ? new Date(dataPagamento) : new Date(),
+        });
       }
 
       return trx;

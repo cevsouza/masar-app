@@ -53,3 +53,24 @@ export function caixaLivre(params: {
 export function retiradaBloqueada(valor: number, caixaLivreDisponivel: number): boolean {
   return valor > caixaLivreDisponivel;
 }
+
+export interface LancamentoRazao {
+  tipo: string; // 'CREDITO' | 'DEBITO'
+  valor: number; // sempre positivo; a direção vem do tipo
+}
+
+/**
+ * Saldo derivado do livro-razão: Σ créditos − Σ débitos.
+ * É a fonte de verdade que o `saldoAtual` (coluna em cache) deve espelhar.
+ */
+export function saldoDeLancamentos(lancamentos: LancamentoRazao[]): number {
+  return lancamentos.reduce(
+    (acc, l) => acc + (l.tipo === 'CREDITO' ? l.valor : -l.valor),
+    0
+  );
+}
+
+/** Delta que um lançamento aplica ao saldo (crédito soma, débito subtrai). */
+export function deltaLancamento(tipo: string, valor: number): number {
+  return tipo === 'CREDITO' ? valor : -valor;
+}
