@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashPassword, signSession } from '@/lib/auth';
+import { verifyPassword, needsRehash, hashPassword, signSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
@@ -28,11 +28,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Credenciais inválidas.' }, { status: 401 });
     }
 
-    // Verificar senha hashed
-    const hashed = await hashPassword(password);
-    if (hashed !== clientUser.password) {
+    // Verificar senha (aceita formato antigo e novo)
+    const passwordOk = await verifyPassword(password, clientUser.password);
+    if (!passwordOk) {
       logger.warn('[Auth Cliente] Senha incorreta fornecida', { traceId, email });
       return NextResponse.json({ error: 'Credenciais inválidas.' }, { status: 401 });
+    }
+
+    // Migração transparente do hash legado no login.
+    if (needsRehash(clientUser.password)) {
+      try {
+        const upgraded = await hashPassword(password);
+        await db.usuarioCliente.update({ where: { id: clientUser.id }, data: { password: upgraded } });
+      } catch (rehashErr) {
+        logger.error('[Auth Cliente] Falha ao migrar hash de senha (login não bloqueado)', rehashErr);
+      }
     }
 
     // Gerar token

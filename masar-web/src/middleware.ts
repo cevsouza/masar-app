@@ -26,6 +26,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/signup') || 
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/cron') ||
+    pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/health') ||
     pathname.startsWith('/api/seed') ||
     pathname.startsWith('/api/clean') ||

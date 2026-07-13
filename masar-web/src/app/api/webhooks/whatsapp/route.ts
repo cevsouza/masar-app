@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { logger } from '@/lib/logger';
+import { isWebhookAuthorized } from '@/lib/webhookAuth';
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isWebhookAuthorized(request)) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
     const traceId = crypto.randomUUID();
     const body = await request.json();
     

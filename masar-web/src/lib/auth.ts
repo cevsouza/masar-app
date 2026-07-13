@@ -6,32 +6,81 @@ function getJwtSecret(): string {
   return secret;
 }
 
-// Hash password natively using PBKDF2 and Web Crypto
-export async function hashPassword(password: string): Promise<string> {
+// ── Hashing de senha ────────────────────────────────────────────────────────
+// Formato novo (versionado): `pbkdf2$<iteracoes>$<saltB64url>$<hashB64url>`, com
+// salt ALEATÓRIO por usuário e 600k iterações (recomendação OWASP p/ PBKDF2-SHA256).
+// Hashes antigos (hex puro, salt estático compartilhado, 1000 iterações) continuam
+// sendo verificados e são migrados para o formato forte no próximo login.
+
+const PBKDF2_ITERATIONS = 600_000;
+const PBKDF2_HASH = 'SHA-256';
+const DERIVED_KEY_BITS = 256;
+
+// Parâmetros do esquema legado (inseguro) — mantidos SÓ para verificar/migrar.
+const LEGACY_SALT = 'masar_salt_12345_unique_key';
+const LEGACY_ITERATIONS = 1000;
+
+async function pbkdf2Derive(password: string, salt: Uint8Array, iterations: number): Promise<Buffer> {
   const encoder = new TextEncoder();
-  const passwordBuffer = encoder.encode(password);
-  const saltBuffer = encoder.encode("masar_salt_12345_unique_key");
-
   const key = await crypto.subtle.importKey(
-    "raw",
-    passwordBuffer,
-    { name: "PBKDF2" },
+    'raw',
+    encoder.encode(password),
+    { name: 'PBKDF2' },
     false,
-    ["deriveBits", "deriveKey"]
+    ['deriveBits']
   );
-
   const derivedBits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt: saltBuffer,
-      iterations: 1000,
-      hash: "SHA-256"
-    },
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: PBKDF2_HASH },
     key,
-    256
+    DERIVED_KEY_BITS
   );
+  return Buffer.from(derivedBits);
+}
 
-  return Buffer.from(derivedBits).toString('hex');
+// Comparação em tempo constante para não vazar informação por timing.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+async function legacyHashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const derived = await pbkdf2Derive(password, encoder.encode(LEGACY_SALT), LEGACY_ITERATIONS);
+  return derived.toString('hex');
+}
+
+// Gera hash forte com salt aleatório por usuário, no formato versionado.
+export async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const derived = await pbkdf2Derive(password, salt, PBKDF2_ITERATIONS);
+  const saltStr = Buffer.from(salt).toString('base64url');
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${saltStr}$${derived.toString('base64url')}`;
+}
+
+// Verifica a senha contra o hash armazenado — aceita o formato novo E o legado.
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  if (stored.startsWith('pbkdf2$')) {
+    const parts = stored.split('$');
+    if (parts.length !== 4) return false;
+    const iterations = parseInt(parts[1], 10);
+    const salt = new Uint8Array(Buffer.from(parts[2], 'base64url'));
+    const derived = await pbkdf2Derive(password, salt, iterations);
+    return timingSafeEqual(derived.toString('base64url'), parts[3]);
+  }
+  // Formato legado: hex puro com salt estático.
+  const legacy = await legacyHashPassword(password);
+  return timingSafeEqual(legacy, stored);
+}
+
+// Indica se o hash guardado deve ser regravado no formato forte (migração no login).
+export function needsRehash(stored: string): boolean {
+  if (!stored.startsWith('pbkdf2$')) return true;
+  const parts = stored.split('$');
+  return parts.length !== 4 || parseInt(parts[1], 10) < PBKDF2_ITERATIONS;
 }
 
 // Sign custom session JWT natively using HMAC-SHA256

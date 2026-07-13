@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifySession, hashPassword } from '@/lib/auth';
+import { verifySession, verifyPassword, hashPassword } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,9 +30,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    // Verify current password
-    const hashedCurrentPassword = await hashPassword(currentPassword);
-    if (user.password !== hashedCurrentPassword) {
+    // Verify current password (aceita formato antigo e novo)
+    const currentOk = await verifyPassword(currentPassword, user.password);
+    if (!currentOk) {
       return NextResponse.json({ error: 'Senha atual incorreta' }, { status: 400 });
     }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashPassword, signSession } from '@/lib/auth';
+import { verifyPassword, needsRehash, hashPassword, signSession } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
@@ -33,9 +33,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password
-    const hashedInputPassword = await hashPassword(password);
-    if (user.password !== hashedInputPassword) {
+    const passwordOk = await verifyPassword(password, user.password);
+    if (!passwordOk) {
       return NextResponse.json({ error: 'E-mail ou senha incorretos' }, { status: 400 });
+    }
+
+    // Migração transparente: regrava hashes antigos/fracos no formato forte.
+    if (needsRehash(user.password)) {
+      try {
+        const upgraded = await hashPassword(password);
+        await db.user.update({ where: { id: user.id }, data: { password: upgraded } });
+      } catch (rehashErr) {
+        console.error('Falha ao migrar hash de senha (login não bloqueado):', rehashErr);
+      }
     }
 
     // Create session token
