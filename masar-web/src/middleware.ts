@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 2. Apenas ADMIN e FINANCEIRO acessam o DRE, Tesouraria e Suprimentos
-  if (pathname.startsWith('/socios') || pathname.startsWith('/financeiro') || pathname.startsWith('/suprimentos')) {
+  if (pathname.startsWith('/socios') || pathname.startsWith('/financeiro') || pathname.startsWith('/suprimentos') || pathname.startsWith('/fornecedores')) {
     if (!['ADMIN', 'FINANCEIRO'].includes(userRole)) {
       const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
       redirectUrl.searchParams.set('unauthorized', 'true');

@@ -538,11 +538,50 @@ model CotacaoFornecedor {
   solicitacaoId    String
   solicitacao      SolicitacaoCompra @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
   fornecedorNome   String
+  fornecedorId     String?
+  fornecedor       Fornecedor?       @relation(fields: [fornecedorId], references: [id])
   valorUnitario    Float
   prazoEntregaDias Int
   comprovanteUrl   String?
   ordemCompra      OrdemCompra?
   dataCriacao      DateTime          @default(now())
+}
+
+enum TipoContaBancaria {
+  CORRENTE
+  POUPANCA
+}
+
+model Fornecedor {
+  id                 String              @id @default(uuid())
+  nome               String
+  cnpj               String?             @unique
+  cpf                String?             @unique
+  email              String?
+  telefone           String?
+  ramo               String? // material, mao de obra, servico...
+  // Endereco completo
+  logradouro         String?
+  numero             String?
+  bairro             String?
+  cep                String?
+  cidade             String?
+  estado             String?
+  // Dados bancarios
+  banco              String?
+  agencia            String?
+  conta              String?
+  tipoConta          TipoContaBancaria?
+  chavePix           String?
+  // Condicoes comerciais
+  prazoPagamentoDias Int? // prazo padrao de pagamento
+  prazoEntregaDias   Int? // prazo tipico de entrega
+  avaliacao          Int? // nota 1-5
+  observacoes        String?
+  ativo              Boolean             @default(true)
+  dataCriacao        DateTime            @default(now())
+  dataAtualizacao    DateTime            @updatedAt
+  cotacoes           CotacaoFornecedor[]
 }
 
 model OrdemCompra {
