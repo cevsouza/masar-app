@@ -67,9 +67,9 @@ export default function CentralFinanceiraPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'livro_caixa' | 'projecao' | 'custos_casa'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'livro_caixa' | 'contas' | 'projecao' | 'custos_casa'>(() => {
     const tabParam = getUrlParam('tab');
-    if (tabParam === 'livro_caixa' || tabParam === 'projecao' || tabParam === 'dashboard' || tabParam === 'custos_casa') return tabParam;
+    if (tabParam === 'livro_caixa' || tabParam === 'projecao' || tabParam === 'dashboard' || tabParam === 'custos_casa' || tabParam === 'contas') return tabParam;
     return 'dashboard';
   });
 
@@ -86,6 +86,12 @@ export default function CentralFinanceiraPage() {
   // Portfólio de custo por casa
   const [custosCasa, setCustosCasa] = useState<any>(null);
   const [loadingCustosCasa, setLoadingCustosCasa] = useState(false);
+
+  // Contas a pagar/receber (aging)
+  const [contasData, setContasData] = useState<any>(null);
+  const [loadingContas, setLoadingContas] = useState(false);
+  const [contasNatureza, setContasNatureza] = useState<'DESPESA' | 'RECEITA'>('DESPESA');
+  const [baixandoId, setBaixandoId] = useState<string | null>(null);
 
   // Livro-Caixa Filters
   const [houses, setHouses] = useState<any[]>([]);
@@ -180,7 +186,50 @@ export default function CentralFinanceiraPage() {
     fetchFinancialData();
     fetchTransactions();
     fetchCustosCasa();
+    fetchContas();
   }, [selectedProjectId]);
+
+  const fetchContas = async () => {
+    if (!selectedProjectId) return;
+    setLoadingContas(true);
+    try {
+      const res = await fetch(`/api/financeiro/contas?empreendimentoId=${selectedProjectId}`).then(r => r.json());
+      setContasData(res);
+    } catch (err) {
+      console.error('Erro ao buscar contas em aberto:', err);
+    } finally {
+      setLoadingContas(false);
+    }
+  };
+
+  // Dá baixa em um título: marca PAGO e posta no razão do caixa.
+  const handleDarBaixa = async (id: string) => {
+    if (!confirm('Confirmar a baixa deste título? O valor será lançado no razão do caixa.')) return;
+    setBaixandoId(id);
+    try {
+      const res = await fetch('/api/financeiro/contas', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao dar baixa.');
+      // Recarrega contas + gráficos/extrato afetados pela baixa.
+      await fetchContas();
+      const [resDre, resDfc, resFluxo] = await Promise.all([
+        fetch(`/api/financeiro/dre?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
+        fetch(`/api/financeiro/dfc?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
+        fetch(`/api/financeiro/fluxo-de-caixa?empreendimentoId=${selectedProjectId}`).then(r => r.json()),
+      ]);
+      setDreData(resDre);
+      setDfcData(resDfc || []);
+      setFluxoCaixaData(resFluxo);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setBaixandoId(null);
+    }
+  };
 
   const handleDeleteTransaction = async (id: string, isGlobal: boolean) => {
     if (!confirm('Deseja realmente excluir esta transação do Livro-Caixa? O saldo bancário correspondente será estornado.')) return;
@@ -346,6 +395,17 @@ export default function CentralFinanceiraPage() {
           >
             <FileSpreadsheet size={14} />
             Extrato
+          </button>
+          <button
+            onClick={() => setActiveTab('contas')}
+            className={`flex-1 md:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'contas'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            <Banknote size={14} />
+            Contas
           </button>
           <button
             onClick={() => setActiveTab('projecao')}
@@ -768,6 +828,143 @@ export default function CentralFinanceiraPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* VIEW TAB: CONTAS A PAGAR / RECEBER (AGING) */}
+      {/* ========================================== */}
+      {activeTab === 'contas' && (
+        <div className="space-y-5 animate-fadeIn">
+          {loadingContas && (
+            <div className="flex flex-col items-center justify-center min-h-[30vh] gap-3">
+              <Loader2 className="animate-spin text-indigo-500" size={24} />
+              <p className="text-xs text-slate-500 font-mono">Carregando contas em aberto...</p>
+            </div>
+          )}
+
+          {!loadingContas && contasData?.resumo && (() => {
+            const r = contasNatureza === 'DESPESA' ? contasData.resumo.pagar : contasData.resumo.receber;
+            const itens = (contasData.itens as any[]).filter(i => i.natureza === contasNatureza);
+            const isPagar = contasNatureza === 'DESPESA';
+            const buckets = [
+              { key: 'A_VENCER', label: 'A vencer', color: 'text-slate-300', border: 'border-slate-800' },
+              { key: 'D_1_30', label: 'Vencido 1–30d', color: 'text-amber-400', border: 'border-amber-500/25' },
+              { key: 'D_31_60', label: 'Vencido 31–60d', color: 'text-orange-400', border: 'border-orange-500/25' },
+              { key: 'D_60_MAIS', label: 'Vencido 60+d', color: 'text-red-400', border: 'border-red-500/25' },
+            ];
+            const faixaMeta: Record<string, { label: string; cls: string }> = {
+              A_VENCER: { label: 'A vencer', cls: 'bg-slate-700/40 text-slate-300' },
+              D_1_30: { label: '1–30d', cls: 'bg-amber-500/10 text-amber-400' },
+              D_31_60: { label: '31–60d', cls: 'bg-orange-500/10 text-orange-400' },
+              D_60_MAIS: { label: '60+d', cls: 'bg-red-500/10 text-red-400' },
+            };
+
+            return (
+              <>
+                {/* Alternância Pagar / Receber */}
+                <div className="flex gap-1.5 bg-[#0f1422]/60 p-1.5 border border-slate-850 rounded-2xl w-full md:w-auto md:inline-flex">
+                  <button
+                    onClick={() => setContasNatureza('DESPESA')}
+                    className={`flex-1 md:flex-initial px-5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      isPagar ? 'bg-red-600/90 text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    A Pagar
+                    <span className="ml-2 text-[10px] font-mono opacity-80">{contasData.resumo.pagar.count}</span>
+                  </button>
+                  <button
+                    onClick={() => setContasNatureza('RECEITA')}
+                    className={`flex-1 md:flex-initial px-5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      !isPagar ? 'bg-emerald-600/90 text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    A Receber
+                    <span className="ml-2 text-[10px] font-mono opacity-80">{contasData.resumo.receber.count}</span>
+                  </button>
+                </div>
+
+                {/* Cards de aging */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {buckets.map(b => (
+                    <div key={b.key} className={`glassmorphism p-4 rounded-2xl border ${b.border}`}>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{b.label}</span>
+                      <p className={`text-lg font-bold font-mono mt-1.5 ${b.color}`}>{formatCurrency(r[b.key])}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Total em aberto */}
+                <div className={`glassmorphism p-4 rounded-2xl border flex items-center justify-between ${isPagar ? 'border-red-500/25 bg-red-950/5' : 'border-emerald-500/25 bg-emerald-950/5'}`}>
+                  <span className="text-[11px] text-slate-300 uppercase tracking-wider font-bold">
+                    Total {isPagar ? 'a pagar' : 'a receber'} em aberto
+                  </span>
+                  <span className={`text-xl font-extrabold font-mono ${isPagar ? 'text-red-400' : 'text-emerald-400'}`}>
+                    {formatCurrency(r.total)}
+                  </span>
+                </div>
+
+                {/* Lista de títulos */}
+                <div className="glassmorphism rounded-2xl border border-slate-850 overflow-hidden">
+                  <div className="flex justify-between items-center px-5 py-4 border-b border-slate-900">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Banknote size={14} className="text-indigo-400" /> Títulos em aberto
+                    </h3>
+                    <span className="text-[10px] text-slate-500 font-mono">{itens.length} títulos</span>
+                  </div>
+
+                  {itens.length === 0 ? (
+                    <div className="py-16 text-center text-slate-500 text-xs italic">
+                      Nenhum título {isPagar ? 'a pagar' : 'a receber'} em aberto neste empreendimento.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-900/60">
+                      {itens.map(t => {
+                        const meta = CATEGORY_META[t.categoria] || { icon: FileSpreadsheet, label: t.categoria, color: 'text-slate-400 bg-slate-500/10' };
+                        const Icon = meta.icon;
+                        const fm = faixaMeta[t.faixa];
+                        return (
+                          <div key={t.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-900/20 transition">
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${meta.color}`}>
+                              <Icon size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-100 truncate">{t.descricao}</span>
+                                <span className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${fm.cls}`}>{fm.label}</span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 truncate">
+                                {meta.label}
+                                {t.casaId ? ` · Qd ${t.casa.quadra}, Casa ${t.casa.numero}` : ' · Custo Global'}
+                                {' · vence '}{new Date(t.dataVencimento).toLocaleDateString('pt-BR')}
+                                {t.diasVencido > 0 ? ` · ${t.diasVencido}d em atraso` : ''}
+                              </p>
+                            </div>
+                            <span className={`text-xs font-bold font-mono shrink-0 ${isPagar ? 'text-red-400' : 'text-emerald-400'}`}>
+                              {isPagar ? '-' : '+'}{formatCurrency(t.valor)}
+                            </span>
+                            <button
+                              onClick={() => handleDarBaixa(t.id)}
+                              disabled={baixandoId === t.id}
+                              className="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                              title="Dar baixa (marcar como pago/recebido)"
+                            >
+                              {baixandoId === t.id ? <Loader2 size={11} className="animate-spin" /> : <ShieldCheck size={12} />}
+                              Dar baixa
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-slate-500 px-1">
+                  Dar baixa marca o título como pago/recebido e lança o valor no razão do caixa (Σ créditos − Σ débitos), atualizando o saldo disponível.
+                </p>
+              </>
+            );
+          })()}
         </div>
       )}
 
