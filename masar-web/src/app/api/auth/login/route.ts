@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyPassword, needsRehash, hashPassword, signSession } from '@/lib/auth';
+import { computarModulosUsuario } from '@/lib/permissoesDb';
 import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
@@ -48,12 +49,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Módulos que o papel pode acessar (Fase 5.2) — gravados no token para o
+    // middleware (edge) barrar por módulo sem tocar no banco.
+    const modulos = await computarModulosUsuario(user.role);
+
     // Create session token
     const token = await signSession({
       userId: user.id,
       email: user.email,
       nome: user.nome,
       role: user.role,
+      modulos,
     });
 
     // Save token in cookie

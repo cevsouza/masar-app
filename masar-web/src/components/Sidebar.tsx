@@ -40,6 +40,7 @@ import {
   Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { moduloDaRota } from '@/lib/permissoes';
 import { useEffect, useState, useRef } from 'react';
 import ModalNovoLancamento from './ModalNovoLancamento';
 
@@ -107,6 +108,7 @@ const NAV_GROUPS = [
     items: [
       { name: 'Insumos', href: '/insumos', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
       { name: 'Equipe', href: '/usuarios', icon: Users, roles: ['ADMIN'] },
+      { name: 'Permissões', href: '/permissoes', icon: ShieldCheck, roles: ['ADMIN'] },
     ],
   },
 ];
@@ -122,6 +124,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const [hasGlosa, setHasGlosa] = useState(false);
   const [user, setUser] = useState({ nome: 'Carregando...', email: 'gestor@masar.com', role: 'COMERCIAL' });
+  const [modulos, setModulos] = useState<string[] | null>(null);
 
   // Theme state
   const [theme, setTheme] = useState('dark');
@@ -160,6 +163,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       .then(data => {
         if (data.authenticated) {
           setUser({ nome: data.nome, email: data.email, role: data.role || 'COMERCIAL' });
+          if (Array.isArray(data.modulos)) setModulos(data.modulos);
         }
       })
       .catch(err => console.error(err));
@@ -276,6 +280,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const role = user.role || 'COMERCIAL';
 
+  // Visibilidade por módulo (Fase 5.2): além do papel, respeita a matriz.
+  // Rotas fora de módulo (ex.: /insumos, /usuarios) seguem só o filtro de papel.
+  const podeVerItem = (href: string) => {
+    if (role === 'ADMIN') return true;
+    const mod = moduloDaRota(href);
+    if (!mod) return true;
+    if (!modulos) return true; // sessão antiga / ainda carregando: não esconde
+    return modulos.includes(mod);
+  };
+
   return (
     <>
       {/* Backdrop de fundo no mobile */}
@@ -342,7 +356,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Grupos de navegação */}
         {NAV_GROUPS.map((group) => {
-          const allowed = group.items.filter(item => item.roles.includes(role));
+          const allowed = group.items.filter(item => item.roles.includes(role) && podeVerItem(item.href));
           if (allowed.length === 0) return null;
 
           const isSubActive = allowed.some(item => pathname === item.href);

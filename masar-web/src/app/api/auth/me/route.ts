@@ -30,21 +30,31 @@ export async function GET(request: NextRequest) {
 
     const userRole = user?.role || session.role || 'COMERCIAL';
 
+    // Módulos permitidos (Fase 5.2): do token quando presente, senão computa do banco.
+    let modulos: string[] = Array.isArray(session.modulos) ? session.modulos : [];
+    const precisaModulos = !Array.isArray(session.modulos);
+    if (precisaModulos) {
+      const { computarModulosUsuario } = await import('@/lib/permissoesDb');
+      modulos = await computarModulosUsuario(userRole);
+    }
+
     const response = NextResponse.json({
       authenticated: true,
       nome: session.nome,
       email: session.email,
       role: userRole,
+      modulos,
     });
 
-    // Se o cookie antigo não tinha a role gravada, atualiza re-assinando o token
-    if (!session.role && user) {
+    // Re-assina o token se faltava a role OU os módulos (cookies antigos).
+    if ((!session.role || precisaModulos) && user) {
       const { signSession } = await import('@/lib/auth');
       const newToken = await signSession({
         userId: session.userId,
         email: session.email,
         nome: session.nome,
         role: userRole,
+        modulos,
       });
       response.cookies.set('masar_session', newToken, {
         httpOnly: true,

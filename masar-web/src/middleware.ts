@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySession } from './lib/auth';
+import { moduloDaRota, modulosPermitidos } from './lib/permissoes';
 
 function getDefaultRouteForRole(role: string): string {
   switch (role) {
@@ -65,36 +66,24 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 2. Apenas ADMIN e FINANCEIRO acessam o DRE, Tesouraria e Suprimentos
-  if (pathname.startsWith('/socios') || pathname.startsWith('/financeiro') || pathname.startsWith('/suprimentos') || pathname.startsWith('/fornecedores') || pathname.startsWith('/fiscal') || pathname.startsWith('/gestao')) {
-    if (!['ADMIN', 'FINANCEIRO'].includes(userRole)) {
-      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
-      redirectUrl.searchParams.set('unauthorized', 'true');
-      return NextResponse.redirect(redirectUrl);
-    }
-  }
-
-  // 3. Apenas ADMIN, FINANCEIRO e ENGENHARIA acessam projetos, casas, canteiro e agenda
-  if (pathname.startsWith('/canteiro') || pathname.startsWith('/empreendimentos') || pathname.startsWith('/casas') || pathname.startsWith('/agenda') || pathname.startsWith('/trabalhadores')) {
-    if (!['ADMIN', 'FINANCEIRO', 'ENGENHARIA'].includes(userRole)) {
-      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
-      redirectUrl.searchParams.set('unauthorized', 'true');
-      return NextResponse.redirect(redirectUrl);
-    }
-  }
-
-  // 4. Apenas ADMIN, FINANCEIRO e COMERCIAL acessam a tela comercial (CRM)
-  if (pathname.startsWith('/comercial')) {
-    if (!['ADMIN', 'FINANCEIRO', 'COMERCIAL'].includes(userRole)) {
-      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
-      redirectUrl.searchParams.set('unauthorized', 'true');
-      return NextResponse.redirect(redirectUrl);
-    }
-  }
-
-  // 5. Apenas ADMIN acessa a tela de gerenciamento de usuários da equipe (/usuarios)
-  if (pathname.startsWith('/usuarios')) {
+  // 2. Áreas exclusivas de ADMIN (sistema): equipe e permissões.
+  if (pathname.startsWith('/usuarios') || pathname.startsWith('/permissoes')) {
     if (userRole !== 'ADMIN') {
+      const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
+      redirectUrl.searchParams.set('unauthorized', 'true');
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  // 3. Permissões finas por MÓDULO (Fase 5.2). Os módulos permitidos vêm do
+  // token (gravados no login); para cookies antigos sem `modulos`, cai no default
+  // do papel. ADMIN passa em tudo. Só barra PÁGINAS — as APIs checam o papel.
+  const modulo = moduloDaRota(pathname);
+  if (modulo && userRole !== 'ADMIN') {
+    const modulos: string[] = Array.isArray(session.modulos)
+      ? session.modulos
+      : modulosPermitidos(userRole);
+    if (!modulos.includes(modulo)) {
       const redirectUrl = new URL(getDefaultRouteForRole(userRole), request.url);
       redirectUrl.searchParams.set('unauthorized', 'true');
       return NextResponse.redirect(redirectUrl);

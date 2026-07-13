@@ -111,6 +111,19 @@ enum EscopoCronograma {
   LOTE
 }
 
+// Matriz de permissao Papel x Modulo (Fase 5.2). Cada linha diz se um papel
+// pode acessar um modulo. A ausencia de linha cai no default (lib/permissoes).
+// ADMIN sempre tem tudo (nao entra na matriz). So controla acesso a PAGINAS/menu;
+// as rotas de API seguem checando o papel como backstop de seguranca.
+model PermissaoPapelModulo {
+  id        String      @id @default(uuid())
+  role      RoleUsuario
+  modulo    String
+  permitido Boolean     @default(false)
+
+  @@unique([role, modulo])
+}
+
 model User {
   id          String      @id @default(uuid())
   email       String      @unique
