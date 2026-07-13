@@ -16,7 +16,8 @@ import {
   Scale,
   HardHat,
   ArrowDownRight,
-  ArrowUpRight
+  ArrowUpRight,
+  BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
@@ -229,6 +230,21 @@ export default async function DashboardPage() {
     ]
   });
 
+  // Feed de últimos diários de obra registrados no canteiro (visão do sócio)
+  const diariosRecentes = await db.diarioDeObra.findMany({
+    orderBy: { data: 'desc' },
+    take: 12,
+    include: {
+      casa: {
+        select: {
+          numero: true,
+          quadra: true,
+          empreendimento: { select: { nome: true } },
+        },
+      },
+    },
+  });
+
   const serializedMilestones = milestones.map(m => ({
     id: m.id,
     titulo: m.titulo,
@@ -316,6 +332,21 @@ export default async function DashboardPage() {
 
   const formatDate = (dateStr: string | Date) => {
     return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
+  const formatDateTime = (dateStr: string | Date) => {
+    return new Date(dateStr).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const CLIMA_UI: Record<string, { label: string; cls: string }> = {
+    BOM: { label: 'Tempo bom', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    CHUVA: { label: 'Chuva', cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    IMPRATICAVEL: { label: 'Paralisada', cls: 'bg-red-500/10 text-red-400 border-red-500/20' },
   };
 
   return (
@@ -433,6 +464,62 @@ export default async function DashboardPage() {
           </div>
         );
       })()}
+
+      {/* FEED: Últimos diários de obra registrados no canteiro */}
+      <div className="glassmorphism rounded-2xl overflow-hidden">
+        <div className="p-5 border-b border-[#1e293b] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><BookOpen size={18} /></span>
+            <div>
+              <h3 className="text-base font-bold text-white leading-tight">Diário de obras — últimos registros</h3>
+              <p className="text-xs text-slate-400 mt-0.5">O que o canteiro apontou nas obras. Paralisação e ocorrência ficam em destaque.</p>
+            </div>
+          </div>
+          <Link href="/canteiro/diario" className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition shrink-0">
+            Abrir diário
+          </Link>
+        </div>
+
+        {diariosRecentes.length === 0 ? (
+          <div className="p-8 text-center text-slate-500 text-sm">
+            Nenhum diário de obra registrado ainda.
+          </div>
+        ) : (
+          <div className="divide-y divide-[#1e293b]">
+            {diariosRecentes.map((d) => {
+              const clima = CLIMA_UI[d.clima] || { label: d.clima, cls: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
+              const temOcorrencia = d.ocorrencias && d.ocorrencias.trim().length > 0;
+              const local = `Qd ${d.casa.quadra}, Casa ${d.casa.numero}`;
+              return (
+                <div key={d.id} className="p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 hover:bg-slate-800/10 transition">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-white">{local}</span>
+                      <span className="text-xs text-slate-400">({d.casa.empreendimento?.nome})</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${clima.cls}`}>{clima.label}</span>
+                      {temOcorrencia && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20 flex items-center gap-1">
+                          <AlertTriangle size={10} /> Ocorrência
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">{d.atividadesExecutadas}</p>
+                    {temOcorrencia && (
+                      <p className="text-xs text-orange-300/90 leading-relaxed line-clamp-2">
+                        <span className="font-semibold">Ocorrência:</span> {d.ocorrencias}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-left sm:text-right shrink-0 space-y-0.5">
+                    <p className="text-xs font-semibold text-slate-300">{formatDateTime(d.data)}</p>
+                    <p className="text-[11px] text-slate-500">{d.efetivoTrabalhadores} trab.</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* RADARES DE RISCO (PREVENÇÃO DE PREJUÍZOS) */}
       <div className="space-y-3">
