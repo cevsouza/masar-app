@@ -33,5 +33,9 @@ COPY --from=builder /app/masar-web/prisma ./masar-web/prisma
 
 EXPOSE 3000
 
-# Start script: fallback to DATABASE_URL if DIRECT_URL is not set, then push schema and start
-CMD ["sh", "-c", "cd masar-web && export DIRECT_URL=\"${DIRECT_URL:-$DATABASE_URL}\" && npx prisma db push --accept-data-loss && npm run start"]
+# Start script: fallback to DATABASE_URL if DIRECT_URL is not set, then apply
+# pending migrations (revisable, non-destructive) and start.
+# NOTE: schema changes now go through committed migrations (`prisma migrate dev`
+# locally -> migration file -> `migrate deploy` here). Do NOT go back to
+# `db push --accept-data-loss` — it drops data silently on every boot.
+CMD ["sh", "-c", "cd masar-web && export DIRECT_URL=\"${DIRECT_URL:-$DATABASE_URL}\" && npx prisma migrate deploy && npm run start"]
