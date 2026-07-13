@@ -124,15 +124,10 @@ export async function POST(request: NextRequest) {
         data: { status: 'APROVADA' }
       });
 
-      // Registrar movimentação de estoque de entrada
-      await tx.movimentacaoEstoque.create({
-        data: {
-          insumoId: solicitacao.insumoId,
-          quantidade: solicitacao.quantidadeSolicitada,
-          tipo: 'ENTRADA',
-          casaId: solicitacao.casaId || null
-        }
-      });
+      // Obs: a entrada de estoque e a conta a pagar NAO sao geradas aqui.
+      // A ordem nasce com statusEntrega=PENDENTE (pedido emitido). O estoque
+      // (ENTRADA) e a conta a pagar so entram quando a mercadoria e recebida,
+      // via PATCH desta rota (marcar como entregue) — separacao pedido x recebimento.
 
       // Gravar na auditoria
       await logMutation({
@@ -155,6 +150,139 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, ordemCompraId: ordem.id });
   } catch (error: any) {
     logger.error('[Suprimentos] Erro ao aprovar ordem de compra', error);
+    return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
+  }
+}
+
+// Mapeia a categoria do insumo para a categoria financeira do lancamento.
+function categoriaFinanceiraDoInsumo(catInsumo: string): 'MATERIAL' | 'MAO_DE_OBRA' | 'IMPOSTOS' {
+  switch (catInsumo) {
+    case 'MAO_DE_OBRA':
+      return 'MAO_DE_OBRA';
+    case 'TAXA':
+      return 'IMPOSTOS';
+    default:
+      return 'MATERIAL'; // MATERIAL e EQUIPAMENTO caem em MATERIAL
+  }
+}
+
+// PATCH: marca a Ordem de Compra como ENTREGUE (recebimento de mercadoria).
+// Gera, de forma atomica e idempotente, a ENTRADA no estoque e a conta a pagar.
+export async function PATCH(request: NextRequest) {
+  try {
+    const traceId = crypto.randomUUID();
+
+    const sessionToken = request.cookies.get('masar_session')?.value;
+    const session = sessionToken ? await verifySession(sessionToken) : null;
+    if (!session || !['ADMIN', 'FINANCEIRO'].includes(session.role)) {
+      return NextResponse.json({ error: 'Permissão insuficiente. Apenas ADMIN ou FINANCEIRO registram o recebimento.' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { ordemCompraId } = body;
+    if (!ordemCompraId) {
+      return NextResponse.json({ error: 'Parâmetro ordemCompraId é obrigatório.' }, { status: 400 });
+    }
+
+    const oc = await db.ordemCompra.findUnique({
+      where: { id: ordemCompraId },
+      include: {
+        cotacao: {
+          include: {
+            fornecedor: true,
+            solicitacao: {
+              include: {
+                insumo: true,
+                casa: { select: { empreendimentoId: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!oc) {
+      return NextResponse.json({ error: 'Ordem de compra não encontrada.' }, { status: 404 });
+    }
+    if (oc.statusEntrega === 'ENTREGUE') {
+      return NextResponse.json({ error: 'Esta ordem de compra já foi recebida.' }, { status: 409 });
+    }
+
+    const cotacao = oc.cotacao;
+    const solicitacao = cotacao.solicitacao;
+
+    // A conta a pagar exige empreendimento: resolve pela solicitacao ou pela casa.
+    const empreendimentoId = solicitacao.empreendimentoId || solicitacao.casa?.empreendimentoId || null;
+    if (!empreendimentoId) {
+      return NextResponse.json({ error: 'Não foi possível gerar a conta a pagar: a requisição não está vinculada a um empreendimento ou casa.' }, { status: 400 });
+    }
+
+    const quantidade = solicitacao.quantidadeSolicitada;
+    const valorTotal = cotacao.valorUnitario * quantidade;
+
+    // Vencimento = data do recebimento + prazo de pagamento do fornecedor cadastrado
+    // (0 = à vista, vence na entrega).
+    const prazoPagamentoDias = cotacao.fornecedor?.prazoPagamentoDias ?? 0;
+    const dataRecebimento = new Date();
+    const dataVencimento = new Date(dataRecebimento);
+    dataVencimento.setDate(dataVencimento.getDate() + prazoPagamentoDias);
+
+    const resultado = await db.$transaction(async (tx) => {
+      // 1. Marca como entregue
+      await tx.ordemCompra.update({
+        where: { id: oc.id },
+        data: { statusEntrega: 'ENTREGUE' },
+      });
+
+      // 2. Entrada no estoque
+      const mov = await tx.movimentacaoEstoque.create({
+        data: {
+          insumoId: solicitacao.insumoId,
+          quantidade,
+          tipo: 'ENTRADA',
+          casaId: solicitacao.casaId || null,
+        },
+      });
+
+      // 3. Conta a pagar (despesa pendente — vai pro razão só quando for paga)
+      const contaPagar = await tx.transacaoFinanceira.create({
+        data: {
+          descricao: `Compra: ${solicitacao.insumo.nome} — ${cotacao.fornecedorNome}`,
+          valor: valorTotal,
+          dataVencimento,
+          natureza: 'DESPESA',
+          status: 'PENDENTE',
+          categoria: categoriaFinanceiraDoInsumo(solicitacao.insumo.categoria),
+          empreendimentoId,
+          casaId: solicitacao.casaId || null,
+          insumoId: solicitacao.insumoId,
+          quantidade,
+        },
+      });
+
+      await logMutation({
+        usuarioId: session.userId,
+        usuarioNome: session.nome,
+        acao: 'SUPRIMENTOS_ORDEM_COMPRA_ENTREGUE',
+        tabela: 'OrdemCompra',
+        registroId: oc.id,
+        valoresNovos: {
+          statusEntrega: 'ENTREGUE',
+          movimentacaoEstoqueId: mov.id,
+          contaPagarId: contaPagar.id,
+          valorTotal,
+          dataVencimento,
+        },
+      });
+
+      return { movId: mov.id, contaPagarId: contaPagar.id };
+    });
+
+    logger.info(`[Suprimentos] OC ${oc.id} recebida: estoque ENTRADA ${resultado.movId}, conta a pagar ${resultado.contaPagarId} (R$ ${valorTotal.toFixed(2)}, vence ${dataVencimento.toLocaleDateString('pt-BR')})`, { traceId });
+
+    return NextResponse.json({ success: true, ...resultado });
+  } catch (error: any) {
+    logger.error('[Suprimentos] Erro ao marcar ordem de compra como entregue', error);
     return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
   }
 }

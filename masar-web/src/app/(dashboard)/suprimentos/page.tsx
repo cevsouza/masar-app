@@ -23,7 +23,9 @@ export default async function SuprimentosPage() {
         }
       },
       empreendimento: true,
-      cotacoes: true
+      cotacoes: {
+        include: { ordemCompra: true }
+      }
     },
     orderBy: { dataCriacao: 'desc' }
   });
@@ -40,6 +42,13 @@ export default async function SuprimentosPage() {
 
   const empreendimentos = await db.empreendimento.findMany({
     orderBy: { nome: 'asc' }
+  });
+
+  // Fornecedores ativos para vincular nas cotações manuais (dropdown).
+  const fornecedores = await db.fornecedor.findMany({
+    where: { ativo: true },
+    orderBy: { nome: 'asc' },
+    select: { id: true, nome: true, prazoPagamentoDias: true, prazoEntregaDias: true }
   });
 
   // Serializar datas para componentes clientes com segurança
@@ -65,7 +74,10 @@ export default async function SuprimentosPage() {
       dataCriacao: s.dataCriacao.toISOString(),
       cotacoes: s.cotacoes.map(c => ({
         ...c,
-        dataCriacao: c.dataCriacao.toISOString()
+        dataCriacao: c.dataCriacao.toISOString(),
+        ordemCompra: c.ordemCompra
+          ? { ...c.ordemCompra, dataCriacao: c.ordemCompra.dataCriacao.toISOString() }
+          : null
       })),
       orcadoQtd,
       consumoQtd,
@@ -89,11 +101,12 @@ export default async function SuprimentosPage() {
         </p>
       </div>
 
-      <SuprimentosInbox 
-        initialSolicitacoes={serializedSolicitacoes} 
+      <SuprimentosInbox
+        initialSolicitacoes={serializedSolicitacoes}
         casas={serializedCasas}
         insumos={insumos}
         empreendimentos={empreendimentos}
+        fornecedores={fornecedores}
       />
     </div>
   );

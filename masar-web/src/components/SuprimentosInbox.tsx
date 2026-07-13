@@ -26,9 +26,18 @@ import {
 interface Cotacao {
   id: string;
   fornecedorNome: string;
+  fornecedorId?: string | null;
   valorUnitario: number;
   prazoEntregaDias: number;
   comprovanteUrl: string | null;
+  ordemCompra?: { id: string; statusEntrega: string } | null;
+}
+
+interface FornecedorOption {
+  id: string;
+  nome: string;
+  prazoPagamentoDias: number | null;
+  prazoEntregaDias: number | null;
 }
 
 interface Solicitacao {
@@ -58,13 +67,15 @@ interface SuprimentosInboxProps {
   casas?: any[];
   insumos?: any[];
   empreendimentos?: any[];
+  fornecedores?: FornecedorOption[];
 }
 
-export default function SuprimentosInbox({ 
+export default function SuprimentosInbox({
   initialSolicitacoes,
   casas = [],
   insumos = [],
-  empreendimentos = []
+  empreendimentos = [],
+  fornecedores = []
 }: SuprimentosInboxProps) {
   const router = useRouter();
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>(initialSolicitacoes);
@@ -91,6 +102,7 @@ export default function SuprimentosInbox({
   const [editStatus, setEditStatus] = useState('');
 
   // Manual Quote Form State
+  const [quoteFornecedorId, setQuoteFornecedorId] = useState(''); // '' = nenhum, 'OUTRO' = digitar
   const [quoteFornecedor, setQuoteFornecedor] = useState('');
   const [quoteValorUnitario, setQuoteValorUnitario] = useState('');
   const [quotePrazoEntrega, setQuotePrazoEntrega] = useState('');
@@ -148,15 +160,34 @@ export default function SuprimentosInbox({
         throw new Error(data.error || 'Erro ao emitir ordem de compra.');
       }
 
-      alert(force ? '✓ Ordem de Compra Excepcional emitida com sucesso (auditada).' : '✓ Ordem de Compra emitida e estoque movimentado com sucesso!');
+      alert(force
+        ? '✓ Ordem de Compra Excepcional emitida (auditada). Marque como "Entregue" ao receber a mercadoria para gerar estoque e conta a pagar.'
+        : '✓ Ordem de Compra emitida! Marque como "Entregue" ao receber a mercadoria para dar entrada no estoque e gerar a conta a pagar.');
       router.refresh();
-      
-      setSolicitacoes(prev => prev.map(s => {
-        if (s.id === selectedId) {
-          return { ...s, status: 'APROVADA' };
-        }
-        return s;
-      }));
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Recebimento: marca a OC como entregue -> entrada no estoque + conta a pagar.
+  const handleMarkDelivered = async (ordemCompraId: string) => {
+    if (!confirm('Confirmar o recebimento desta mercadoria? Isso dá entrada no estoque e gera a conta a pagar.')) return;
+    setLoading(true);
+    try {
+      const response = await fetch('/api/suprimentos/ordem-compra', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ordemCompraId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Erro ao registrar recebimento.');
+
+      alert('✓ Recebimento registrado: estoque atualizado e conta a pagar gerada.');
+      router.refresh();
+      window.location.reload();
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -270,15 +301,23 @@ export default function SuprimentosInbox({
 
   const handleCreateManualQuote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedId || !quoteFornecedor || !quoteValorUnitario || !quotePrazoEntrega) {
-      alert('Preencha todos os campos obrigatórios.');
+    const usandoCadastrado = quoteFornecedorId && quoteFornecedorId !== 'OUTRO';
+    const nomeFinal = usandoCadastrado
+      ? (fornecedores.find(f => f.id === quoteFornecedorId)?.nome || '')
+      : quoteFornecedor;
+
+    if (!selectedId || !nomeFinal || !quoteValorUnitario || !quotePrazoEntrega) {
+      alert('Selecione/informe o fornecedor e preencha valor e prazo.');
       return;
     }
     setIsSubmittingQuote(true);
     try {
       const formData = new FormData();
       formData.append('solicitacaoId', selectedId);
-      formData.append('fornecedorNome', quoteFornecedor);
+      formData.append('fornecedorNome', nomeFinal);
+      if (usandoCadastrado) {
+        formData.append('fornecedorId', quoteFornecedorId);
+      }
       formData.append('valorUnitario', quoteValorUnitario);
       formData.append('prazoEntregaDias', quotePrazoEntrega);
       if (quoteFile) {
@@ -295,6 +334,7 @@ export default function SuprimentosInbox({
 
       alert('✓ Cotação manual registrada!');
       setIsManualQuoteOpen(false);
+      setQuoteFornecedorId('');
       setQuoteFornecedor('');
       setQuoteValorUnitario('');
       setQuotePrazoEntrega('');
@@ -637,6 +677,29 @@ export default function SuprimentosInbox({
                           {loading ? <Loader2 size={10} className="animate-spin" /> : 'Emitir Ordem de Compra'}
                         </button>
                       )}
+
+                      {/* Recebimento da Ordem de Compra (esta é a cotação vencedora) */}
+                      {c.ordemCompra && (
+                        c.ordemCompra.statusEntrega === 'ENTREGUE' ? (
+                          <div className="w-full mt-2 py-2 px-2 bg-emerald-950/30 border border-emerald-500/25 text-emerald-400 rounded-xl text-[9px] font-bold flex items-center justify-center gap-1.5 text-center leading-tight">
+                            <CheckCircle size={12} className="shrink-0" />
+                            Recebido — estoque e conta a pagar gerados
+                          </div>
+                        ) : (
+                          <div className="mt-2 space-y-1.5">
+                            <div className="text-[9px] text-amber-400 font-semibold flex items-center justify-center gap-1">
+                              <Clock size={10} /> Pedido emitido — aguardando recebimento
+                            </div>
+                            <button
+                              disabled={loading}
+                              onClick={() => handleMarkDelivered(c.ordemCompra!.id)}
+                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-[10px] transition cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              {loading ? <Loader2 size={10} className="animate-spin" /> : <><CheckCircle size={12} /> Marcar como Entregue</>}
+                            </button>
+                          </div>
+                        )
+                      )}
                     </div>
                   );
                 })}
@@ -883,15 +946,39 @@ export default function SuprimentosInbox({
               </div>
 
               <div>
-                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Nome do Lojista/Fornecedor *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Leroy Merlin, Madeireira Silva"
-                  value={quoteFornecedor}
-                  onChange={(e) => setQuoteFornecedor(e.target.value)}
+                <label className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1 font-semibold">Fornecedor *</label>
+                <select
+                  value={quoteFornecedorId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setQuoteFornecedorId(val);
+                    // Ao escolher um cadastrado, sugere o prazo de entrega tipico se vazio.
+                    const f = fornecedores.find(fo => fo.id === val);
+                    if (f && f.prazoEntregaDias != null && !quotePrazoEntrega) {
+                      setQuotePrazoEntrega(String(f.prazoEntregaDias));
+                    }
+                  }}
                   className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-                />
+                >
+                  <option value="">-- Selecione o fornecedor cadastrado --</option>
+                  {fornecedores.map(f => (
+                    <option key={f.id} value={f.id}>{f.nome}</option>
+                  ))}
+                  <option value="OUTRO">+ Outro (não cadastrado)</option>
+                </select>
+                {fornecedores.length === 0 && (
+                  <p className="text-[9px] text-slate-500 mt-1">Nenhum fornecedor cadastrado ainda — use &quot;Outro&quot; ou cadastre em Fornecedores.</p>
+                )}
+                {quoteFornecedorId === 'OUTRO' && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nome do lojista/fornecedor não cadastrado"
+                    value={quoteFornecedor}
+                    onChange={(e) => setQuoteFornecedor(e.target.value)}
+                    className="w-full mt-2 bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

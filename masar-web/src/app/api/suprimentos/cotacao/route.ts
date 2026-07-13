@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     
     const solicitacaoId = formData.get('solicitacaoId') as string;
-    const fornecedorNome = formData.get('fornecedorNome') as string;
+    let fornecedorNome = formData.get('fornecedorNome') as string;
+    const fornecedorId = (formData.get('fornecedorId') as string) || null;
     const valorUnitarioStr = formData.get('valorUnitario') as string;
     const prazoEntregaDiasStr = formData.get('prazoEntregaDias') as string;
     const file = formData.get('file') as File;
@@ -26,6 +27,15 @@ export async function POST(request: NextRequest) {
 
     if (isNaN(valorUnitario) || valorUnitario <= 0 || isNaN(prazoEntregaDias) || prazoEntregaDias < 0) {
       return NextResponse.json({ error: 'Valores numéricos inválidos.' }, { status: 400 });
+    }
+
+    // Se veio um fornecedor cadastrado, o nome autoritativo vem do cadastro.
+    if (fornecedorId) {
+      const fornecedor = await db.fornecedor.findUnique({ where: { id: fornecedorId } });
+      if (!fornecedor) {
+        return NextResponse.json({ error: 'Fornecedor cadastrado não encontrado.' }, { status: 400 });
+      }
+      fornecedorNome = fornecedor.nome;
     }
 
     logger.info(`[Portal Fornecedor] Recebendo cotação de ${fornecedorNome} para solicitação ${solicitacaoId}`, { traceId });
@@ -59,6 +69,7 @@ export async function POST(request: NextRequest) {
         data: {
           solicitacaoId,
           fornecedorNome,
+          fornecedorId,
           valorUnitario,
           prazoEntregaDias,
           comprovanteUrl
