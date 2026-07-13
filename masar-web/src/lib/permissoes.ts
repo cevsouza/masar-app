@@ -23,7 +23,7 @@ export const MODULOS: ModuloDef[] = [
   { chave: 'suprimentos', label: 'Suprimentos', descricao: 'Compras e fornecedores', prefixos: ['/suprimentos', '/fornecedores'] },
   { chave: 'financeiro', label: 'Financeiro', descricao: 'Central financeira e sócios', prefixos: ['/financeiro', '/socios'] },
   { chave: 'fiscal', label: 'Fiscal', descricao: 'Notas de entrada, impostos e documentos', prefixos: ['/fiscal'] },
-  { chave: 'seguranca', label: 'Segurança do Trabalho', descricao: 'Trabalhadores, ASO e EPI', prefixos: ['/trabalhadores'] },
+  { chave: 'seguranca', label: 'Segurança do Trabalho', descricao: 'Trabalhadores, ASO, EPI, DDS, acidentes e checklists', prefixos: ['/trabalhadores', '/seguranca'] },
   { chave: 'gestao', label: 'Gestão & BI', descricao: 'Painéis, indicadores e eficiência', prefixos: ['/gestao'] },
   { chave: 'comercial', label: 'Comercial', descricao: 'CRM e vendas', prefixos: ['/comercial'] },
   { chave: 'relatorios', label: 'Relatórios', descricao: 'Relatórios gerenciais', prefixos: ['/relatorios'] },

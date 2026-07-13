@@ -89,6 +89,7 @@ const NAV_GROUPS = [
     icon: ShieldCheck,
     items: [
       { name: 'Trabalhadores', href: '/trabalhadores', icon: HardHat, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+      { name: 'DDS · Acidentes · NR', href: '/seguranca/registros', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
     ],
   },
   {

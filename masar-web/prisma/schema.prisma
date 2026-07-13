@@ -177,6 +177,9 @@ model Empreendimento {
   milestones             Milestone[]
   atividadesCronograma   AtividadeCronograma[]
   notasFiscaisEntrada    NotaFiscalEntrada[]
+  ddsSeguranca           DialogoSeguranca[]
+  acidentes              Acidente[]
+  checklistsNR           ChecklistNR[]
 }
 
 model MarcoBurocratico {
@@ -266,6 +269,9 @@ model Casa {
   milestones             Milestone[]
   atividadesCronograma   AtividadeCronograma[]
   linhaBase              LinhaBaseObra?
+  ddsSeguranca           DialogoSeguranca[]
+  acidentes              Acidente[]
+  checklistsNR           ChecklistNR[]
 }
 
 model OrcamentoCasa {
@@ -522,6 +528,7 @@ model Trabalhador {
   pontos          PontoTrabalhador[]
   asos            ASO[]
   episEntregues   EntregaEPI[]
+  acidentes       Acidente[]
 }
 
 enum TipoASO {
@@ -795,4 +802,69 @@ model MetaEficiencia {
   maxInsumosEstouro Int      @default(0)    // quantos insumos em estouro fisico toleramos
   alertarRuptura    Boolean  @default(true) // alerta se ha ruptura de caixa projetada
   dataAtualizacao   DateTime @updatedAt
+}
+
+// ── Registros documentais de SST (Fase 3.3) ──────────────────────────────────
+
+enum TipoAcidente {
+  TIPICO
+  TRAJETO
+  DOENCA_OCUPACIONAL
+}
+
+enum GravidadeAcidente {
+  LEVE
+  MODERADO
+  GRAVE
+  FATAL
+}
+
+// DDS — Dialogo Diario de Seguranca (registro da conversa de seguranca).
+model DialogoSeguranca {
+  id               String          @id @default(uuid())
+  data             DateTime        @default(now())
+  tema             String
+  responsavel      String
+  participantes    Json? // [{ id?, nome }]
+  observacoes      String?
+  empreendimentoId String?
+  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+  casaId           String?
+  casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: SetNull)
+  dataCriacao      DateTime        @default(now())
+}
+
+// Acidente / CAT (Comunicacao de Acidente de Trabalho).
+model Acidente {
+  id               String            @id @default(uuid())
+  trabalhadorId    String
+  trabalhador      Trabalhador       @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
+  data             DateTime          @default(now())
+  tipo             TipoAcidente      @default(TIPICO)
+  gravidade        GravidadeAcidente @default(LEVE)
+  descricao        String
+  parteCorpo       String?
+  diasAfastamento  Int               @default(0)
+  catEmitida       Boolean           @default(false)
+  numeroCat        String?
+  empreendimentoId String?
+  empreendimento   Empreendimento?   @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+  casaId           String?
+  casa             Casa?             @relation(fields: [casaId], references: [id], onDelete: SetNull)
+  dataCriacao      DateTime          @default(now())
+}
+
+// Checklist de conformidade por Norma Regulamentadora (NR-18, NR-35...).
+model ChecklistNR {
+  id               String          @id @default(uuid())
+  norma            String // "NR-18", "NR-35", "NR-06"...
+  data             DateTime        @default(now())
+  responsavel      String
+  itens            Json? // [{ item, conforme: boolean, obs? }]
+  observacoes      String?
+  empreendimentoId String?
+  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+  casaId           String?
+  casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: SetNull)
+  dataCriacao      DateTime        @default(now())
 }
