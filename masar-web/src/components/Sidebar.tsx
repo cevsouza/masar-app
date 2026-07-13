@@ -30,7 +30,8 @@ import {
   HardHat,
   BookOpen,
   Truck,
-  ShieldCheck
+  ShieldCheck,
+  FolderLock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -81,6 +82,7 @@ const NAV_GROUPS = [
     icon: FileText,
     items: [
       { name: 'Notas de Entrada', href: '/fiscal/notas', icon: FileText, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Cofre de Documentos', href: '/fiscal/documentos', icon: FolderLock, roles: ['ADMIN', 'FINANCEIRO'] },
     ],
   },
   {
