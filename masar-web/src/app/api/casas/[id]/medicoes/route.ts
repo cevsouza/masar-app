@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { bloqueioSegurancaMedicao } from '@/lib/sst';
+import { verifySession } from '@/lib/auth';
+import { logMutation } from '@/lib/audit';
 
 export async function POST(
   request: NextRequest,
@@ -9,7 +12,7 @@ export async function POST(
     const { id } = await params;
     const casaId = id;
     const body = await request.json();
-    const { percentualMedido, valorLiberado, status, checklistSeguranca } = body;
+    const { percentualMedido, valorLiberado, status, checklistSeguranca, forcarLiberacao } = body;
 
     const percentualFloat = parseFloat(percentualMedido);
     if (isNaN(percentualFloat) || percentualFloat < 0 || percentualFloat > 100) {
@@ -21,9 +24,34 @@ export async function POST(
       return NextResponse.json({ error: 'Valor liberado inválido' }, { status: 400 });
     }
 
-    const statusValido = status && ['AGUARDANDO', 'PAGA', 'GLOSADA_REPROVADA'].includes(status) 
-      ? status 
+    const statusValido = status && ['AGUARDANDO', 'PAGA', 'GLOSADA_REPROVADA'].includes(status)
+      ? status
       : 'AGUARDANDO';
+
+    // Trava SST: não cria medição já PAGA com trabalhador de ASO/EPI vencido.
+    // Override exige ADMIN e fica auditado.
+    if (statusValido === 'PAGA') {
+      const bloqueio = await bloqueioSegurancaMedicao();
+      if (bloqueio.bloqueado) {
+        const sessionToken = request.cookies.get('masar_session')?.value;
+        const session = sessionToken ? await verifySession(sessionToken) : null;
+        if (!forcarLiberacao || session?.role !== 'ADMIN') {
+          return NextResponse.json({
+            error: 'BLOQUEIO_SEGURANCA',
+            message: 'Liberação bloqueada: há trabalhadores com segurança fora de dia (ASO/EPI vencido). Regularize ou libere excepcionalmente como ADMIN.',
+            motivos: bloqueio.motivos,
+          }, { status: 409 });
+        }
+        await logMutation({
+          usuarioId: session.userId,
+          usuarioNome: session.nome,
+          acao: 'MEDICAO_CRIADA_PAGA_EXCEPCIONAL_SST',
+          tabela: 'MedicaoCaixa',
+          registroId: casaId,
+          valoresNovos: { forcarLiberacao: true, motivos: bloqueio.motivos },
+        });
+      }
+    }
 
     const medicao = await db.medicaoCaixa.create({
       data: {

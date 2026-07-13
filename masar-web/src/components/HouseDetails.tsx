@@ -406,30 +406,63 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
     }
   };
 
+  // Monta a mensagem do bloqueio de segurança (trava SST da liberação de medição).
+  const mensagemBloqueioSST = (data: any) =>
+    `${data.message}\n\n${(data.motivos || []).map((m: string) => `• ${m}`).join('\n')}\n\nLiberar mesmo assim como ADMIN (fica auditado)?`;
+
   const handleCreateMedicao = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsCreatingMedicao(true);
     try {
-      const response = await fetch(`/api/casas/${initialCasa.id}/medicoes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ percentualMedido, valorLiberado, status: statusMedicao }),
-      });
-      if (!response.ok) throw new Error('Falha');
+      const enviar = async (forcar: boolean) =>
+        fetch(`/api/casas/${initialCasa.id}/medicoes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ percentualMedido, valorLiberado, status: statusMedicao, forcarLiberacao: forcar }),
+        });
+
+      let response = await enviar(false);
+      if (response.status === 409) {
+        const data = await response.json();
+        if (data.error === 'BLOQUEIO_SEGURANCA') {
+          if (!confirm(mensagemBloqueioSST(data))) return;
+          response = await enviar(true);
+          if (response.status === 409) {
+            const d2 = await response.json();
+            throw new Error(d2.message || 'Liberação excepcional negada (requer ADMIN).');
+          }
+        }
+      }
+      if (!response.ok) throw new Error('Falha ao registrar medição.');
       router.refresh();
-    } catch (err) { alert('Erro.'); } finally { setIsCreatingMedicao(false); }
+    } catch (err: any) { alert(err.message || 'Erro.'); } finally { setIsCreatingMedicao(false); }
   };
 
   const handleUpdateMedicaoStatus = async (medicaoId: string, newStatus: string) => {
     setUpdatingMedicaoId(medicaoId);
     try {
-      await fetch(`/api/medicoes/${medicaoId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      const enviar = async (forcar: boolean) =>
+        fetch(`/api/medicoes/${medicaoId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, forcarLiberacao: forcar }),
+        });
+
+      let response = await enviar(false);
+      if (response.status === 409) {
+        const data = await response.json();
+        if (data.error === 'BLOQUEIO_SEGURANCA') {
+          if (!confirm(mensagemBloqueioSST(data))) return;
+          response = await enviar(true);
+          if (response.status === 409) {
+            const d2 = await response.json();
+            throw new Error(d2.message || 'Liberação excepcional negada (requer ADMIN).');
+          }
+        }
+      }
+      if (!response.ok) throw new Error('Falha ao atualizar status.');
       router.refresh();
-    } catch (err) { alert('Erro'); } finally { setUpdatingMedicaoId(null); }
+    } catch (err: any) { alert(err.message || 'Erro'); } finally { setUpdatingMedicaoId(null); }
   };
 
   const handleApproveApropriacao = async (apropriacaoId: string, aprovado: boolean) => {

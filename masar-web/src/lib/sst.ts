@@ -80,3 +80,20 @@ export async function buscarVencimentosSST(dias = DIAS_ALERTA_VENCIMENTO) {
     episAVencer: episItens.filter((e) => e.status === 'A_VENCER'),
   };
 }
+
+/**
+ * Trava de liberação de medição (Fase 3.4): a liberação de recursos de uma medição
+ * é bloqueada quando há trabalhador ativo com ASO ou EPI VENCIDO (segurança fora de
+ * dia). Apenas o VENCIDO bloqueia; "a vencer" é só alerta. Retorna os motivos.
+ */
+export async function bloqueioSegurancaMedicao(): Promise<{ bloqueado: boolean; motivos: string[] }> {
+  const v = await buscarVencimentosSST();
+  const motivos: string[] = [];
+  for (const a of v.asosVencidos) {
+    motivos.push(`ASO vencido: ${a.trabalhadorNome} (validade ${new Date(a.dataValidade).toLocaleDateString('pt-BR')})`);
+  }
+  for (const e of v.episVencidos) {
+    motivos.push(`EPI vencido: ${e.equipamento} de ${e.trabalhadorNome}`);
+  }
+  return { bloqueado: motivos.length > 0, motivos };
+}
