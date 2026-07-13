@@ -2,107 +2,101 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { logger } from '@/lib/logger';
+import { sugerirTitulo, conciliar, naturezaEsperada, type TituloAberto } from '@/lib/conciliacao';
 
-export async function POST(request: NextRequest) {
+// Carrega os títulos em aberto uma vez (recebíveis e a pagar) para sugestão/casamento.
+async function carregarTitulosAbertos(): Promise<TituloAberto[]> {
+  const titulos = await db.transacaoFinanceira.findMany({
+    where: { status: { in: ['PENDENTE', 'ATRASADO'] } },
+    select: { id: true, valor: true, natureza: true, dataVencimento: true, descricao: true },
+  });
+  return titulos.map((t) => ({ ...t, natureza: t.natureza as string }));
+}
+
+// GET: lista as linhas de extrato ainda não conciliadas, cada uma com a sugestão
+// de título (se houver), para revisão manual na tela de conciliação.
+export async function GET() {
   try {
-    const traceId = crypto.randomUUID();
-    logger.info('[Conciliação] Iniciando motor de conciliação bancária Open Finance', { traceId });
-
-    // 1. Buscar transações de CRÉDITO não conciliadas
-    const transacoes = await db.transacaoBancaria.findMany({
-      where: {
-        conciliado: false,
-        tipo: 'CREDITO'
-      },
-      orderBy: { data: 'asc' }
+    const linhas = await db.transacaoBancaria.findMany({
+      where: { conciliado: false },
+      orderBy: { data: 'asc' },
     });
 
-    let conciliadosContador = 0;
+    const titulos = await carregarTitulosAbertos();
 
-    for (const trx of transacoes) {
-      // 2. Tentar encontrar uma conta a receber não paga
-      // Critério: valor idêntico e vencimento próximo (tolerância de 7 dias)
-      const dataMinima = new Date(trx.data);
-      dataMinima.setDate(dataMinima.getDate() - 7);
-      const dataMaxima = new Date(trx.data);
-      dataMaxima.setDate(dataMaxima.getDate() + 7);
-
-      const transacaoPendente = await db.transacaoFinanceira.findFirst({
-        where: {
-          natureza: 'RECEITA',
-          status: 'PENDENTE',
-          valor: trx.valor,
-          dataVencimento: {
-            gte: dataMinima,
-            lte: dataMaxima
-          }
-        },
-        include: {
-          cliente: true
-        }
-      });
-
-      if (transacaoPendente) {
-        // 3. Executar conciliação em uma transação ACID
-        await db.$transaction(async (tx) => {
-          // Marcar transação como paga
-          await tx.transacaoFinanceira.update({
-            where: { id: transacaoPendente.id },
-            data: { 
-              status: 'PAGO',
-              dataPagamento: new Date(trx.data)
-            }
-          });
-
-          // Marcar transação bancária como conciliada
-          await tx.transacaoBancaria.update({
-            where: { id: trx.id },
-            data: { conciliado: true }
-          });
-
-          // Atualizar o saldo físico da conta bancária da transação
-          await tx.contaBancaria.update({
-            where: { id: trx.contaBancariaId },
-            data: {
-              saldoAtual: {
-                increment: trx.valor
-              }
-            }
-          });
-
-          // Gravar na auditoria imutável
-          await logMutation({
-            usuarioId: 'SYSTEM_CONCILIATION_ENGINE',
-            usuarioNome: 'Motor Conciliação Open Finance',
-            acao: 'AUTO_CONCILIATION_MATCH',
-            tabela: 'TransacaoFinanceira',
-            registroId: transacaoPendente.id,
-            valoresAntigos: { status: 'PENDENTE' },
-            valoresNovos: { status: 'PAGO', transacaoBancariaId: trx.id }
-          });
-        });
-
-        logger.info(`[Conciliação] Match efetuado com sucesso: Transação ${trx.id} conciliada com Recebível ${transacaoPendente.id}`, {
-          traceId,
-          valor: trx.valor,
-          cliente: transacaoPendente.cliente?.nome || 'Cliente Desconhecido'
-        });
-
-        conciliadosContador++;
-      }
-    }
+    const itens = linhas.map((l) => {
+      const sugestao = sugerirTitulo(
+        { id: l.id, contaBancariaId: l.contaBancariaId, data: l.data, valor: l.valor, tipo: l.tipo },
+        titulos
+      );
+      return {
+        id: l.id,
+        data: l.data.toISOString(),
+        descricao: l.descricao,
+        valor: l.valor,
+        tipo: l.tipo,
+        origem: l.origem,
+        naturezaEsperada: naturezaEsperada(l.tipo),
+        sugestao: sugestao
+          ? { id: sugestao.id, descricao: sugestao.descricao, valor: sugestao.valor, dataVencimento: sugestao.dataVencimento }
+          : null,
+      };
+    });
 
     return NextResponse.json({
-      success: true,
-      transacoesProcessadas: transacoes.length,
-      conciliacoesEfetuadas: conciliadosContador
+      pendentes: itens,
+      totalPendentes: itens.length,
+      comSugestao: itens.filter((i) => i.sugestao).length,
     });
   } catch (error: any) {
-    logger.error('[Conciliação] Erro no motor de conciliação bancária', error);
+    logger.error('[Conciliação] Erro ao listar pendências', error);
     return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
   }
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request);
+// POST: motor automático — casa TODA linha não conciliada (crédito->receita,
+// débito->despesa) que tenha match único por valor e data. Cada casamento é ACID.
+export async function POST() {
+  try {
+    const traceId = crypto.randomUUID();
+    logger.info('[Conciliação] Rodando motor automático', { traceId });
+
+    const linhas = await db.transacaoBancaria.findMany({
+      where: { conciliado: false },
+      orderBy: { data: 'asc' },
+    });
+
+    let conciliadosContador = 0;
+
+    for (const l of linhas) {
+      // Recarrega os títulos a cada iteração para não casar o mesmo título 2x.
+      const titulos = await carregarTitulosAbertos();
+      const linha = { id: l.id, contaBancariaId: l.contaBancariaId, data: l.data, valor: l.valor, tipo: l.tipo };
+      const titulo = sugerirTitulo(linha, titulos);
+      if (!titulo) continue;
+
+      await db.$transaction(async (tx) => {
+        await conciliar(tx, linha, titulo);
+        await logMutation({
+          usuarioId: 'SYSTEM_CONCILIATION_ENGINE',
+          usuarioNome: 'Motor de Conciliação',
+          acao: 'AUTO_CONCILIATION_MATCH',
+          tabela: 'TransacaoFinanceira',
+          registroId: titulo.id,
+          valoresAntigos: { status: 'PENDENTE' },
+          valoresNovos: { status: 'PAGO', transacaoBancariaId: l.id, tipo: l.tipo },
+        });
+      });
+      conciliadosContador++;
+    }
+
+    return NextResponse.json({
+      success: true,
+      transacoesProcessadas: linhas.length,
+      conciliacoesEfetuadas: conciliadosContador,
+    });
+  } catch (error: any) {
+    logger.error('[Conciliação] Erro no motor automático', error);
+    return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
+  }
 }

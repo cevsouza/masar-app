@@ -33,6 +33,7 @@ import {
 } from 'recharts';
 import DreWaterfallChart from '@/components/DreWaterfallChart';
 import FluxoCaixaCockpit from '@/components/FluxoCaixaCockpit';
+import ConciliacaoPanel from '@/components/ConciliacaoPanel';
 
 const CATEGORY_META: Record<string, { icon: any; label: string; color: string }> = {
   TERRENO: { icon: Landmark, label: 'Aquisição Terreno', color: 'text-blue-400 bg-blue-500/10' },
@@ -67,9 +68,9 @@ export default function CentralFinanceiraPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'livro_caixa' | 'contas' | 'projecao' | 'custos_casa'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'livro_caixa' | 'contas' | 'conciliacao' | 'projecao' | 'custos_casa'>(() => {
     const tabParam = getUrlParam('tab');
-    if (tabParam === 'livro_caixa' || tabParam === 'projecao' || tabParam === 'dashboard' || tabParam === 'custos_casa' || tabParam === 'contas') return tabParam;
+    if (tabParam === 'livro_caixa' || tabParam === 'projecao' || tabParam === 'dashboard' || tabParam === 'custos_casa' || tabParam === 'contas' || tabParam === 'conciliacao') return tabParam;
     return 'dashboard';
   });
 
@@ -406,6 +407,17 @@ export default function CentralFinanceiraPage() {
           >
             <Banknote size={14} />
             Contas
+          </button>
+          <button
+            onClick={() => setActiveTab('conciliacao')}
+            className={`flex-1 md:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'conciliacao'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            <Landmark size={14} />
+            Conciliação
           </button>
           <button
             onClick={() => setActiveTab('projecao')}
@@ -967,6 +979,11 @@ export default function CentralFinanceiraPage() {
           })()}
         </div>
       )}
+
+      {/* ========================================== */}
+      {/* VIEW TAB: CONCILIAÇÃO BANCÁRIA */}
+      {/* ========================================== */}
+      {activeTab === 'conciliacao' && <ConciliacaoPanel />}
 
       {/* ========================================== */}
       {/* VIEW TAB: PROJEÇÃO DE CAIXA */}
