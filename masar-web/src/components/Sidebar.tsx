@@ -35,7 +35,8 @@ import {
   FolderLock,
   Percent,
   PackageCheck,
-  Activity
+  Activity,
+  Target
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -53,6 +54,7 @@ const NAV_GROUPS = [
     icon: Sliders,
     items: [
       { name: 'Painel Executivo', href: '/gestao/painel', icon: LayoutDashboard, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Painel de Eficiência', href: '/gestao/eficiencia-diaria', icon: Target, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Indicadores', href: '/gestao/indicadores', icon: Sliders, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Desempenho (EVM)', href: '/gestao/evm', icon: Activity, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Eficiência de Material', href: '/gestao/eficiencia', icon: PackageCheck, roles: ['ADMIN', 'FINANCEIRO'] },

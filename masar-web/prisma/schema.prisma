@@ -756,3 +756,14 @@ model AtividadeCronograma {
   @@index([empreendimentoId])
   @@index([casaId])
 }
+
+// Metas de eficiencia da construtora (config singleton, id fixo "default").
+// Base do painel de eficiencia diaria e dos alertas do cron (Fase 6.5).
+model MetaEficiencia {
+  id                String   @id @default("default")
+  cpiMinimo         Float    @default(0.95) // custo: EV/AC minimo aceitavel
+  spiMinimo         Float    @default(0.95) // prazo: EV/PV minimo aceitavel
+  maxInsumosEstouro Int      @default(0)    // quantos insumos em estouro fisico toleramos
+  alertarRuptura    Boolean  @default(true) // alerta se ha ruptura de caixa projetada
+  dataAtualizacao   DateTime @updatedAt
+}

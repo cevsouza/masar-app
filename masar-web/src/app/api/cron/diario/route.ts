@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/resend';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 import { buscarVencimentosSST } from '@/lib/sst';
+import { avaliarMetas } from '@/lib/metaEficiencia';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -132,7 +133,11 @@ export async function GET(request: NextRequest) {
     const sst = await buscarVencimentosSST();
     const totalSST = sst.asosVencidos.length + sst.asosAVencer.length + sst.episVencidos.length + sst.episAVencer.length;
 
-    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length + totalCriticosFinanceiros + totalSST;
+    // 3.9 EFICIÊNCIA (Fase 6.5): metas de custo/prazo/estoque/caixa fora do alvo.
+    const metaAval = await avaliarMetas();
+    const totalMetas = metaAval.violacoes.length;
+
+    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length + totalCriticosFinanceiros + totalSST + totalMetas;
 
     if (totalAlertas > 0) {
       // 4. Carregar administradores (ADMIN) e o público financeiro (ADMIN + FINANCEIRO)
@@ -252,6 +257,15 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // 5.6 Metas de eficiência fora do alvo (Fase 6.5)
+      for (const v of metaAval.violacoes) {
+        const emoji = v.severidade === 'CRITICO' ? '🔴' : '⚠️';
+        const msg = `${emoji} Meta de eficiência: ${v.label} — atual ${v.atual} (meta ${v.meta}).`;
+        await db.notificacao.createMany({
+          data: financeiroUsers.map(u => ({ usuarioId: u.id, mensagem: msg, lida: false }))
+        });
+      }
+
       // 6. Enviar e-mail sumário para cada administrador
       const docListHtml = documentosExpirando.map(doc =>
         `<li><strong>${doc.nome}</strong> (Vence em: ${doc.dataVencimento?.toLocaleDateString('pt-BR')}) - Unidade Qd ${doc.casa?.quadra || ''}, Casa ${doc.casa?.numero || ''}</li>`
@@ -361,6 +375,8 @@ export async function GET(request: NextRequest) {
       asosAVencer: sst.asosAVencer.length,
       episVencidos: sst.episVencidos.length,
       episAVencer: sst.episAVencer.length,
+      metasForaDoAlvo: totalMetas,
+      statusEficiencia: metaAval.status,
       alertasGerados: totalAlertas
     });
   } catch (error: any) {
