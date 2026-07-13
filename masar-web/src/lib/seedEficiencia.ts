@@ -17,12 +17,24 @@ const PFX = '[SEED]';
 const dias = (n: number) => new Date(Date.now() + n * 86400000);
 
 export async function limparSeed() {
-  // Ordem importa por causa dos onDelete Restrict em InsumoPadrao.
+  // Ordem importa: onDelete Restrict em InsumoPadrao e SetNull nos registros de
+  // SST (que não cascateiam com o empreendimento).
+  const emps = await db.empreendimento.findMany({ where: { nome: { startsWith: PFX } }, select: { id: true } });
+  const empIds = emps.map((e) => e.id);
+  if (empIds.length) {
+    await db.dialogoSeguranca.deleteMany({ where: { empreendimentoId: { in: empIds } } });
+    await db.checklistNR.deleteMany({ where: { empreendimentoId: { in: empIds } } });
+    await db.acidente.deleteMany({ where: { empreendimentoId: { in: empIds } } });
+  }
   await db.solicitacaoCompra.deleteMany({ where: { insumo: { nome: { startsWith: PFX } } } });
   await db.movimentacaoEstoque.deleteMany({ where: { insumo: { nome: { startsWith: PFX } } } });
+  // Cascade: casas, orcamento, itens, transacoes, atividades, medicoes, milestones, documentos, linhaBase.
   await db.empreendimento.deleteMany({ where: { nome: { startsWith: PFX } } });
+  // Cascade: ASO, EPI e acidentes remanescentes do trabalhador de demonstração.
+  await db.trabalhador.deleteMany({ where: { nome: { startsWith: PFX } } });
   await db.insumoPadrao.deleteMany({ where: { nome: { startsWith: PFX } } });
   await db.fornecedor.deleteMany({ where: { nome: { startsWith: PFX } } });
+  // Cascade: TransacaoBancaria (linhas de conciliação).
   await db.contaBancaria.deleteMany({ where: { nome: { startsWith: PFX } } });
 }
 
@@ -57,7 +69,7 @@ export async function seedEficiencia() {
     data: { nome: `${PFX} Construrápida Materiais`, cnpj: `${PFX}-00.000.000/0001-00`, prazoPagamentoDias: 30, ramo: 'material', ativo: true },
   });
 
-  await db.contaBancaria.create({ data: { nome: `${PFX} Conta Obra Demo`, saldoAtual: 28000 } });
+  const conta = await db.contaBancaria.create({ data: { nome: `${PFX} Conta Obra Demo`, saldoAtual: 28000 } });
 
   const emp = await db.empreendimento.create({
     data: {
@@ -90,7 +102,7 @@ export async function seedEficiencia() {
       itens: [
         { insumoIdx: 0, qtdPlan: 100, custoUnit: 32, consumo: 130, despesa: 5200 },  // estouro físico + custo
         { insumoIdx: 1, qtdPlan: 40, custoUnit: 90, consumo: 45, despesa: 4300 },
-        { insumoIdx: 3, qtdPlan: 700, custoUnit: 8, consumo: 720, despesa: 6800, despesaPendente: true },
+        { insumoIdx: 3, qtdPlan: 700, custoUnit: 8, consumo: 720, despesa: 6800 },
       ],
       atividades: [
         { titulo: 'Infraestrutura', iniDias: -120, fimDias: -90, concluida: true },
@@ -213,10 +225,43 @@ export async function seedEficiencia() {
     },
   });
 
-  // ── SST (registros documentais) ───────────────────────────────────────────
+  // ── Receita RECEBIDA no mês (alimenta RET, DRE e DFC) ─────────────────────
+  await db.transacaoFinanceira.create({
+    data: {
+      descricao: `${PFX} Repasse CEF - medições do mês`, valor: 96000, natureza: 'RECEITA',
+      categoria: 'MEDICAO_CAIXA', status: 'PAGO', dataVencimento: dias(-5), dataPagamento: dias(-5),
+      empreendimentoId: emp.id, casaId: casasCriadas[0].id,
+    },
+  });
+
+  // ── Medições (indicadores financeiros + alerta de glosa) ──────────────────
+  await db.medicaoCaixa.create({ data: { casaId: casasCriadas[0].id, percentualMedido: 30, valorLiberado: 40000, status: 'PAGA', dataMedicao: dias(-20) } });
+  await db.medicaoCaixa.create({ data: { casaId: casasCriadas[1].id, percentualMedido: 15, valorLiberado: 22000, status: 'AGUARDANDO', dataMedicao: dias(-3) } });
+  await db.medicaoCaixa.create({ data: { casaId: casasCriadas[1].id, percentualMedido: 10, valorLiberado: 15000, status: 'GLOSADA_REPROVADA', dataMedicao: dias(-2) } }); // alerta de glosa
+
+  // ── Conciliação bancária: linhas importadas ainda não conciliadas ─────────
+  const t = Date.now();
+  await db.transacaoBancaria.create({ data: { contaBancariaId: conta.id, data: dias(-4), valor: 96000, descricao: `${PFX} TED recebida CEF`, tipo: 'CREDITO', conciliado: false, origem: null, documentoIdentificador: `${PFX}-ext-${t}-1` } });
+  await db.transacaoBancaria.create({ data: { contaBancariaId: conta.id, data: dias(-6), valor: 5200, descricao: `${PFX} Débito fornecedor materiais`, tipo: 'DEBITO', conciliado: false, origem: null, documentoIdentificador: `${PFX}-ext-${t}-2` } });
+  await db.transacaoBancaria.create({ data: { contaBancariaId: conta.id, data: dias(-1), valor: 1200, descricao: `${PFX} Tarifa bancária`, tipo: 'DEBITO', conciliado: false, origem: null, documentoIdentificador: `${PFX}-ext-${t}-3` } });
+
+  // ── Cronograma macro: milestones (atrasado, próximo, concluído) ───────────
+  await db.milestone.create({ data: { titulo: `${PFX} Alvará de construção`, categoria: 'PROJETO', dataLimite: dias(-12), concluido: false, empreendimentoId: emp.id } }); // ATRASADO
+  await db.milestone.create({ data: { titulo: `${PFX} Habite-se Casa 01`, categoria: 'OBRA', dataLimite: dias(5), concluido: false, empreendimentoId: emp.id, casaId: casasCriadas[0].id } }); // PRÓXIMO
+  await db.milestone.create({ data: { titulo: `${PFX} Matrícula do terreno`, categoria: 'PROJETO', dataLimite: dias(-40), concluido: true, dataConclusao: dias(-38), empreendimentoId: emp.id } });
+
+  // ── GED: documentos com validade (a vencer / vencido → alertas) ───────────
+  await db.documentoAnexo.create({ data: { nome: `${PFX} ART de execução`, caminhoArquivo: '/seed/art.pdf', status: 'ATIVO', dataVencimento: dias(8), tipo: 'OUTRO', empreendimentoId: emp.id } }); // a vencer
+  await db.documentoAnexo.create({ data: { nome: `${PFX} Apólice de seguro`, caminhoArquivo: '/seed/apolice.pdf', status: 'ATIVO', dataVencimento: dias(-6), tipo: 'OUTRO', empreendimentoId: emp.id } }); // vencido
+  await db.documentoAnexo.create({ data: { nome: `${PFX} Licença ambiental`, caminhoArquivo: '/seed/licenca.pdf', status: 'ATIVO', dataVencimento: dias(120), tipo: 'ALVARA_LOTEAMENTO', empreendimentoId: emp.id } }); // em dia
+
+  // ── SST: trabalhador + ASO/EPI (vencidos → alertas + conformidade) + registros ──
   const trab = await db.trabalhador.create({
     data: { nome: `${PFX} Pedro Alves`, funcao: 'Pedreiro', tipoVinculo: 'PROPRIO', ativo: true },
   });
+  await db.aSO.create({ data: { trabalhadorId: trab.id, tipo: 'PERIODICO', dataRealizacao: dias(-380), dataValidade: dias(-15), resultado: 'APTO', medico: 'Clínica Demo' } }); // ASO VENCIDO
+  await db.entregaEPI.create({ data: { trabalhadorId: trab.id, equipamento: 'Capacete', ca: '12345', quantidade: 1, dataEntrega: dias(-200), dataValidade: dias(20) } }); // a vencer
+  await db.entregaEPI.create({ data: { trabalhadorId: trab.id, equipamento: 'Cinto de segurança', ca: '67890', quantidade: 1, dataEntrega: dias(-400), dataValidade: dias(-10) } }); // vencido
   await db.dialogoSeguranca.create({ data: { tema: 'Uso obrigatório de EPI', responsavel: 'Téc. Segurança', participantes: [{ nome: 'Pedro' }, { nome: 'João' }], empreendimentoId: emp.id } });
   await db.acidente.create({ data: { trabalhadorId: trab.id, descricao: 'Escoriação leve no braço', tipo: 'TIPICO', gravidade: 'LEVE', diasAfastamento: 0, empreendimentoId: emp.id } });
   await db.checklistNR.create({ data: { norma: 'NR-18', responsavel: 'Eng. Segurança', itens: [{ item: 'Tapumes instalados', conforme: true }, { item: 'Extintores no prazo', conforme: true }, { item: 'EPC em altura', conforme: false }], empreendimentoId: emp.id } });
@@ -226,5 +271,9 @@ export async function seedEficiencia() {
     casas: casasCriadas.length,
     insumos: insumos.length,
     ocPendente: 1,
+    medicoes: 3,
+    milestones: 3,
+    documentos: 3,
+    conciliacaoPendente: 3,
   };
 }
