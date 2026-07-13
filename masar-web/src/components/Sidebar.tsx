@@ -56,6 +56,7 @@ const NAV_GROUPS = [
       { name: 'Eficiência de Material', href: '/gestao/eficiencia', icon: PackageCheck, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Necessidade de Materiais', href: '/gestao/materiais', icon: ShoppingCart, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Financeiro', href: '/financeiro', icon: TrendingUp, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Fluxo Projetado', href: '/gestao/fluxo-projetado', icon: CalendarClock, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Sócios', href: '/socios/caixa', icon: PiggyBank, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Agenda', href: '/agenda', icon: CalendarClock, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
       { name: 'Relatórios', href: '/relatorios', icon: FileText, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
