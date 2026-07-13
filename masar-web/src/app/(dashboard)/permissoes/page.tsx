@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldCheck, Loader2, Check, X, Info } from 'lucide-react';
+import { ShieldCheck, Loader2, Check, X, Info, Database, Trash2 } from 'lucide-react';
 
 const ROLE_LABEL: Record<string, string> = {
   FINANCEIRO: 'Financeiro',
@@ -13,6 +13,8 @@ export default function PermissoesPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState<string | null>(null);
+  const [seedMsg, setSeedMsg] = useState<string | null>(null);
+  const [seedBusy, setSeedBusy] = useState<'popular' | 'limpar' | null>(null);
 
   const carregar = async () => {
     setLoading(true);
@@ -45,6 +47,19 @@ export default function PermissoesPage() {
       await carregar();
     } finally {
       setSalvando(null);
+    }
+  };
+
+  const seed = async (acao: 'popular' | 'limpar') => {
+    if (acao === 'limpar' && !confirm('Remover todos os dados de demonstração ([SEED])?')) return;
+    setSeedBusy(acao); setSeedMsg(null);
+    try {
+      const res = await fetch('/api/seed/eficiencia', { method: acao === 'popular' ? 'POST' : 'DELETE' });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) setSeedMsg(acao === 'popular' ? `Demonstração criada: ${d.empreendimento} (${d.casas} casas, ${d.insumos} insumos).` : 'Dados de demonstração removidos.');
+      else setSeedMsg(d.error || 'Falha na operação.');
+    } finally {
+      setSeedBusy(null);
     }
   };
 
@@ -107,6 +122,21 @@ export default function PermissoesPage() {
           </div>
         </div>
       )}
+
+      {/* Dados de demonstração — exercita os indicadores de eficiência */}
+      <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
+        <h3 className="text-sm font-bold text-white mb-1 uppercase tracking-wider flex items-center gap-1.5"><Database size={15} className="text-indigo-400" /> Dados de demonstração</h3>
+        <p className="text-[11px] text-slate-500 mb-3">Cria um empreendimento <strong className="text-slate-400">[SEED]</strong> com 4 obras de perfis distintos (saudável, custo estourado, cronograma atrasado, material desalinhado) para exercitar todos os indicadores de eficiência. Idempotente e isolado dos dados reais.</p>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button onClick={() => seed('popular')} disabled={!!seedBusy} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 text-xs font-bold uppercase tracking-wider hover:bg-indigo-600/25 transition disabled:opacity-50 cursor-pointer">
+            {seedBusy === 'popular' ? <Loader2 size={13} className="animate-spin" /> : <Database size={13} />} Popular demonstração
+          </button>
+          <button onClick={() => seed('limpar')} disabled={!!seedBusy} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/60 text-slate-300 border border-slate-700 text-xs font-bold uppercase tracking-wider hover:bg-slate-700/60 transition disabled:opacity-50 cursor-pointer">
+            {seedBusy === 'limpar' ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Limpar demonstração
+          </button>
+          {seedMsg && <span className="text-xs text-slate-400">{seedMsg}</span>}
+        </div>
+      </div>
     </div>
   );
 }
