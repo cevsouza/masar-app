@@ -201,6 +201,11 @@ model InsumoPadrao {
   nome           String             @unique
   unidadeMedida  UnidadeMedida
   categoria      CategoriaInsumo
+  // Saldo de estoque em cache (Σ ENTRADA − Σ SAIDA/PERDA). Mutado apenas via
+  // lib/estoque.registrarMovimentacaoEstoque, na mesma transacao da movimentacao.
+  saldoEstoque       Float          @default(0)
+  // Nivel minimo para alerta de reposicao (null = sem alerta configurado).
+  nivelMinimoEstoque Float?
   itensOrcamento ItemOrcamento[]
   transacoes     TransacaoFinanceira[]
   solicitacoes   SolicitacaoCompra[]

@@ -1,18 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Trash2, 
-  Loader2, 
-  Settings, 
-  Tag, 
-  Layers, 
-  AlertCircle, 
+import {
+  Plus,
+  Search,
+  Trash2,
+  Loader2,
+  Settings,
+  Tag,
+  Layers,
+  AlertCircle,
   Sparkles,
   ArrowUpDown,
-  BookOpen
+  BookOpen,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Insumo {
@@ -20,7 +21,14 @@ interface Insumo {
   nome: string;
   unidadeMedida: string;
   categoria: string;
+  saldoEstoque: number;
+  nivelMinimoEstoque: number | null;
   createdAt: string;
+}
+
+// Insumo está abaixo do mínimo quando há um mínimo configurado e o saldo é menor.
+function abaixoDoMinimo(i: Insumo): boolean {
+  return i.nivelMinimoEstoque != null && i.saldoEstoque < i.nivelMinimoEstoque;
 }
 
 // Helper para classificação MCMV
@@ -56,6 +64,10 @@ export default function InsumosPage() {
   // Populando semente
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState('');
+
+  // Edição inline do nível mínimo de estoque
+  const [minEdits, setMinEdits] = useState<Record<string, string>>({});
+  const [savingMinId, setSavingMinId] = useState<string | null>(null);
 
   // Carregar insumos
   const fetchInsumos = async () => {
@@ -124,6 +136,36 @@ export default function InsumosPage() {
       }
     } catch (err) {
       alert('Erro de conexão com o servidor.');
+    }
+  };
+
+  // Salva o nível mínimo de estoque (alerta de reposição) do insumo.
+  const handleSaveMinimo = async (id: string) => {
+    const insumo = insumos.find(i => i.id === id);
+    if (!insumo) return;
+    const atual = insumo.nivelMinimoEstoque != null ? String(insumo.nivelMinimoEstoque) : '';
+    const novo = minEdits[id];
+    if (novo === undefined || novo === atual) return; // nada mudou
+
+    setSavingMinId(id);
+    try {
+      const res = await fetch('/api/insumos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, nivelMinimoEstoque: novo === '' ? null : novo })
+      });
+      if (res.ok) {
+        const atualizado = await res.json();
+        setInsumos(prev => prev.map(i => i.id === id ? { ...i, nivelMinimoEstoque: atualizado.nivelMinimoEstoque } : i));
+        setMinEdits(prev => { const n = { ...prev }; delete n[id]; return n; });
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Erro ao salvar nível mínimo');
+      }
+    } catch {
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      setSavingMinId(null);
     }
   };
 
@@ -204,6 +246,25 @@ export default function InsumosPage() {
         </div>
       )}
 
+      {/* Alerta de reposição: insumos abaixo do nível mínimo configurado */}
+      {(() => {
+        const abaixo = insumos.filter(abaixoDoMinimo);
+        if (abaixo.length === 0) return null;
+        return (
+          <div className="p-3 bg-red-950/40 border border-red-500/30 text-red-300 rounded-xl text-xs flex items-start gap-2.5">
+            <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-red-400">
+                {abaixo.length} {abaixo.length === 1 ? 'insumo abaixo' : 'insumos abaixo'} do nível mínimo de estoque
+              </span>
+              <p className="text-[11px] text-red-300/80 mt-0.5">
+                {abaixo.slice(0, 6).map(i => i.nome).join(', ')}{abaixo.length > 6 ? '…' : ''}. Considere gerar requisição de compra.
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Filtros e Busca */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-slate-950/40 p-4 border border-slate-900 rounded-2xl">
         <div className="md:col-span-6 relative">
@@ -267,6 +328,8 @@ export default function InsumosPage() {
                   <th className="py-3 px-4">Insumo</th>
                   <th className="py-3 px-4">Unidade</th>
                   <th className="py-3 px-4">Categoria</th>
+                  <th className="py-3 px-4 text-center">Saldo</th>
+                  <th className="py-3 px-4 text-center">Mínimo</th>
                   <th className="py-3 px-4">Classificação MCMV</th>
                   <th className="py-3 px-4 text-center">Ações</th>
                 </tr>
@@ -281,6 +344,32 @@ export default function InsumosPage() {
                       </td>
                       <td className="py-3.5 px-4 font-mono">
                         {insumo.unidadeMedida}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={`font-mono font-bold ${abaixoDoMinimo(insumo) ? 'text-red-400' : 'text-slate-200'}`}>
+                          {insumo.saldoEstoque}
+                        </span>
+                        {abaixoDoMinimo(insumo) && (
+                          <span className="ml-1.5 inline-flex items-center" title="Abaixo do nível mínimo">
+                            <AlertTriangle size={12} className="text-red-400 inline" />
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="inline-flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="—"
+                            value={minEdits[insumo.id] ?? (insumo.nivelMinimoEstoque != null ? String(insumo.nivelMinimoEstoque) : '')}
+                            onChange={(e) => setMinEdits(prev => ({ ...prev, [insumo.id]: e.target.value }))}
+                            onBlur={() => handleSaveMinimo(insumo.id)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            className="w-20 bg-[#0a0d18] border border-slate-900 rounded-lg px-2 py-1 text-[11px] text-slate-200 text-center focus:outline-none focus:border-indigo-500/80 font-mono"
+                          />
+                          {savingMinId === insumo.id && <Loader2 size={11} className="animate-spin text-indigo-400" />}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4">
                         {insumo.categoria === 'MATERIAL' && (

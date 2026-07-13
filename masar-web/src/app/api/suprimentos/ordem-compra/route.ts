@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { logger } from '@/lib/logger';
 import { verifySession } from '@/lib/auth';
+import { registrarMovimentacaoEstoque } from '@/lib/estoque';
 
 export async function POST(request: NextRequest) {
   try {
@@ -234,14 +235,12 @@ export async function PATCH(request: NextRequest) {
         data: { statusEntrega: 'ENTREGUE' },
       });
 
-      // 2. Entrada no estoque
-      const mov = await tx.movimentacaoEstoque.create({
-        data: {
-          insumoId: solicitacao.insumoId,
-          quantidade,
-          tipo: 'ENTRADA',
-          casaId: solicitacao.casaId || null,
-        },
+      // 2. Entrada no estoque (helper ajusta o saldo em cache na mesma transação)
+      const mov = await registrarMovimentacaoEstoque(tx, {
+        insumoId: solicitacao.insumoId,
+        quantidade,
+        tipo: 'ENTRADA',
+        casaId: solicitacao.casaId || null,
       });
 
       // 3. Conta a pagar (despesa pendente — vai pro razão só quando for paga)

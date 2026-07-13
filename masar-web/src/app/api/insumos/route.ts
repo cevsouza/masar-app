@@ -148,6 +148,37 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH: Atualizar o nível mínimo de estoque de um insumo (alerta de reposição)
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, nivelMinimoEstoque } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID do insumo é obrigatório' }, { status: 400 });
+    }
+
+    // null/'' limpa o alerta; caso contrário exige número >= 0.
+    let nivel: number | null = null;
+    if (nivelMinimoEstoque !== null && nivelMinimoEstoque !== undefined && nivelMinimoEstoque !== '') {
+      nivel = parseFloat(nivelMinimoEstoque);
+      if (isNaN(nivel) || nivel < 0) {
+        return NextResponse.json({ error: 'Nível mínimo deve ser um número maior ou igual a zero.' }, { status: 400 });
+      }
+    }
+
+    const insumo = await db.insumoPadrao.update({
+      where: { id },
+      data: { nivelMinimoEstoque: nivel },
+    });
+
+    return NextResponse.json(insumo);
+  } catch (error: any) {
+    console.error('Erro ao atualizar nível mínimo do insumo:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
+  }
+}
+
 // DELETE: Excluir insumo padrão se não houver vínculos ativos
 export async function DELETE(request: NextRequest) {
   try {
