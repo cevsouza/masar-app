@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   Sparkles, Loader2, CheckCircle2, ArrowRight,
   ShieldAlert, Banknote, TrendingDown, Clock, Package, FileWarning,
+  MessageSquare, Send, Bot,
 } from 'lucide-react';
 
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v || 0);
@@ -30,16 +31,55 @@ const STATUS: Record<string, { label: string; cls: string; ring: string }> = {
   OK: { label: 'Tudo sob controle', cls: 'text-emerald-400', ring: 'border-emerald-500/40 bg-emerald-500/10' },
 };
 
+const SUGESTOES = [
+  'O que eu deveria priorizar essa semana?',
+  'Qual obra está pior em custo e por quê?',
+  'Como destravo mais caixa rapidamente?',
+];
+
 export default function RecomendacoesPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Chat com a IA (Fase 7.3)
+  const [iaConfig, setIaConfig] = useState<boolean | null>(null);
+  const [mensagens, setMensagens] = useState<{ role: 'user' | 'model'; text: string }[]>([]);
+  const [pergunta, setPergunta] = useState('');
+  const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     fetch('/api/gestao/recomendacoes')
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .finally(() => setLoading(false));
+    fetch('/api/gestao/consultor-chat')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setIaConfig(d ? !!d.configurado : false))
+      .catch(() => setIaConfig(false));
   }, []);
+
+  const enviar = async (texto?: string) => {
+    const q = (texto ?? pergunta).trim();
+    if (!q || enviando) return;
+    const historico = mensagens;
+    setMensagens((m) => [...m, { role: 'user', text: q }]);
+    setPergunta('');
+    setEnviando(true);
+    try {
+      const res = await fetch('/api/gestao/consultor-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pergunta: q, historico }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (d && d.configurado === false) setIaConfig(false);
+      setMensagens((m) => [...m, { role: 'model', text: d?.resposta || 'Não consegui responder agora.' }]);
+    } catch {
+      setMensagens((m) => [...m, { role: 'model', text: 'Falha de rede ao contatar a IA.' }]);
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   const st = data ? STATUS[data.resumo.status] : null;
 
@@ -71,6 +111,64 @@ export default function RecomendacoesPage() {
                 <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Valor em jogo</span>
                 <span className="text-xl font-bold font-mono text-white">{fmt(data.resumo.valorEmJogo)}</span>
               </div>
+            )}
+          </div>
+
+          {/* Chat com a IA (Fase 7.3) */}
+          <div className="glassmorphism p-4 rounded-2xl border border-slate-800/80">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare size={15} className="text-indigo-400" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Pergunte ao Consultor</h3>
+              {iaConfig === false && <span className="text-[10px] text-amber-400/80 ml-auto">IA não configurada</span>}
+            </div>
+
+            {iaConfig === false ? (
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Para conversar em linguagem natural com seus indicadores, um administrador precisa definir a variável <strong className="text-slate-400">GEMINI_API_KEY</strong> (chave gratuita do Google AI Studio) no servidor. As recomendações priorizadas abaixo já funcionam sem IA.
+              </p>
+            ) : (
+              <>
+                {mensagens.length > 0 && (
+                  <div className="space-y-2.5 mb-3 max-h-80 overflow-y-auto pr-1">
+                    {mensagens.map((m, i) => (
+                      <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {m.role === 'model' && <Bot size={16} className="text-indigo-400 shrink-0 mt-1" />}
+                        <div className={`text-xs leading-relaxed rounded-xl px-3 py-2 max-w-[85%] whitespace-pre-wrap ${m.role === 'user' ? 'bg-indigo-600/20 text-indigo-100 border border-indigo-500/30' : 'bg-slate-900/60 text-slate-200 border border-slate-800'}`}>
+                          {m.text}
+                        </div>
+                      </div>
+                    ))}
+                    {enviando && (
+                      <div className="flex gap-2 items-center text-slate-500 text-xs"><Bot size={16} className="text-indigo-400" /> <Loader2 size={13} className="animate-spin" /> pensando…</div>
+                    )}
+                  </div>
+                )}
+
+                {mensagens.length === 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {SUGESTOES.map((s) => (
+                      <button key={s} onClick={() => enviar(s)} disabled={enviando} className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800/60 text-slate-300 border border-slate-700 hover:bg-slate-700/60 transition disabled:opacity-50">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <input
+                    value={pergunta}
+                    onChange={(e) => setPergunta(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') enviar(); }}
+                    placeholder="Ex.: o que priorizo essa semana?"
+                    disabled={enviando}
+                    className="flex-1 bg-[#0b0f19] border border-slate-800 text-sm text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
+                  />
+                  <button onClick={() => enviar()} disabled={enviando || !pergunta.trim()} className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/30 transition disabled:opacity-40 cursor-pointer">
+                    {enviando ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-600 mt-1.5">A IA responde com base nos seus dados reais. Confira números importantes nas telas do sistema.</p>
+              </>
             )}
           </div>
 
