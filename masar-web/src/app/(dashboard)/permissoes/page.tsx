@@ -56,7 +56,7 @@ export default function PermissoesPage() {
     try {
       const res = await fetch('/api/seed/eficiencia', { method: acao === 'popular' ? 'POST' : 'DELETE' });
       const d = await res.json().catch(() => ({}));
-      if (res.ok) setSeedMsg(acao === 'popular' ? `Demonstração criada: ${d.empreendimento} (${d.casas} casas, ${d.insumos} insumos).` : 'Dados de demonstração removidos.');
+      if (res.ok) setSeedMsg(acao === 'popular' ? `Demonstração criada: ${d.empreendimentos} empreendimentos, ${d.casas} casas, ${d.insumos} insumos, ${d.trabalhadores} trabalhadores.` : 'Dados de demonstração removidos.');
       else setSeedMsg(d.error || 'Falha na operação.');
     } finally {
       setSeedBusy(null);
