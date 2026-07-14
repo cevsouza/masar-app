@@ -37,6 +37,7 @@ import {
   PackageCheck,
   Activity,
   Target,
+  Sparkles,
   Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -55,6 +56,7 @@ const NAV_GROUPS = [
     label: 'Gestão',
     icon: Sliders,
     items: [
+      { name: 'Consultor de Eficiência', href: '/gestao/recomendacoes', icon: Sparkles, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Painel Executivo', href: '/gestao/painel', icon: LayoutDashboard, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Painel de Eficiência', href: '/gestao/eficiencia-diaria', icon: Target, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Indicadores', href: '/gestao/indicadores', icon: Sliders, roles: ['ADMIN', 'FINANCEIRO'] },
