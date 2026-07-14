@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/resend';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 import { buscarVencimentosSST } from '@/lib/sst';
 import { avaliarMetas } from '@/lib/metaEficiencia';
+import { gerarRecomendacoes } from '@/lib/recomendacoes';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -137,6 +138,9 @@ export async function GET(request: NextRequest) {
     const metaAval = await avaliarMetas();
     const totalMetas = metaAval.violacoes.length;
 
+    // 3.10 CONSULTOR DE EFICIÊNCIA (Fase 7.2): plano de ação prescritivo priorizado.
+    const { recomendacoes, resumo: resumoRec } = await gerarRecomendacoes();
+
     const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length + totalCriticosFinanceiros + totalSST + totalMetas;
 
     if (totalAlertas > 0) {
@@ -266,7 +270,29 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // 5.7 Consultor de Eficiência: uma notificação consolidada apontando o plano (Fase 7.2)
+      if (recomendacoes.length > 0) {
+        const top = recomendacoes[0];
+        const msg = `🧭 Consultor: ${resumoRec.criticos} ação(ões) urgente(s)${resumoRec.valorEmJogo > 0 ? ` (${formatBRL(resumoRec.valorEmJogo)} em jogo)` : ''}. Prioridade: ${top.titulo}`;
+        await db.notificacao.createMany({
+          data: financeiroUsers.map(u => ({ usuarioId: u.id, mensagem: msg, lida: false }))
+        });
+      }
+
       // 6. Enviar e-mail sumário para cada administrador
+      const recListHtml = recomendacoes.slice(0, 6).map(r => {
+        const cor = r.severidade === 'CRITICO' ? '#dc2626' : r.severidade === 'ATENCAO' ? '#f59e0b' : '#0284c7';
+        return `<li style="margin-bottom:6px;"><strong style="color:${cor};">${r.titulo}</strong>${r.impacto ? ` <span style="color:#111;font-weight:bold;">(${r.impacto})</span>` : ''}<br/><span style="font-size:12px;color:#555;">${r.acao} → ${r.telaLabel}</span></li>`;
+      }).join('');
+
+      const consultorHtml = recomendacoes.length > 0 ? `
+        <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
+          <h3 style="color: #4338ca; margin: 0 0 6px;">🧭 Plano de Ação Priorizado (Consultor de Eficiência)</h3>
+          <p style="margin: 0 0 8px; font-size: 12px; color: #555;">${resumoRec.criticos} urgente(s) · ${resumoRec.atencao} atenção${resumoRec.valorEmJogo > 0 ? ` · <strong>${formatBRL(resumoRec.valorEmJogo)} em jogo</strong>` : ''}</p>
+          <ol style="margin: 0; padding-left: 18px;">${recListHtml}</ol>
+        </div>
+      ` : '';
+
       const docListHtml = documentosExpirando.map(doc =>
         `<li><strong>${doc.nome}</strong> (Vence em: ${doc.dataVencimento?.toLocaleDateString('pt-BR')}) - Unidade Qd ${doc.casa?.quadra || ''}, Casa ${doc.casa?.numero || ''}</li>`
       ).join('');
@@ -303,6 +329,8 @@ export async function GET(request: NextRequest) {
           <h2 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 8px;">Relatório Diário de Alertas - Masar ERP</h2>
           <p>Prezado Sócio/Gestor,</p>
           <p>Identificamos ocorrências críticas que demandam atenção imediata:</p>
+
+          ${consultorHtml}
 
           ${totalCriticosFinanceiros > 0 ? `
             <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
@@ -377,6 +405,9 @@ export async function GET(request: NextRequest) {
       episAVencer: sst.episAVencer.length,
       metasForaDoAlvo: totalMetas,
       statusEficiencia: metaAval.status,
+      recomendacoes: recomendacoes.length,
+      recomendacoesCriticas: resumoRec.criticos,
+      valorEmJogo: resumoRec.valorEmJogo,
       alertasGerados: totalAlertas
     });
   } catch (error: any) {
