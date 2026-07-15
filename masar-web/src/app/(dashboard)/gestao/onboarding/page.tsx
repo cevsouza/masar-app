@@ -38,6 +38,8 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [revalidando, setRevalidando] = useState(false);
   const [empId, setEmpId] = useState<string>('');
+  // Passo que o usuário escolheu olhar (null = segue o próximo pendente automático).
+  const [focusChave, setFocusChave] = useState<string | null>(null);
 
   const carregar = useCallback(async (revalidacao = false) => {
     if (revalidacao) setRevalidando(true);
@@ -57,6 +59,8 @@ export default function OnboardingPage() {
   }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
+  // Ao trocar de empreendimento, volta o foco para o próximo pendente automático.
+  useEffect(() => { setFocusChave(null); }, [empId]);
 
   const emp = useMemo(
     () => data?.empreendimentos?.find((e: any) => e.id === empId) ?? null,
@@ -67,9 +71,13 @@ export default function OnboardingPage() {
   const total = itens.length;
   const completos = itens.filter((i) => i.status === 'COMPLETO').length;
   const pct = emp?.scorePct ?? 0;
-  // Passo atual = primeiro item ainda não concluído (na ordem lógica do motor).
-  const currentIdx = itens.findIndex((i) => i.status !== 'COMPLETO');
-  const tudoPronto = currentIdx === -1 && total > 0;
+  // Próximo passo pendente na ordem lógica do motor (sugestão automática).
+  const autoIdx = itens.findIndex((i) => i.status !== 'COMPLETO');
+  const tudoPronto = autoIdx === -1 && total > 0;
+  // Passo em foco = o que o usuário escolheu ver; por padrão, o próximo pendente.
+  // Assim dá para PULAR uma etapa (ex.: recomendada) sem ficar travado nela.
+  const focoManual = focusChave ? itens.findIndex((i) => i.chave === focusChave) : -1;
+  const focusIdx = focoManual >= 0 ? focoManual : autoIdx;
   const essenciaisFaltando = emp?.faltamObrigatorios ?? 0;
 
   return (
@@ -79,7 +87,7 @@ export default function OnboardingPage() {
         <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2 mt-0.5">
           <Rocket className="text-indigo-400" size={24} /> Assistente de Novo Projeto
         </h1>
-        <p className="text-xs text-slate-400 mt-1">Um guia passo a passo, na ordem certa, para cadastrar tudo o que a gestão precisa. Cada passo abre a tela onde você preenche; volte aqui e clique em <strong className="text-slate-300">Revalidar</strong> para ver o progresso.</p>
+        <p className="text-xs text-slate-400 mt-1">Um guia passo a passo, na ordem certa, para cadastrar tudo o que a gestão precisa. Cada passo abre a tela onde você preenche; volte aqui e clique em <strong className="text-slate-300">Já preenchi</strong> para atualizar. Você pode <strong className="text-slate-300">clicar em qualquer passo</strong> para ir até ele, ou <strong className="text-slate-300">pular</strong> os recomendados e voltar depois.</p>
       </div>
 
       {loading ? (
@@ -147,17 +155,18 @@ export default function OnboardingPage() {
           <div className="space-y-2.5">
             {itens.map((item, idx) => {
               const done = item.status === 'COMPLETO';
-              const current = idx === currentIdx;
-              const StepIcon = done ? CheckCircle2 : current ? ChevronRight : Circle;
+              const current = idx === focusIdx;
+              const proximoPendente = idx === autoIdx;
               return (
                 <div
                   key={item.chave}
-                  className={`rounded-2xl border overflow-hidden transition ${
+                  onClick={() => setFocusChave(item.chave)}
+                  className={`rounded-2xl border overflow-hidden transition cursor-pointer ${
                     current
                       ? 'border-indigo-500/50 bg-indigo-500/5'
                       : done
-                        ? 'border-slate-800/60 bg-slate-950/10'
-                        : 'border-slate-800/60 bg-slate-950/10 opacity-70'
+                        ? 'border-slate-800/60 bg-slate-950/10 hover:border-slate-700'
+                        : 'border-slate-800/60 bg-slate-950/10 opacity-70 hover:opacity-100 hover:border-slate-700'
                   }`}
                 >
                   <div className="flex items-start gap-3.5 px-5 py-4">
@@ -177,14 +186,15 @@ export default function OnboardingPage() {
                         ) : (
                           <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-700/40 text-slate-400 border border-slate-700">Recomendado</span>
                         )}
-                        {current && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 animate-pulse">Você está aqui</span>}
+                        {current && !done && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 animate-pulse">Você está aqui</span>}
+                        {proximoPendente && !current && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-700/40 text-slate-400 border border-slate-700">Próximo pendente</span>}
                       </div>
                       <h3 className={`text-sm font-bold mt-1 ${done ? 'text-slate-400' : current ? 'text-white' : 'text-slate-300'}`}>{item.label}</h3>
 
                       {/* Detalhe sempre; porquê + ação só no passo atual (foco do tutorial) */}
                       <p className={`text-[11px] mt-0.5 ${done ? 'text-slate-500' : 'text-slate-400'}`}>{item.detalhe}</p>
 
-                      {current && (
+                      {current && !done && (
                         <div className="mt-2.5 space-y-2">
                           {PORQUE[item.chave] && (
                             <p className="text-[11px] text-slate-400 leading-relaxed"><span className="text-slate-500 font-semibold">Por quê: </span>{PORQUE[item.chave]}</p>
@@ -192,7 +202,7 @@ export default function OnboardingPage() {
                           {item.acao && (
                             <p className="text-[11px] text-slate-400 leading-relaxed"><span className="text-slate-500 font-semibold">O que fazer: </span>{item.acao}</p>
                           )}
-                          <div className="flex items-center gap-2 pt-1">
+                          <div className="flex items-center gap-2 pt-1 flex-wrap">
                             <Link
                               href={item.href}
                               target="_blank"
@@ -202,13 +212,32 @@ export default function OnboardingPage() {
                               Abrir {item.telaLabel} <ExternalLink size={13} />
                             </Link>
                             <button
-                              onClick={() => carregar(true)}
+                              onClick={(e) => { e.stopPropagation(); setFocusChave(null); carregar(true); }}
                               disabled={revalidando}
                               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/60 text-slate-200 border border-slate-700 text-[11px] font-bold uppercase tracking-wider hover:bg-slate-700/60 transition disabled:opacity-50 cursor-pointer"
                             >
                               <RefreshCw size={12} className={revalidando ? 'animate-spin' : ''} /> Já preenchi
                             </button>
+                            {idx < total - 1 && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setFocusChave(itens[idx + 1].chave); }}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-400 border border-slate-800 text-[11px] font-bold uppercase tracking-wider hover:text-slate-200 hover:border-slate-700 transition cursor-pointer"
+                              >
+                                Pular etapa <ChevronRight size={13} />
+                              </button>
+                            )}
+                            {idx > 0 && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setFocusChave(itens[idx - 1].chave); }}
+                                className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-slate-500 text-[11px] font-bold uppercase tracking-wider hover:text-slate-300 transition cursor-pointer"
+                              >
+                                Voltar
+                              </button>
+                            )}
                           </div>
+                          {!item.obrigatorio && (
+                            <p className="text-[10px] text-slate-500 leading-relaxed">Passo <strong className="text-slate-400">recomendado</strong> (opcional). Você pode pular agora e voltar depois — o essencial não fica travado por causa dele.</p>
+                          )}
                         </div>
                       )}
 
