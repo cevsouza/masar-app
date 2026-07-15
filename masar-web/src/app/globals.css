@@ -126,3 +126,52 @@ html.light .kanban-column {
 html.light .divide-y > :not([hidden]) ~ :not([hidden]) {
   border-color: #e2e8f0 !important;
 }
+
+/* --- Páginas mais novas (Gestão/Onboarding, Fiscal, etc.) usam uma paleta
+   escura mais ampla que não estava coberta pelos overrides acima. Sem isto,
+   essas telas ficavam com "card escuro" dentro do tema claro. --- */
+
+/* Fundos de página quase pretos -> fundo claro do app */
+html.light .bg-\[\#060814\],
+html.light .bg-\[\#0a0d18\],
+html.light .bg-\[\#070a13\] {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Superfícies slate (cards, faixas, chips) em várias opacidades.
+   Gradiente 950->900->800 mantém alguma hierarquia visual no claro.
+   Os seletores são ancorados (início da lista ou precedidos de espaço) para
+   pegar só a utilidade base — variantes hover:/md:/focus: ficam intactas. */
+html.light [class^="bg-slate-950"],
+html.light [class*=" bg-slate-950"] {
+  background-color: #ffffff !important;
+}
+html.light [class^="bg-slate-900"],
+html.light [class*=" bg-slate-900"],
+html.light .bg-\[\#111827\] {
+  background-color: #f8fafc !important;
+}
+html.light [class^="bg-slate-800"],
+html.light [class*=" bg-slate-800"],
+html.light [class^="bg-slate-700"],
+html.light [class*=" bg-slate-700"] {
+  background-color: #e2e8f0 !important;
+}
+
+/* Textos que faltavam no mapa claro */
+html.light .text-slate-100 {
+  color: #0f172a !important;
+}
+html.light .text-slate-600,
+html.light .text-slate-700 {
+  color: #94a3b8 !important;
+}
+
+/* Bordas escuras adicionais */
+html.light [class^="border-slate-900"],
+html.light [class*=" border-slate-900"],
+html.light [class^="border-slate-700"],
+html.light [class*=" border-slate-700"] {
+  border-color: #e2e8f0 !important;
+}
