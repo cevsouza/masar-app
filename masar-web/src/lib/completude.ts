@@ -110,7 +110,7 @@ export async function calcularCompletude(): Promise<CompletudeResult> {
   // ── Por empreendimento ──────────────────────────────────────────────────────
   const empreendimentos: CompletudeEmpreendimento[] = emps.map((e) => {
     const nome = semPfx(e.nome);
-    const href = `/empreendimentos/${e.id}`;
+    const href = `/empreendimentos/${e.id}/ficha-tecnica`;
     const itens: ItemCompletude[] = [];
 
     const nCasas = e.casas.length;
