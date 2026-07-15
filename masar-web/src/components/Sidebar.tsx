@@ -38,7 +38,8 @@ import {
   Activity,
   Target,
   Sparkles,
-  Lock
+  Lock,
+  ClipboardCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { moduloDaRota } from '@/lib/permissoes';
@@ -57,6 +58,7 @@ const NAV_GROUPS = [
     icon: Sliders,
     items: [
       { name: 'Consultor de Eficiência', href: '/gestao/recomendacoes', icon: Sparkles, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Completude do Cadastro', href: '/gestao/completude', icon: ClipboardCheck, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Painel Executivo', href: '/gestao/painel', icon: LayoutDashboard, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Painel de Eficiência', href: '/gestao/eficiencia-diaria', icon: Target, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Indicadores', href: '/gestao/indicadores', icon: Sliders, roles: ['ADMIN', 'FINANCEIRO'] },
