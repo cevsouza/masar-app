@@ -175,3 +175,56 @@ html.light [class^="border-slate-700"],
 html.light [class*=" border-slate-700"] {
   border-color: #e2e8f0 !important;
 }
+
+/* --- Faixas/alertas coloridos (segurança, glosa, sucesso, etc.) ---
+   No tema escuro usam fundo colorido bem escuro (bg-*-950/900) + texto
+   pálido (text-*-200/300/400). No claro isso virava um card acinzentado
+   sem contraste com as letras. A transformação correta p/ tema claro é:
+   fundo colorido escuro -> fundo colorido bem claro; texto pálido -> texto
+   colorido escuro. Seletores ancorados (só a utilidade base; hover:/md:
+   ficam intactos). Os tons claros /5,/10,/20 do nível 500 (badges) NÃO são
+   tocados de propósito — já ficam bem sobre o branco. */
+
+/* Fundos coloridos escuros -> claros */
+html.light [class^="bg-red-950"], html.light [class*=" bg-red-950"],
+html.light [class^="bg-red-900"], html.light [class*=" bg-red-900"] { background-color: #fef2f2 !important; }
+html.light [class^="bg-rose-950"], html.light [class*=" bg-rose-950"],
+html.light [class^="bg-rose-900"], html.light [class*=" bg-rose-900"] { background-color: #fff1f2 !important; }
+html.light [class^="bg-amber-950"], html.light [class*=" bg-amber-950"],
+html.light [class^="bg-amber-900"], html.light [class*=" bg-amber-900"] { background-color: #fffbeb !important; }
+html.light [class^="bg-orange-950"], html.light [class*=" bg-orange-950"],
+html.light [class^="bg-orange-900"], html.light [class*=" bg-orange-900"] { background-color: #fff7ed !important; }
+html.light [class^="bg-emerald-950"], html.light [class*=" bg-emerald-950"],
+html.light [class^="bg-emerald-900"], html.light [class*=" bg-emerald-900"] { background-color: #ecfdf5 !important; }
+html.light [class^="bg-green-950"], html.light [class*=" bg-green-950"],
+html.light [class^="bg-green-900"], html.light [class*=" bg-green-900"] { background-color: #f0fdf4 !important; }
+html.light [class^="bg-blue-950"], html.light [class*=" bg-blue-950"],
+html.light [class^="bg-blue-900"], html.light [class*=" bg-blue-900"] { background-color: #eff6ff !important; }
+html.light [class^="bg-indigo-950"], html.light [class*=" bg-indigo-950"],
+html.light [class^="bg-indigo-900"], html.light [class*=" bg-indigo-900"] { background-color: #eef2ff !important; }
+
+/* Texto colorido pálido (200/300/400) -> tom escuro legível (700) */
+html.light [class^="text-red-200"], html.light [class*=" text-red-200"],
+html.light [class^="text-red-300"], html.light [class*=" text-red-300"],
+html.light [class^="text-red-400"], html.light [class*=" text-red-400"] { color: #b91c1c !important; }
+html.light [class^="text-rose-200"], html.light [class*=" text-rose-200"],
+html.light [class^="text-rose-300"], html.light [class*=" text-rose-300"],
+html.light [class^="text-rose-400"], html.light [class*=" text-rose-400"] { color: #be123c !important; }
+html.light [class^="text-amber-200"], html.light [class*=" text-amber-200"],
+html.light [class^="text-amber-300"], html.light [class*=" text-amber-300"],
+html.light [class^="text-amber-400"], html.light [class*=" text-amber-400"] { color: #b45309 !important; }
+html.light [class^="text-orange-200"], html.light [class*=" text-orange-200"],
+html.light [class^="text-orange-300"], html.light [class*=" text-orange-300"],
+html.light [class^="text-orange-400"], html.light [class*=" text-orange-400"] { color: #c2410c !important; }
+html.light [class^="text-emerald-200"], html.light [class*=" text-emerald-200"],
+html.light [class^="text-emerald-300"], html.light [class*=" text-emerald-300"],
+html.light [class^="text-emerald-400"], html.light [class*=" text-emerald-400"] { color: #047857 !important; }
+html.light [class^="text-green-200"], html.light [class*=" text-green-200"],
+html.light [class^="text-green-300"], html.light [class*=" text-green-300"],
+html.light [class^="text-green-400"], html.light [class*=" text-green-400"] { color: #15803d !important; }
+html.light [class^="text-blue-200"], html.light [class*=" text-blue-200"],
+html.light [class^="text-blue-300"], html.light [class*=" text-blue-300"],
+html.light [class^="text-blue-400"], html.light [class*=" text-blue-400"] { color: #1d4ed8 !important; }
+html.light [class^="text-indigo-200"], html.light [class*=" text-indigo-200"],
+html.light [class^="text-indigo-300"], html.light [class*=" text-indigo-300"],
+html.light [class^="text-indigo-400"], html.light [class*=" text-indigo-400"] { color: #4338ca !important; }
