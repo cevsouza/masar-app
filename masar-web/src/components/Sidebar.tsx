@@ -39,7 +39,8 @@ import {
   Target,
   Sparkles,
   Lock,
-  ClipboardCheck
+  ClipboardCheck,
+  Rocket
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { moduloDaRota } from '@/lib/permissoes';
@@ -57,6 +58,7 @@ const NAV_GROUPS = [
     label: 'Gestão',
     icon: Sliders,
     items: [
+      { name: 'Assistente de Novo Projeto', href: '/gestao/onboarding', icon: Rocket, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Consultor de Eficiência', href: '/gestao/recomendacoes', icon: Sparkles, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Completude do Cadastro', href: '/gestao/completude', icon: ClipboardCheck, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Painel Executivo', href: '/gestao/painel', icon: LayoutDashboard, roles: ['ADMIN', 'FINANCEIRO'] },
