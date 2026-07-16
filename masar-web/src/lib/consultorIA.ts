@@ -108,23 +108,42 @@ export async function responderConsultor(pergunta: string, historico: TurnoChat[
     { role: 'user', parts: [{ text: pergunta }] },
   ];
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  // Modelos candidatos: o configurado primeiro, depois modelos atuais conhecidos.
+  // Um 404 = "modelo não encontrado" (ex.: GEMINI_MODEL apontando para um modelo
+  // retirado) — nesse caso cai para o próximo.
+  const candidatos = Array.from(new Set([GEMINI_MODEL, 'gemini-2.5-flash', 'gemini-2.0-flash'].filter(Boolean)));
+  const reqBody = JSON.stringify({
+    system_instruction: { parts: [{ text: systemText }] },
+    contents,
+    generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+  });
 
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemText }] },
-        contents,
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
-      }),
-    });
+    let res: Response | null = null;
+    let ultimoErro = '';
+    let ultimoStatus = 0;
+    for (const modelo of candidatos) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${GEMINI_API_KEY}`;
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: reqBody });
+      if (r.ok) {
+        res = r;
+        break;
+      }
+      ultimoStatus = r.status;
+      ultimoErro = (await r.text().catch(() => '')).slice(0, 400);
+      if (r.status !== 404) break; // só faz sentido tentar outro modelo em 404
+    }
 
-    if (!res.ok) {
-      const detalhe = await res.text().catch(() => '');
-      const dica = res.status === 400 ? ' (verifique o nome do modelo em GEMINI_MODEL)' : res.status === 403 ? ' (chave inválida ou sem permissão)' : '';
-      return { configurado: true, erro: true, resposta: `Não consegui falar com a IA agora — erro ${res.status}${dica}. Tente novamente em instantes.`, detalhe: detalhe.slice(0, 400) };
+    if (!res) {
+      const dica =
+        ultimoStatus === 404
+          ? ` (verifique GEMINI_MODEL no servidor; tentados: ${candidatos.join(', ')})`
+          : ultimoStatus === 403
+            ? ' (chave inválida ou sem permissão)'
+            : ultimoStatus === 400
+              ? ' (requisição rejeitada pelo modelo)'
+              : '';
+      return { configurado: true, erro: true, resposta: `Não consegui falar com a IA agora — erro ${ultimoStatus}${dica}. Tente novamente em instantes.`, detalhe: ultimoErro };
     }
 
     const data = await res.json();
