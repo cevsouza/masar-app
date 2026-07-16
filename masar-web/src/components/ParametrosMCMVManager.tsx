@@ -204,9 +204,37 @@ export default function ParametrosMCMVManager({ iaConfigurada }: { iaConfigurada
         {sugestao && (
           <div className="mt-3 rounded-lg border border-slate-800 bg-[#0f1422]/70 p-3 text-xs">
             {sugestao.erro || !sugestao.faixas ? (
-              <p className="text-amber-300 flex items-center gap-1">
-                <AlertTriangle size={12} /> {sugestao.mensagem || 'A IA não retornou parâmetros.'}
-              </p>
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/[0.08] p-3.5">
+                <p className="text-amber-200 flex items-start gap-1.5 font-semibold">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" /> A consulta por IA está indisponível agora.
+                </p>
+                <p className="text-[11px] text-amber-200/70 mt-1 pl-5">{sugestao.mensagem || 'A IA não retornou parâmetros.'}</p>
+                <div className="mt-2.5 pl-5 text-slate-200 text-[13px] leading-relaxed">
+                  💡 <strong>Sem problema:</strong> preencha os valores na tabela abaixo e clique em{' '}
+                  <strong className="text-blue-300">Salvar</strong>. Os controles de conformidade funcionam do mesmo
+                  jeito — a IA é só um atalho.
+                  <br />
+                  Confira os valores na fonte oficial:{' '}
+                  <a
+                    href="https://www.gov.br/cidades/pt-br/assuntos/habitacao/minha-casa-minha-vida"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-0.5"
+                  >
+                    Ministério das Cidades <ExternalLink size={10} />
+                  </a>{' '}
+                  ·{' '}
+                  <a
+                    href="https://www.caixa.gov.br/voce/habitacao/minha-casa-minha-vida/Paginas/default.aspx"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-0.5"
+                  >
+                    Caixa <ExternalLink size={10} />
+                  </a>
+                  .
+                </div>
+              </div>
             ) : (
               <>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
