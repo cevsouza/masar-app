@@ -82,28 +82,47 @@ export async function consultarPortariaVigente(): Promise<SugestaoParametros> {
     };
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  // Modelos candidatos: o configurado primeiro, depois modelos atuais conhecidos
+  // que suportam grounding (google_search). Um 404 = "modelo não encontrado"
+  // (ex.: GEMINI_MODEL apontando para um modelo retirado) — nesse caso cai para o próximo.
+  const candidatos = Array.from(new Set([GEMINI_MODEL, 'gemini-2.5-flash', 'gemini-2.0-flash'].filter(Boolean)));
+  const body = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: PROMPT }] }],
+    tools: [{ google_search: {} }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+  });
 
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: PROMPT }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
-      }),
-    });
+    let res: Response | null = null;
+    let ultimoErro = '';
+    let ultimoStatus = 0;
+    for (const modelo of candidatos) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${GEMINI_API_KEY}`;
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      if (r.ok) {
+        res = r;
+        break;
+      }
+      ultimoStatus = r.status;
+      ultimoErro = (await r.text().catch(() => '')).slice(0, 300);
+      // 404 = modelo inexistente: tenta o próximo. Outros erros (403 chave, etc.) não adianta insistir.
+      if (r.status !== 404) break;
+    }
 
-    if (!res.ok) {
-      const detalhe = await res.text().catch(() => '');
+    if (!res) {
       const dica =
-        res.status === 400
-          ? ' (modelo pode não suportar google_search — ajuste GEMINI_MODEL para gemini-2.5-flash)'
-          : res.status === 403
-            ? ' (chave inválida ou sem permissão)'
-            : '';
-      return { configurado: true, erro: true, mensagem: `Erro ${res.status} ao consultar a IA${dica}.`, fonteUrl: detalhe.slice(0, 200) };
+        ultimoStatus === 404
+          ? ` (nenhum modelo disponível — verifique a variável GEMINI_MODEL no servidor; tentados: ${candidatos.join(', ')})`
+          : ultimoStatus === 403
+            ? ' (chave GEMINI_API_KEY inválida ou sem permissão para a API Generative Language)'
+            : ultimoStatus === 400
+              ? ' (requisição rejeitada — o modelo pode não suportar busca web)'
+              : '';
+      return {
+        configurado: true,
+        erro: true,
+        mensagem: `Erro ${ultimoStatus} ao consultar a IA${dica}.${ultimoErro ? ` Detalhe: ${ultimoErro}` : ''}`,
+      };
     }
 
     const data = await res.json();
