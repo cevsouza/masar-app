@@ -431,7 +431,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
       let response = await enviar(false);
       if (response.status === 409) {
         const data = await response.json();
-        if (data.error === 'BLOQUEIO_SEGURANCA') {
+        if (data.error === 'BLOQUEIO_SEGURANCA' || data.error === 'BLOQUEIO_CONFORMIDADE_MCMV') {
           if (!confirm(mensagemBloqueioSST(data))) return;
           response = await enviar(true);
           if (response.status === 409) {
@@ -458,7 +458,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
       let response = await enviar(false);
       if (response.status === 409) {
         const data = await response.json();
-        if (data.error === 'BLOQUEIO_SEGURANCA') {
+        if (data.error === 'BLOQUEIO_SEGURANCA' || data.error === 'BLOQUEIO_CONFORMIDADE_MCMV') {
           if (!confirm(mensagemBloqueioSST(data))) return;
           response = await enviar(true);
           if (response.status === 409) {

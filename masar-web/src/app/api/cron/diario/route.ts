@@ -5,6 +5,7 @@ import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 import { buscarVencimentosSST } from '@/lib/sst';
 import { avaliarMetas } from '@/lib/metaEficiencia';
 import { gerarRecomendacoes } from '@/lib/recomendacoes';
+import { avaliarConformidade } from '@/lib/mcmv/conformidade';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -141,7 +142,28 @@ export async function GET(request: NextRequest) {
     // 3.10 CONSULTOR DE EFICIÊNCIA (Fase 7.2): plano de ação prescritivo priorizado.
     const { recomendacoes, resumo: resumoRec } = await gerarRecomendacoes();
 
-    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length + totalCriticosFinanceiros + totalSST + totalMetas;
+    // 3.11 CONFORMIDADE MCMV: empreendimentos no regime com pendências obrigatórias
+    // (bloqueadores de medição ou itens não conformes).
+    const empsMCMV = await db.empreendimento.findMany({
+      where: { regimeMCMV: true },
+      select: { id: true, nome: true },
+    });
+    const conformidadeMCMV: { nome: string; percentual: number; naoConformes: number; pendencias: number; bloqueadores: string[] }[] = [];
+    for (const e of empsMCMV) {
+      const r = await avaliarConformidade(e.id);
+      if (r.bloqueadores.length > 0 || r.resumo.naoConformes > 0 || r.resumo.pendencias > 0) {
+        conformidadeMCMV.push({
+          nome: e.nome,
+          percentual: r.resumo.percentual,
+          naoConformes: r.resumo.naoConformes,
+          pendencias: r.resumo.pendencias,
+          bloqueadores: r.bloqueadores,
+        });
+      }
+    }
+    const totalMCMV = conformidadeMCMV.length;
+
+    const totalAlertas = documentosExpirando.length + marcosAtrasados.length + milestonesAtrasados.length + milestonesProximos.length + atividadesAtrasadas.length + totalCriticosFinanceiros + totalSST + totalMetas + totalMCMV;
 
     if (totalAlertas > 0) {
       // 4. Carregar administradores (ADMIN) e o público financeiro (ADMIN + FINANCEIRO)
@@ -279,6 +301,15 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // 5.8 Conformidade MCMV: notifica ADMIN dos empreendimentos com pendências obrigatórias.
+      for (const c of conformidadeMCMV) {
+        const temBloqueio = c.bloqueadores.length > 0;
+        const msg = `${temBloqueio ? '🔴 MCMV (trava medição)' : '⚠️ MCMV pendente'}: ${c.nome} — ${c.percentual}% conforme${temBloqueio ? `; bloqueia medição: ${c.bloqueadores.join('; ')}` : ` (${c.pendencias} pend., ${c.naoConformes} não conf.)`}`;
+        await db.notificacao.createMany({
+          data: admins.map(admin => ({ usuarioId: admin.id, mensagem: msg.slice(0, 480), lida: false }))
+        });
+      }
+
       // 6. Enviar e-mail sumário para cada administrador
       const recListHtml = recomendacoes.slice(0, 6).map(r => {
         const cor = r.severidade === 'CRITICO' ? '#dc2626' : r.severidade === 'ATENCAO' ? '#f59e0b' : '#0284c7';
@@ -359,6 +390,15 @@ export async function GET(request: NextRequest) {
             <ul>${atividadeListHtml}</ul>
           ` : ''}
 
+          ${totalMCMV > 0 ? `
+            <h3 style="color: #d97706;">🏛️ Conformidade MCMV / Caixa:</h3>
+            <ul>${conformidadeMCMV.map(c =>
+              `<li><strong>${c.nome}</strong> — ${c.percentual}% conforme${c.bloqueadores.length > 0
+                ? `<br/><strong style="color:#dc2626;">Trava medição:</strong> ${c.bloqueadores.join('; ')}`
+                : ` (${c.pendencias} pendência(s), ${c.naoConformes} não conforme(s))`}</li>`
+            ).join('')}</ul>
+          ` : ''}
+
           ${totalSST > 0 ? `
             <h3 style="color: #dc2626;">🦺 Segurança do Trabalho (ASO / EPI):</h3>
             <ul>${[
@@ -404,6 +444,7 @@ export async function GET(request: NextRequest) {
       episVencidos: sst.episVencidos.length,
       episAVencer: sst.episAVencer.length,
       metasForaDoAlvo: totalMetas,
+      empreendimentosMCMVComPendencia: totalMCMV,
       statusEficiencia: metaAval.status,
       recomendacoes: recomendacoes.length,
       recomendacoesCriticas: resumoRec.criticos,

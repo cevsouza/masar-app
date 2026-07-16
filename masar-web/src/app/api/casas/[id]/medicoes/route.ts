@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { bloqueioSegurancaMedicao } from '@/lib/sst';
+import { bloqueioConformidadeMCMV } from '@/lib/mcmv/conformidade';
 import { verifySession } from '@/lib/auth';
 import { logMutation } from '@/lib/audit';
 
@@ -50,6 +51,36 @@ export async function POST(
           registroId: casaId,
           valoresNovos: { forcarLiberacao: true, motivos: bloqueio.motivos },
         });
+      }
+    }
+
+    // Trava de conformidade MCMV: só para empreendimentos no regime MCMV.
+    if (statusValido === 'PAGA') {
+      const casaComEmp = await db.casa.findUnique({
+        where: { id: casaId },
+        select: { empreendimento: { select: { id: true, regimeMCMV: true } } },
+      });
+      if (casaComEmp?.empreendimento?.regimeMCMV) {
+        const bloqueioMcmv = await bloqueioConformidadeMCMV(casaComEmp.empreendimento.id);
+        if (bloqueioMcmv.bloqueado) {
+          const sessionToken = request.cookies.get('masar_session')?.value;
+          const session = sessionToken ? await verifySession(sessionToken) : null;
+          if (!forcarLiberacao || session?.role !== 'ADMIN') {
+            return NextResponse.json({
+              error: 'BLOQUEIO_CONFORMIDADE_MCMV',
+              message: 'Liberação bloqueada: há exigências MCMV/Caixa obrigatórias fora de conformidade. Regularize na aba Conformidade MCMV ou libere excepcionalmente como ADMIN.',
+              motivos: bloqueioMcmv.motivos,
+            }, { status: 409 });
+          }
+          await logMutation({
+            usuarioId: session.userId,
+            usuarioNome: session.nome,
+            acao: 'MEDICAO_CRIADA_PAGA_EXCEPCIONAL_MCMV',
+            tabela: 'MedicaoCaixa',
+            registroId: casaId,
+            valoresNovos: { forcarLiberacao: true, motivos: bloqueioMcmv.motivos },
+          });
+        }
       }
     }
 

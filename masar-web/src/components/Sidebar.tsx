@@ -71,6 +71,7 @@ const NAV_GROUPS = [
       { name: 'Financeiro', href: '/financeiro', icon: TrendingUp, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Fluxo Projetado', href: '/gestao/fluxo-projetado', icon: CalendarClock, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Sócios', href: '/socios/caixa', icon: PiggyBank, roles: ['ADMIN', 'FINANCEIRO'] },
+      { name: 'Prontidão Caixa (MCMV)', href: '/gestao/prontidao-caixa', icon: ShieldCheck, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
       { name: 'Agenda', href: '/agenda', icon: CalendarClock, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
       { name: 'Relatórios', href: '/relatorios', icon: FileText, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
     ],
