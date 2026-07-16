@@ -65,7 +65,7 @@ async function montarContexto(empreendimentoId: string, faixaMCMV: string | null
   const [casas, marcos, totalAtividadesCronograma, parametro, seguranca] = await Promise.all([
     db.casa.findMany({
       where: { empreendimentoId },
-      select: { numero: true, quadra: true, valorVendaProjetado: true, areaConstruida: true },
+      select: { numero: true, quadra: true, valorVendaProjetado: true, areaConstruida: true, unidadeAdaptavelMCMV: true },
     }),
     db.marcoBurocratico.findMany({
       where: { empreendimentoId, dataAprovacaoReal: { not: null } },
@@ -92,6 +92,7 @@ async function montarContexto(empreendimentoId: string, faixaMCMV: string | null
       quadra: c.quadra,
       valorVendaProjetado: c.valorVendaProjetado != null ? Number(c.valorVendaProjetado) : null,
       areaConstruida: c.areaConstruida != null ? Number(c.areaConstruida) : null,
+      adaptavel: c.unidadeAdaptavelMCMV,
     })),
     marcosAprovados: marcos.map((m) => m.tipo),
     totalAtividadesCronograma,

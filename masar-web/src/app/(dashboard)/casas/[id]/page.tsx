@@ -52,6 +52,20 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
+  // Limites MCMV da faixa do empreendimento (para avisos inline de teto/área).
+  let mcmvLimites: { faixa: string; tetoValorImovel: number; areaUtilMinima: number; percentualUnidadesAcessiveis: number } | null = null;
+  if (casa.empreendimento?.regimeMCMV && casa.empreendimento?.faixaMCMV) {
+    const p = await db.parametroMCMV.findUnique({ where: { faixa: casa.empreendimento.faixaMCMV } });
+    if (p) {
+      mcmvLimites = {
+        faixa: casa.empreendimento.faixaMCMV,
+        tetoValorImovel: Number(p.tetoValorImovel),
+        areaUtilMinima: Number(p.areaUtilMinima),
+        percentualUnidadesAcessiveis: p.percentualUnidadesAcessiveis,
+      };
+    }
+  }
+
   // Load all standard insumos for the budgeting forms
   const allInsumos = await db.insumoPadrao.findMany({
     orderBy: { nome: 'asc' }
@@ -98,5 +112,5 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
     }))
   };
 
-  return <HouseDetails initialCasa={serializedCasa} allInsumos={allInsumos} />;
+  return <HouseDetails initialCasa={serializedCasa} allInsumos={allInsumos} mcmvLimites={mcmvLimites} />;
 }

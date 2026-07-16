@@ -48,6 +48,7 @@ import {
 interface HouseDetailsProps {
   initialCasa: any;
   allInsumos?: any[];
+  mcmvLimites?: { faixa: string; tetoValorImovel: number; areaUtilMinima: number; percentualUnidadesAcessiveis: number } | null;
 }
 
 const STAGES = [
@@ -110,7 +111,7 @@ export const getInsumoMCMVType = (nome: string, categoria: string): 'FIXO' | 'VA
   return 'VARIAVEL';
 };
 
-export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDetailsProps) {
+export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites = null }: HouseDetailsProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'geral' | 'financeiro' | 'infra' | 'ged' | 'cronograma'>('geral');
   const [isUpdatingApproval, setIsUpdatingApproval] = useState<string | null>(null);
@@ -173,7 +174,12 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
   const [editQuintal, setEditQuintal] = useState(initialCasa.possuiQuintal);
   const [editSalaConjugada, setEditSalaConjugada] = useState(initialCasa.salaConjugada);
   const [editLiberadaVenda, setEditLiberadaVenda] = useState(initialCasa.liberadaVenda || false);
+  const [editUnidadeAdaptavel, setEditUnidadeAdaptavel] = useState(initialCasa.unidadeAdaptavelMCMV || false);
   const [isSavingHouse, setIsSavingHouse] = useState(false);
+
+  // Avisos MCMV (Slice 2): comparam os valores em edição com os limites da faixa.
+  const avisoTetoMCMV = !!mcmvLimites && !!editValorVendaProjetado && parseFloat(editValorVendaProjetado) > mcmvLimites.tetoValorImovel;
+  const avisoAreaMCMV = !!mcmvLimites && !!editAreaConstruida && parseFloat(editAreaConstruida) < mcmvLimites.areaUtilMinima;
 
   // Concessionaire utilities (infra) state
   const [padraoEnergia, setPadraoEnergia] = useState(initialCasa.infraestrutura?.padraoEnergiaInstalado || false);
@@ -314,7 +320,8 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
           vagasGaragem: parseInt(editVagas, 10) || 0,
           possuiQuintal: editQuintal === true,
           salaConjugada: editSalaConjugada === true,
-          liberadaVenda: editLiberadaVenda === true
+          liberadaVenda: editLiberadaVenda === true,
+          unidadeAdaptavelMCMV: editUnidadeAdaptavel === true
         })
       });
 
@@ -1552,8 +1559,13 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                     step="0.01"
                     value={editAreaConstruida}
                     onChange={(e) => setEditAreaConstruida(e.target.value)}
-                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    className={`w-full bg-[#0f1422] border rounded-xl px-3 py-2 text-slate-200 focus:outline-none ${avisoAreaMCMV ? 'border-amber-500/60' : 'border-slate-800 focus:border-blue-500/50'}`}
                   />
+                  {avisoAreaMCMV && (
+                    <p className="text-[10px] text-amber-400 flex items-center gap-1">
+                      <AlertTriangle size={10} className="shrink-0" /> Abaixo da área mínima MCMV ({mcmvLimites!.areaUtilMinima} m²).
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -1574,8 +1586,13 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                     step="0.01"
                     value={editValorVendaProjetado}
                     onChange={(e) => setEditValorVendaProjetado(e.target.value)}
-                    className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500/50"
+                    className={`w-full bg-[#0f1422] border rounded-xl px-3 py-2 text-slate-200 focus:outline-none ${avisoTetoMCMV ? 'border-amber-500/60' : 'border-slate-800 focus:border-blue-500/50'}`}
                   />
+                  {avisoTetoMCMV && (
+                    <p className="text-[10px] text-amber-400 flex items-center gap-1">
+                      <AlertTriangle size={10} className="shrink-0" /> Acima do teto MCMV (R$ {mcmvLimites!.tetoValorImovel.toLocaleString('pt-BR')}).
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -1652,6 +1669,21 @@ export default function HouseDetails({ initialCasa, allInsumos = [] }: HouseDeta
                     Liberar Unidade para Venda no Comercial
                   </label>
                 </div>
+
+                {mcmvLimites && (
+                  <div className="flex items-center gap-2 pt-6 col-span-2">
+                    <input
+                      type="checkbox"
+                      id="editUnidadeAdaptavel"
+                      checked={editUnidadeAdaptavel}
+                      onChange={(e) => setEditUnidadeAdaptavel(e.target.checked)}
+                      className="rounded bg-[#0f1422] border-slate-800 text-amber-500 focus:ring-0 w-4 h-4 cursor-pointer"
+                    />
+                    <label htmlFor="editUnidadeAdaptavel" className="text-[10px] text-slate-400 cursor-pointer select-none font-bold text-amber-400">
+                      Unidade adaptável / acessível (MCMV · NBR 9050)
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Botões de Ação */}

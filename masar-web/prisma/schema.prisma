@@ -259,6 +259,8 @@ model Casa {
   possuiQuintal        Boolean                @default(false)
   salaConjugada        Boolean                @default(false)
   liberadaVenda        Boolean                @default(false)
+  // MCMV: unidade adaptável/acessível (conta para o mínimo de % da NBR 9050).
+  unidadeAdaptavelMCMV Boolean                @default(false)
   dataCriacao          DateTime               @default(now())
   dataAtualizacao      DateTime               @updatedAt
   medicoes             MedicaoCaixa[]

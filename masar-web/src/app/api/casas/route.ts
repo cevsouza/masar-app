@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
       quantidadeBanheiros,
       vagasGaragem,
       possuiQuintal,
-      salaConjugada
+      salaConjugada,
+      unidadeAdaptavelMCMV
     } = body;
 
     if (!numero || !quadra || !empreendimentoId) {
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
         vagasGaragem: finalVagas,
         possuiQuintal: finalQuintal,
         salaConjugada: finalSalaConjugada,
+        unidadeAdaptavelMCMV: unidadeAdaptavelMCMV === true,
       },
     });
 

@@ -31,7 +31,7 @@ export interface ContextoAvaliacao {
     areaUtilMinima: number;
     percentualUnidadesAcessiveis: number;
   } | null;
-  casas: { numero: string; quadra: string; valorVendaProjetado: number | null; areaConstruida: number | null }[];
+  casas: { numero: string; quadra: string; valorVendaProjetado: number | null; areaConstruida: number | null; adaptavel: boolean }[];
   marcosAprovados: string[]; // tipos de MarcoBurocratico com dataAprovacaoReal preenchida
   totalAtividadesCronograma: number;
   segurancaBloqueada: boolean;
@@ -81,6 +81,20 @@ function autoTetoValor(ctx: ContextoAvaliacao): ResultadoAuto {
     return { status: 'EM_ANDAMENTO', detalhe: 'Faltam casas sem valor de venda informado.' };
   }
   return { status: 'CONFORME' };
+}
+
+function autoAcessibilidade(ctx: ContextoAvaliacao): ResultadoAuto {
+  if (!ctx.parametro) return { status: 'PENDENTE', detalhe: 'Defina o % de acessibilidade nos Parâmetros MCMV.' };
+  const pct = ctx.parametro.percentualUnidadesAcessiveis;
+  const total = ctx.casas.length;
+  if (total === 0) return { status: 'PENDENTE', detalhe: 'Nenhuma unidade cadastrada.' };
+  const necessarias = Math.ceil((total * pct) / 100);
+  const adaptaveis = ctx.casas.filter((c) => c.adaptavel).length;
+  if (adaptaveis >= necessarias) return { status: 'CONFORME' };
+  return {
+    status: 'NAO_CONFORME',
+    detalhe: `${adaptaveis} de ${necessarias} unidades adaptáveis (mínimo ${pct}% de ${total}).`,
+  };
 }
 
 function autoAreaMinima(ctx: ContextoAvaliacao): ResultadoAuto {
@@ -249,11 +263,20 @@ export const CATALOGO_MCMV: ItemCatalogo[] = [
   {
     chave: 'acessibilidade-nbr9050',
     categoria: 'C',
-    titulo: 'Acessibilidade (NBR 9050)',
-    descricao: 'Rota acessível e mínimo de unidades adaptáveis conforme NBR 9050.',
+    titulo: 'Laudo de acessibilidade (NBR 9050)',
+    descricao: 'Rota acessível e projeto conforme NBR 9050 (laudo/memorial).',
     obrigatorio: true,
     tipoAvaliacao: 'DOC',
     tipoDocumento: 'LAUDO_ACESSIBILIDADE_NBR9050',
+  },
+  {
+    chave: 'unidades-acessiveis',
+    categoria: 'C',
+    titulo: 'Mínimo de unidades adaptáveis',
+    descricao: 'Percentual mínimo de unidades marcadas como adaptáveis/acessíveis por faixa.',
+    obrigatorio: true,
+    tipoAvaliacao: 'AUTO',
+    auto: autoAcessibilidade,
   },
 
   // D. Execução e liberação

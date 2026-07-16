@@ -38,7 +38,8 @@ export async function PATCH(
       vagasGaragem,
       possuiQuintal,
       salaConjugada,
-      liberadaVenda
+      liberadaVenda,
+      unidadeAdaptavelMCMV
     } = body;
 
     const updateData: any = {};
@@ -56,6 +57,7 @@ export async function PATCH(
     if (possuiQuintal !== undefined) updateData.possuiQuintal = possuiQuintal === true;
     if (salaConjugada !== undefined) updateData.salaConjugada = salaConjugada === true;
     if (liberadaVenda !== undefined) updateData.liberadaVenda = liberadaVenda === true;
+    if (unidadeAdaptavelMCMV !== undefined) updateData.unidadeAdaptavelMCMV = unidadeAdaptavelMCMV === true;
 
     const updated = await db.casa.update({
       where: { id },
