@@ -140,9 +140,11 @@ export async function responderConsultor(pergunta: string, historico: TurnoChat[
           ? ` (verifique GEMINI_MODEL no servidor; tentados: ${candidatos.join(', ')})`
           : ultimoStatus === 403
             ? ' (chave inválida ou sem permissão)'
-            : ultimoStatus === 400
-              ? ' (requisição rejeitada pelo modelo)'
-              : '';
+            : ultimoStatus === 429
+              ? ' (cota da API Gemini excedida — aguarde alguns minutos ou ative faturamento no Google)'
+              : ultimoStatus === 400
+                ? ' (requisição rejeitada pelo modelo)'
+                : '';
       return { configurado: true, erro: true, resposta: `Não consegui falar com a IA agora — erro ${ultimoStatus}${dica}. Tente novamente em instantes.`, detalhe: ultimoErro };
     }
 

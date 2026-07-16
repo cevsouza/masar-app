@@ -115,9 +115,11 @@ export async function consultarPortariaVigente(): Promise<SugestaoParametros> {
           ? ` (nenhum modelo disponível — verifique a variável GEMINI_MODEL no servidor; tentados: ${candidatos.join(', ')})`
           : ultimoStatus === 403
             ? ' (chave GEMINI_API_KEY inválida ou sem permissão para a API Generative Language)'
-            : ultimoStatus === 400
-              ? ' (requisição rejeitada — o modelo pode não suportar busca web)'
-              : '';
+            : ultimoStatus === 429
+              ? ' (cota da API Gemini excedida — a busca web tem limite gratuito baixo; aguarde alguns minutos ou ative faturamento no Google. Enquanto isso, preencha os parâmetros manualmente)'
+              : ultimoStatus === 400
+                ? ' (requisição rejeitada — o modelo pode não suportar busca web)'
+                : '';
       return {
         configurado: true,
         erro: true,
