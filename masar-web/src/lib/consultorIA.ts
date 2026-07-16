@@ -13,12 +13,9 @@ import { calcularEvm } from '@/lib/evm';
  * sem GEMINI_API_KEY configurada, retorna uma mensagem amigável em vez de erro.
  */
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+import { chamarGemini, iaConfigurada } from '@/lib/gemini';
 
-export function iaConfigurada(): boolean {
-  return !!GEMINI_API_KEY;
-}
+export { iaConfigurada };
 
 export interface TurnoChat {
   role: 'user' | 'model';
@@ -92,7 +89,7 @@ function sanitizarHistorico(historico: TurnoChat[]): TurnoChat[] {
 }
 
 export async function responderConsultor(pergunta: string, historico: TurnoChat[] = []): Promise<RespostaConsultor> {
-  if (!GEMINI_API_KEY) {
+  if (!iaConfigurada()) {
     return {
       configurado: false,
       resposta:
@@ -108,47 +105,29 @@ export async function responderConsultor(pergunta: string, historico: TurnoChat[
     { role: 'user', parts: [{ text: pergunta }] },
   ];
 
-  // Modelos candidatos: o configurado primeiro, depois modelos atuais conhecidos.
-  // Um 404 = "modelo não encontrado" (ex.: GEMINI_MODEL apontando para um modelo
-  // retirado) — nesse caso cai para o próximo.
-  const candidatos = Array.from(new Set([GEMINI_MODEL, 'gemini-2.5-flash', 'gemini-2.0-flash'].filter(Boolean)));
-  const reqBody = JSON.stringify({
-    system_instruction: { parts: [{ text: systemText }] },
-    contents,
-    generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
-  });
-
   try {
-    let res: Response | null = null;
-    let ultimoErro = '';
-    let ultimoStatus = 0;
-    for (const modelo of candidatos) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${GEMINI_API_KEY}`;
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: reqBody });
-      if (r.ok) {
-        res = r;
-        break;
-      }
-      ultimoStatus = r.status;
-      ultimoErro = (await r.text().catch(() => '')).slice(0, 400);
-      if (r.status !== 404) break; // só faz sentido tentar outro modelo em 404
-    }
+    const resultado = await chamarGemini({
+      system_instruction: { parts: [{ text: systemText }] },
+      contents,
+      generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+    });
 
-    if (!res) {
+    if (!resultado.ok) {
+      const s = resultado.status;
       const dica =
-        ultimoStatus === 404
-          ? ` (verifique GEMINI_MODEL no servidor; tentados: ${candidatos.join(', ')})`
-          : ultimoStatus === 403
+        s === 404
+          ? ' (nenhum modelo Gemini disponível para esta chave — verifique a chave/projeto no Google)'
+          : s === 403
             ? ' (chave inválida ou sem permissão)'
-            : ultimoStatus === 429
+            : s === 429
               ? ' (cota da API Gemini excedida — aguarde alguns minutos ou ative faturamento no Google)'
-              : ultimoStatus === 400
+              : s === 400
                 ? ' (requisição rejeitada pelo modelo)'
                 : '';
-      return { configurado: true, erro: true, resposta: `Não consegui falar com a IA agora — erro ${ultimoStatus}${dica}. Tente novamente em instantes.`, detalhe: ultimoErro };
+      return { configurado: true, erro: true, resposta: `Não consegui falar com a IA agora — erro ${s}${dica}. Tente novamente em instantes.`, detalhe: resultado.erro };
     }
 
-    const data = await res.json();
+    const data = resultado.data;
     const texto: string = (data?.candidates?.[0]?.content?.parts || []).map((p: any) => p?.text || '').join('').trim();
     if (!texto) {
       const motivo = data?.candidates?.[0]?.finishReason;

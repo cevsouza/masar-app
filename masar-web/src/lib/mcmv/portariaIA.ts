@@ -7,8 +7,9 @@
 // IMPORTANTE: esta função apenas SUGERE. Nunca grava. O usuário revisa a fonte
 // (portaria/data/URL) e decide aplicar na tela de Parâmetros MCMV.
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+import { chamarGemini, iaConfigurada } from '@/lib/gemini';
+
+export { iaConfigurada };
 
 export type FaixaChave = 'FAIXA_1' | 'FAIXA_2' | 'FAIXA_3' | 'FAIXA_4';
 
@@ -69,12 +70,8 @@ function extrairJSON(texto: string): any | null {
 
 const FAIXAS_VALIDAS: FaixaChave[] = ['FAIXA_1', 'FAIXA_2', 'FAIXA_3', 'FAIXA_4'];
 
-export function iaConfigurada(): boolean {
-  return !!GEMINI_API_KEY;
-}
-
 export async function consultarPortariaVigente(): Promise<SugestaoParametros> {
-  if (!GEMINI_API_KEY) {
+  if (!iaConfigurada()) {
     return {
       configurado: false,
       mensagem:
@@ -82,52 +79,33 @@ export async function consultarPortariaVigente(): Promise<SugestaoParametros> {
     };
   }
 
-  // Modelos candidatos: o configurado primeiro, depois modelos atuais conhecidos
-  // que suportam grounding (google_search). Um 404 = "modelo não encontrado"
-  // (ex.: GEMINI_MODEL apontando para um modelo retirado) — nesse caso cai para o próximo.
-  const candidatos = Array.from(new Set([GEMINI_MODEL, 'gemini-2.5-flash', 'gemini-2.0-flash'].filter(Boolean)));
-  const body = JSON.stringify({
-    contents: [{ role: 'user', parts: [{ text: PROMPT }] }],
-    tools: [{ google_search: {} }],
-    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
-  });
-
   try {
-    let res: Response | null = null;
-    let ultimoErro = '';
-    let ultimoStatus = 0;
-    for (const modelo of candidatos) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${GEMINI_API_KEY}`;
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-      if (r.ok) {
-        res = r;
-        break;
-      }
-      ultimoStatus = r.status;
-      ultimoErro = (await r.text().catch(() => '')).slice(0, 300);
-      // 404 = modelo inexistente: tenta o próximo. Outros erros (403 chave, etc.) não adianta insistir.
-      if (r.status !== 404) break;
-    }
+    const resultado = await chamarGemini({
+      contents: [{ role: 'user', parts: [{ text: PROMPT }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+    });
 
-    if (!res) {
+    if (!resultado.ok) {
+      const s = resultado.status;
       const dica =
-        ultimoStatus === 404
-          ? ` (nenhum modelo disponível — verifique a variável GEMINI_MODEL no servidor; tentados: ${candidatos.join(', ')})`
-          : ultimoStatus === 403
+        s === 404
+          ? ' (nenhum modelo Gemini disponível para esta chave — verifique a chave/projeto no Google)'
+          : s === 403
             ? ' (chave GEMINI_API_KEY inválida ou sem permissão para a API Generative Language)'
-            : ultimoStatus === 429
+            : s === 429
               ? ' (cota da API Gemini excedida — a busca web tem limite gratuito baixo; aguarde alguns minutos ou ative faturamento no Google. Enquanto isso, preencha os parâmetros manualmente)'
-              : ultimoStatus === 400
+              : s === 400
                 ? ' (requisição rejeitada — o modelo pode não suportar busca web)'
                 : '';
       return {
         configurado: true,
         erro: true,
-        mensagem: `Erro ${ultimoStatus} ao consultar a IA${dica}.${ultimoErro ? ` Detalhe: ${ultimoErro}` : ''}`,
+        mensagem: `Erro ${s} ao consultar a IA${dica}.${resultado.erro ? ` Detalhe: ${resultado.erro}` : ''}`,
       };
     }
 
-    const data = await res.json();
+    const data = resultado.data;
     const candidate = data?.candidates?.[0];
     const texto: string = (candidate?.content?.parts || []).map((p: any) => p?.text || '').join('').trim();
     const parsed = extrairJSON(texto);
