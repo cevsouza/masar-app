@@ -114,6 +114,7 @@ const NAV_GROUPS = [
     icon: Settings,
     items: [
       { name: 'Insumos', href: '/insumos', icon: ClipboardList, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
+      { name: 'Parâmetros MCMV', href: '/configuracoes/mcmv', icon: ShieldCheck, roles: ['ADMIN'] },
       { name: 'Equipe', href: '/usuarios', icon: Users, roles: ['ADMIN'] },
       { name: 'Permissões', href: '/permissoes', icon: ShieldCheck, roles: ['ADMIN'] },
     ],

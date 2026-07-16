@@ -23,6 +23,8 @@ interface Project {
   dataInicio?: Date | string | null;
   dataFim?: Date | string | null;
   orcamento?: number | null;
+  regimeMCMV?: boolean;
+  faixaMCMV?: string | null;
   _count: {
     casas: number;
   };
@@ -47,6 +49,8 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
   const [newProjectStart, setNewProjectStart] = useState('');
   const [newProjectEnd, setNewProjectEnd] = useState('');
   const [newProjectStatus, setNewProjectStatus] = useState('ESTUDO_VIABILIDADE');
+  const [newProjectMCMV, setNewProjectMCMV] = useState(false);
+  const [newProjectFaixa, setNewProjectFaixa] = useState('FAIXA_2');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   // New House modal state
@@ -111,6 +115,8 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
           })(),
           dataInicio: newProjectStart ? new Date(newProjectStart) : null,
           dataFim: newProjectEnd ? new Date(newProjectEnd) : null,
+          regimeMCMV: newProjectMCMV,
+          faixaMCMV: newProjectMCMV ? newProjectFaixa : null,
         }),
       });
 
@@ -123,6 +129,8 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
       setNewProjectStart('');
       setNewProjectEnd('');
       setNewProjectStatus('ESTUDO_VIABILIDADE');
+      setNewProjectMCMV(false);
+      setNewProjectFaixa('FAIXA_2');
       setIsProjectModalOpen(false);
       
       router.refresh();
@@ -242,6 +250,14 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                               {project.nome}
                             </h4>
                             <div className="flex items-center gap-1.5 shrink-0">
+                              {project.regimeMCMV && (
+                                <span
+                                  className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                  title="Empreendimento no regime Caixa / MCMV"
+                                >
+                                  MCMV{project.faixaMCMV ? ` ${project.faixaMCMV.replace('FAIXA_', 'F')}` : ''}
+                                </span>
+                              )}
                               <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400">
                                 {project._count.casas} unidades
                               </span>
@@ -422,6 +438,43 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                     className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              {/* Regime MCMV / Caixa */}
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newProjectMCMV}
+                    onChange={(e) => setNewProjectMCMV(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-amber-500 cursor-pointer"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-amber-300">Seguir diretrizes Caixa / MCMV</span>
+                    <span className="block text-xs text-slate-400 mt-0.5">
+                      Ativa a camada de conformidade: checklist das exigências da Caixa, controles de teto de valor e área, e trava de medição.
+                    </span>
+                  </span>
+                </label>
+
+                {newProjectMCMV && (
+                  <div className="mt-3 pl-7">
+                    <label className="text-xs text-slate-400 block mb-1.5 font-medium">Faixa do programa</label>
+                    <select
+                      value={newProjectFaixa}
+                      onChange={(e) => setNewProjectFaixa(e.target.value)}
+                      className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-amber-500/50"
+                    >
+                      <option value="FAIXA_1">Faixa 1 (interesse social — RET 1%)</option>
+                      <option value="FAIXA_2">Faixa 2</option>
+                      <option value="FAIXA_3">Faixa 3</option>
+                      <option value="FAIXA_4">Faixa 4</option>
+                    </select>
+                    <p className="text-[11px] text-slate-500 mt-1.5">
+                      A faixa define o teto de valor e a área mínima usados nos controles. Ajuste os parâmetros em Configurações → Parâmetros MCMV.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 justify-end pt-4 border-t border-slate-800">

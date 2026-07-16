@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { fetchCoordinates } from '@/lib/geocoding';
+import { CHAVES_CATALOGO } from '@/lib/mcmv/catalogo';
+
+const FAIXAS_MCMV = ['FAIXA_1', 'FAIXA_2', 'FAIXA_3', 'FAIXA_4'];
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
-      nome, 
-      localizacao, 
-      statusLegal, 
-      dataInicio, 
-      dataFim, 
+    const {
+      nome,
+      localizacao,
+      statusLegal,
+      dataInicio,
+      dataFim,
       orcamento,
       endereco,
       cep,
@@ -23,12 +26,19 @@ export async function POST(request: NextRequest) {
       quantidadeCasasPrevistas,
       proprietarioAnteriorTerreno,
       valorCompraTerreno,
-      amenidades
+      amenidades,
+      regimeMCMV,
+      faixaMCMV
     } = body;
 
     if (!nome || !localizacao) {
       return NextResponse.json({ error: 'Nome e localização são obrigatórios' }, { status: 400 });
     }
+
+    const ehMCMV = regimeMCMV === true;
+    const faixaValida = faixaMCMV && FAIXAS_MCMV.includes(faixaMCMV) ? faixaMCMV : null;
+    // RET social (1%) para a faixa de interesse social; demais mantêm o padrão (4%).
+    const aliquotaRET = ehMCMV && faixaValida === 'FAIXA_1' ? 1.0 : 4.0;
 
     const validStatuses = ['ESTUDO_VIABILIDADE', 'APROVACAO_PREFEITURA', 'APROVACAO_CAIXA', 'EM_OBRA'];
     const statusValido = statusLegal && validStatuses.includes(statusLegal) 
@@ -72,9 +82,20 @@ export async function POST(request: NextRequest) {
         quantidadeCasasPrevistas: casasPrevistasInt,
         proprietarioAnteriorTerreno,
         valorCompraTerreno: valorCompraFloat,
-        amenidades: amenidadesArray
+        amenidades: amenidadesArray,
+        regimeMCMV: ehMCMV,
+        faixaMCMV: ehMCMV ? faixaValida : null,
+        aliquotaRET
       },
     });
+
+    // Regime MCMV: semeia o checklist de conformidade (1 item por chave do catálogo).
+    if (ehMCMV) {
+      await db.itemConformidadeMCMV.createMany({
+        data: CHAVES_CATALOGO.map((chave) => ({ empreendimentoId: empreendimento.id, chave })),
+        skipDuplicates: true,
+      });
+    }
 
     // Auto-gerar as casas planejadas no Backlog na criação do empreendimento
     if (casasPrevistasInt && casasPrevistasInt > 0) {

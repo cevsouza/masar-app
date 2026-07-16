@@ -24,6 +24,7 @@ import {
 import Link from 'next/link';
 import ModalNovoLancamento from './ModalNovoLancamento';
 import CronogramaPanel from './CronogramaPanel';
+import ConformidadeMCMVPanel from './ConformidadeMCMVPanel';
 
 interface Documento {
   id: string;
@@ -38,6 +39,8 @@ interface Empreendimento {
   nome: string;
   localizacao: string;
   statusLegal: string;
+  regimeMCMV?: boolean;
+  faixaMCMV?: string | null;
   endereco: string | null;
   cep: string | null;
   bairro: string | null;
@@ -99,11 +102,14 @@ const TIPO_DOCS_GED = [
 
 export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheetProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre' | 'cronograma'>(() => {
+  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre' | 'cronograma' | 'conformidade'>(() => {
     if (typeof window !== 'undefined') {
       const tabParam = new URLSearchParams(window.location.search).get('tab');
       if (tabParam === 'financeiro' || tabParam === 'cofre' || tabParam === 'ficha' || tabParam === 'cronograma') {
         return tabParam;
+      }
+      if (tabParam === 'conformidade' && project.regimeMCMV) {
+        return 'conformidade';
       }
     }
     return 'ficha';
@@ -470,6 +476,16 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
             >
               Cronograma
             </button>
+            {project.regimeMCMV && (
+              <button
+                onClick={() => setActiveTab('conformidade')}
+                className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
+                  activeTab === 'conformidade' ? 'bg-amber-600/10 text-amber-400 border border-amber-500/15' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Conformidade MCMV
+              </button>
+            )}
           </div>
 
           {userRole === 'ADMIN' && (
@@ -1100,6 +1116,15 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
           escopo="GERAL"
           empreendimentoId={project.id}
           initialAtividades={project.atividadesCronograma || []}
+        />
+      )}
+
+      {/* Conteúdo Aba 5: Conformidade MCMV / Caixa */}
+      {activeTab === 'conformidade' && project.regimeMCMV && (
+        <ConformidadeMCMVPanel
+          empreendimentoId={project.id}
+          faixaMCMV={project.faixaMCMV}
+          podeEditar={userRole === 'ADMIN' || userRole === 'ENGENHARIA'}
         />
       )}
 

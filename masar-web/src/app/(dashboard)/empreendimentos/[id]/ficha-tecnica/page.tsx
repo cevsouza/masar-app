@@ -64,6 +64,8 @@ export default async function FichaTecnicaPage({ params }: PageProps) {
     nome: project.nome,
     localizacao: project.localizacao,
     statusLegal: project.statusLegal,
+    regimeMCMV: project.regimeMCMV,
+    faixaMCMV: project.faixaMCMV,
     endereco: project.endereco,
     cep: project.cep,
     bairro: project.bairro,

@@ -1,6 +1,6 @@
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -134,52 +134,57 @@ model User {
 }
 
 model Empreendimento {
-  id                     String              @id @default(uuid())
-  nome                   String
-  localizacao            String
-  statusLegal            StatusLegal         @default(ESTUDO_VIABILIDADE)
-  dataInicio             DateTime?
-  dataFim                DateTime?
-  orcamento              Float?
-  temSondagemSolo        Boolean             @default(false)
-  temInfraestruturaBasica Boolean             @default(false)
-  endereco               String?
-  cep                    String?
-  bairro                 String?
-  cidade                 String?
-  estado                 String?
-  latitude               Float?
-  longitude              Float?
-  areaTotalTerreno       Decimal?
-  quantidadeCasasPrevistas Int?
+  id                          String                 @id @default(uuid())
+  nome                        String
+  localizacao                 String
+  statusLegal                 StatusLegal            @default(ESTUDO_VIABILIDADE)
+  dataInicio                  DateTime?
+  dataFim                     DateTime?
+  orcamento                   Float?
+  temSondagemSolo             Boolean                @default(false)
+  temInfraestruturaBasica     Boolean                @default(false)
+  endereco                    String?
+  cep                         String?
+  bairro                      String?
+  cidade                      String?
+  estado                      String?
+  latitude                    Float?
+  longitude                   Float?
+  areaTotalTerreno            Decimal?
+  quantidadeCasasPrevistas    Int?
   proprietarioAnteriorTerreno String?
-  valorCompraTerreno     Decimal?
-  amenidades             String[]
-  padraoAreaConstruida   Decimal?
-  padraoAreaLote         Decimal?
-  padraoQuantidadeQuartos Int                 @default(0)
-  padraoQuantidadeSuites  Int                 @default(0)
-  padraoQuantidadeBanheiros Int                 @default(0)
-  padraoVagasGaragem     Int                 @default(0)
-  padraoPossuiQuintal    Boolean             @default(false)
-  padraoSalaConjugada    Boolean             @default(false)
+  valorCompraTerreno          Decimal?
+  amenidades                  String[]
+  padraoAreaConstruida        Decimal?
+  padraoAreaLote              Decimal?
+  padraoQuantidadeQuartos     Int                    @default(0)
+  padraoQuantidadeSuites      Int                    @default(0)
+  padraoQuantidadeBanheiros   Int                    @default(0)
+  padraoVagasGaragem          Int                    @default(0)
+  padraoPossuiQuintal         Boolean                @default(false)
+  padraoSalaConjugada         Boolean                @default(false)
   // Aliquota do RET (Regime Especial de Tributacao) em %. Padrao 4%; MCMV social = 1%.
-  aliquotaRET            Float               @default(4.0)
-  dataCriacao            DateTime            @default(now())
-  dataAtualizacao        DateTime            @updatedAt
-  casas                  Casa[]
-  marcos                 MarcoBurocratico[]
-  movimentacoesSocios    MovimentacaoSocio[]
-  documentos             DocumentoAnexo[]
-  cotacoes               CotacaoMaterial[]
-  solicitacoesCompra     SolicitacaoCompra[]
-  transacoes             TransacaoFinanceira[]
-  milestones             Milestone[]
-  atividadesCronograma   AtividadeCronograma[]
-  notasFiscaisEntrada    NotaFiscalEntrada[]
-  ddsSeguranca           DialogoSeguranca[]
-  acidentes              Acidente[]
-  checklistsNR           ChecklistNR[]
+  aliquotaRET                 Float                  @default(4.0)
+  // Regime MCMV/Caixa: quando ligado, o empreendimento segue as diretrizes da Caixa
+  // e o app aplica a camada de conformidade (checklist + guardrails + trava de medicao).
+  regimeMCMV                  Boolean                @default(false)
+  faixaMCMV                   FaixaMCMV?
+  dataCriacao                 DateTime               @default(now())
+  dataAtualizacao             DateTime               @updatedAt
+  casas                       Casa[]
+  marcos                      MarcoBurocratico[]
+  movimentacoesSocios         MovimentacaoSocio[]
+  documentos                  DocumentoAnexo[]
+  cotacoes                    CotacaoMaterial[]
+  solicitacoesCompra          SolicitacaoCompra[]
+  transacoes                  TransacaoFinanceira[]
+  milestones                  Milestone[]
+  atividadesCronograma        AtividadeCronograma[]
+  notasFiscaisEntrada         NotaFiscalEntrada[]
+  ddsSeguranca                DialogoSeguranca[]
+  acidentes                   Acidente[]
+  checklistsNR                ChecklistNR[]
+  itensConformidadeMCMV       ItemConformidadeMCMV[]
 }
 
 model MarcoBurocratico {
@@ -195,90 +200,90 @@ model MarcoBurocratico {
 }
 
 model Cliente {
-  id                 String          @id @default(uuid())
-  nome               String
-  cpf                String          @unique
-  rg                 String?
-  contrachequeUrl    String?
-  email              String?         @unique
-  telefone           String?
-  rendaComprovada    Float
-  statusCredito      StatusCredito   @default(DOCUMENTACAO_PENDENTE)
-  tokenAcessoPortal  String?         @unique
-  etapaAtual         EtapaJornada    @default(CAPTACAO)
-  dataCriacao        DateTime        @default(now())
-  dataAtualizacao    DateTime        @updatedAt
-  casas              Casa[]
-  contratos          ContratoVenda[]
-  documentos         DocumentoAnexo[]
-  usuarioCliente     UsuarioCliente?
-  transacoes         TransacaoFinanceira[]
+  id                String                @id @default(uuid())
+  nome              String
+  cpf               String                @unique
+  rg                String?
+  contrachequeUrl   String?
+  email             String?               @unique
+  telefone          String?
+  rendaComprovada   Float
+  statusCredito     StatusCredito         @default(DOCUMENTACAO_PENDENTE)
+  tokenAcessoPortal String?               @unique
+  etapaAtual        EtapaJornada          @default(CAPTACAO)
+  dataCriacao       DateTime              @default(now())
+  dataAtualizacao   DateTime              @updatedAt
+  casas             Casa[]
+  contratos         ContratoVenda[]
+  documentos        DocumentoAnexo[]
+  usuarioCliente    UsuarioCliente?
+  transacoes        TransacaoFinanceira[]
 }
 
 model InsumoPadrao {
-  id             String             @id @default(uuid())
-  nome           String             @unique
-  unidadeMedida  UnidadeMedida
-  categoria      CategoriaInsumo
+  id                   String                @id @default(uuid())
+  nome                 String                @unique
+  unidadeMedida        UnidadeMedida
+  categoria            CategoriaInsumo
   // Saldo de estoque em cache (Σ ENTRADA − Σ SAIDA/PERDA). Mutado apenas via
   // lib/estoque.registrarMovimentacaoEstoque, na mesma transacao da movimentacao.
-  saldoEstoque       Float          @default(0)
+  saldoEstoque         Float                 @default(0)
   // Nivel minimo para alerta de reposicao (null = sem alerta configurado).
-  nivelMinimoEstoque Float?
-  itensOrcamento ItemOrcamento[]
-  transacoes     TransacaoFinanceira[]
-  solicitacoes   SolicitacaoCompra[]
+  nivelMinimoEstoque   Float?
+  itensOrcamento       ItemOrcamento[]
+  transacoes           TransacaoFinanceira[]
+  solicitacoes         SolicitacaoCompra[]
   movimentacoesEstoque MovimentacaoEstoque[]
 }
 
 model Casa {
-  id               String                 @id @default(uuid())
-  numero           String
-  quadra           String
-  empreendimentoId String
-  empreendimento   Empreendimento         @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
-  clienteId        String?
-  cliente          Cliente?               @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  statusObra       StatusObra             @default(BACKLOG)
-  percentualObra   Float                  @default(0.0)
-  prazoFisico      DateTime?
-  prazoFinanceiro  DateTime?
-  obstaculos       String?
-  areaConstruida   Decimal?
-  areaLote         Decimal?
-  valorVendaProjetado Decimal?
-  quantidadeQuartos Int                    @default(0)
-  quantidadeSuites  Int                    @default(0)
-  quantidadeBanheiros Int                    @default(0)
-  vagasGaragem     Int                    @default(0)
-  possuiQuintal    Boolean                @default(false)
-  salaConjugada    Boolean                @default(false)
-  liberadaVenda    Boolean                @default(false)
-  dataCriacao      DateTime               @default(now())
-  dataAtualizacao  DateTime               @updatedAt
-  medicoes         MedicaoCaixa[]
-  orcamento        OrcamentoCasa?
-  transacoes       TransacaoFinanceira[]
-  diarios          DiarioDeObra[]
-  infraestrutura   InfraestruturaUnidade?
-  contrato         ContratoVenda?
-  documentos       DocumentoAnexo[]
-  pontos           PontoTrabalhador[]
-  solicitacoesCompra     SolicitacaoCompra[]
-  movimentacoesEstoque   MovimentacaoEstoque[]
-  milestones             Milestone[]
-  atividadesCronograma   AtividadeCronograma[]
-  linhaBase              LinhaBaseObra?
-  ddsSeguranca           DialogoSeguranca[]
-  acidentes              Acidente[]
-  checklistsNR           ChecklistNR[]
+  id                   String                 @id @default(uuid())
+  numero               String
+  quadra               String
+  empreendimentoId     String
+  empreendimento       Empreendimento         @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  clienteId            String?
+  cliente              Cliente?               @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  statusObra           StatusObra             @default(BACKLOG)
+  percentualObra       Float                  @default(0.0)
+  prazoFisico          DateTime?
+  prazoFinanceiro      DateTime?
+  obstaculos           String?
+  areaConstruida       Decimal?
+  areaLote             Decimal?
+  valorVendaProjetado  Decimal?
+  quantidadeQuartos    Int                    @default(0)
+  quantidadeSuites     Int                    @default(0)
+  quantidadeBanheiros  Int                    @default(0)
+  vagasGaragem         Int                    @default(0)
+  possuiQuintal        Boolean                @default(false)
+  salaConjugada        Boolean                @default(false)
+  liberadaVenda        Boolean                @default(false)
+  dataCriacao          DateTime               @default(now())
+  dataAtualizacao      DateTime               @updatedAt
+  medicoes             MedicaoCaixa[]
+  orcamento            OrcamentoCasa?
+  transacoes           TransacaoFinanceira[]
+  diarios              DiarioDeObra[]
+  infraestrutura       InfraestruturaUnidade?
+  contrato             ContratoVenda?
+  documentos           DocumentoAnexo[]
+  pontos               PontoTrabalhador[]
+  solicitacoesCompra   SolicitacaoCompra[]
+  movimentacoesEstoque MovimentacaoEstoque[]
+  milestones           Milestone[]
+  atividadesCronograma AtividadeCronograma[]
+  linhaBase            LinhaBaseObra?
+  ddsSeguranca         DialogoSeguranca[]
+  acidentes            Acidente[]
+  checklistsNR         ChecklistNR[]
 }
 
 model OrcamentoCasa {
-  id        String          @id @default(uuid())
-  casaId    String          @unique
-  casa      Casa            @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  itens     ItemOrcamento[]
+  id     String          @id @default(uuid())
+  casaId String          @unique
+  casa   Casa            @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  itens  ItemOrcamento[]
 }
 
 model ItemOrcamento {
@@ -290,8 +295,6 @@ model ItemOrcamento {
   quantidadePlanejada   Float
   custoUnitarioPrevisto Float
 }
-
-
 
 model DiarioDeObra {
   id                   String   @id @default(uuid())
@@ -305,27 +308,27 @@ model DiarioDeObra {
 }
 
 model InfraestruturaUnidade {
-  id                     String   @id @default(uuid())
-  casaId                 String   @unique
-  casa                   Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  padraoEnergiaInstalado Boolean  @default(false)
-  ligacaoAguaConcluida   Boolean  @default(false)
+  id                         String  @id @default(uuid())
+  casaId                     String  @unique
+  casa                       Casa    @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  padraoEnergiaInstalado     Boolean @default(false)
+  ligacaoAguaConcluida       Boolean @default(false)
   fossaFiltroEsgotoConcluido Boolean @default(false)
-  numeroMedidorLuz       String?
-  numeroMedidorAgua      String?
+  numeroMedidorLuz           String?
+  numeroMedidorAgua          String?
 }
 
 model MedicaoCaixa {
-  id                String        @id @default(uuid())
-  casaId            String
-  casa              Casa          @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  percentualMedido  Float
-  valorLiberado     Float
-  status            StatusMedicao @default(AGUARDANDO)
+  id                 String        @id @default(uuid())
+  casaId             String
+  casa               Casa          @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  percentualMedido   Float
+  valorLiberado      Float
+  status             StatusMedicao @default(AGUARDANDO)
   checklistSeguranca Json?
-  dataMedicao       DateTime      @default(now())
-  dataCriacao       DateTime      @default(now())
-  dataAtualizacao   DateTime      @updatedAt
+  dataMedicao        DateTime      @default(now())
+  dataCriacao        DateTime      @default(now())
+  dataAtualizacao    DateTime      @updatedAt
 }
 
 model Corretor {
@@ -338,29 +341,27 @@ model Corretor {
 }
 
 model ContratoVenda {
-  id            String                  @id @default(uuid())
-  casaId        String                  @unique
-  casa          Casa                    @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  clienteId     String
-  cliente       Cliente                 @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  corretorId    String?
-  corretor      Corretor?               @relation(fields: [corretorId], references: [id], onDelete: SetNull)
-  valorVenda    Float
-  entrada       Float                   @default(0.0)
-  financiamento Float                   @default(0.0)
-  fgts          Float                   @default(0.0)
-  subsidio      Float                   @default(0.0)
-  comissaoValor   Float                   @default(0.0)
-  comissaoPaga    Boolean                 @default(false)
-  status          StatusContrato          @default(EM_PROSPECCAO)
+  id              String                @id @default(uuid())
+  casaId          String                @unique
+  casa            Casa                  @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  clienteId       String
+  cliente         Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  corretorId      String?
+  corretor        Corretor?             @relation(fields: [corretorId], references: [id], onDelete: SetNull)
+  valorVenda      Float
+  entrada         Float                 @default(0.0)
+  financiamento   Float                 @default(0.0)
+  fgts            Float                 @default(0.0)
+  subsidio        Float                 @default(0.0)
+  comissaoValor   Float                 @default(0.0)
+  comissaoPaga    Boolean               @default(false)
+  status          StatusContrato        @default(EM_PROSPECCAO)
   transacoes      TransacaoFinanceira[]
-  dataCriacao     DateTime                @default(now())
-  dataAtualizacao DateTime                @updatedAt
+  dataCriacao     DateTime              @default(now())
+  dataAtualizacao DateTime              @updatedAt
   distrato        Distrato?
   assinatura      AssinaturaContrato?
 }
-
-
 
 model ContaBancaria {
   id              String              @id @default(uuid())
@@ -412,52 +413,52 @@ enum CategoriaFinanceira {
 }
 
 model TransacaoFinanceira {
-  id                String              @id @default(uuid())
-  descricao         String
-  valor             Float
-  dataVencimento    DateTime
-  dataPagamento     DateTime?
-  natureza          NaturezaFinanceira
-  status            StatusFinanceiro    @default(PENDENTE)
-  categoria         CategoriaFinanceira
-  
-  empreendimentoId  String
-  empreendimento    Empreendimento      @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
-  
-  casaId            String?
-  casa              Casa?               @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  
-  clienteId         String?
-  cliente           Cliente?            @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  
-  contratoId        String?
-  contrato          ContratoVenda?      @relation(fields: [contratoId], references: [id], onDelete: Cascade)
-  
-  insumoId          String?
-  insumo            InsumoPadrao?       @relation(fields: [insumoId], references: [id], onDelete: SetNull)
-  
-  quantidade        Float?              @default(1)
-  
-  dataCriacao       DateTime            @default(now())
-  dataAtualizacao   DateTime            @updatedAt
+  id             String              @id @default(uuid())
+  descricao      String
+  valor          Float
+  dataVencimento DateTime
+  dataPagamento  DateTime?
+  natureza       NaturezaFinanceira
+  status         StatusFinanceiro    @default(PENDENTE)
+  categoria      CategoriaFinanceira
+
+  empreendimentoId String
+  empreendimento   Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+
+  casaId String?
+  casa   Casa?   @relation(fields: [casaId], references: [id], onDelete: Cascade)
+
+  clienteId String?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  contratoId String?
+  contrato   ContratoVenda? @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+
+  insumoId String?
+  insumo   InsumoPadrao? @relation(fields: [insumoId], references: [id], onDelete: SetNull)
+
+  quantidade Float? @default(1)
+
+  dataCriacao     DateTime @default(now())
+  dataAtualizacao DateTime @updatedAt
 }
 
 model LogAuditoria {
-  id           String   @id @default(uuid())
-  usuarioId    String?
-  usuarioNome  String?
-  acao         String   
-  tabela       String   
-  registroId   String?
+  id             String   @id @default(uuid())
+  usuarioId      String?
+  usuarioNome    String?
+  acao           String
+  tabela         String
+  registroId     String?
   valoresAntigos Json?
   valoresNovos   Json?
-  data         DateTime @default(now())
+  data           DateTime @default(now())
 }
 
 model DocumentoAnexo {
   id               String              @id @default(uuid())
   nome             String
-  caminhoArquivo   String          
+  caminhoArquivo   String
   dataVencimento   DateTime?
   status           String              @default("ATIVO") // ATIVO, VENCIDO
   tipo             TipoDocumentoAnexo?
@@ -479,28 +480,28 @@ model Notificacao {
 }
 
 model CotacaoMaterial {
-  id               String          @id @default(uuid())
+  id               String         @id @default(uuid())
   material         String
   quantidade       Float
   fornecedor       String
   valorUnitario    Float
-  aprovado         Boolean         @default(false)
+  aprovado         Boolean        @default(false)
   empreendimentoId String
   empreendimento   Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
-  dataCriacao      DateTime        @default(now())
-  dataAtualizacao  DateTime        @updatedAt
+  dataCriacao      DateTime       @default(now())
+  dataAtualizacao  DateTime       @updatedAt
 }
 
 model PontoTrabalhador {
-  id             String   @id @default(uuid())
+  id              String       @id @default(uuid())
   trabalhadorNome String
   trabalhadorCpf  String
-  trabalhadorId  String?
-  trabalhador    Trabalhador? @relation(fields: [trabalhadorId], references: [id])
-  casaId         String
-  casa           Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  tipo           String   // ENTRADA, SAIDA
-  dataRegistro   DateTime @default(now())
+  trabalhadorId   String?
+  trabalhador     Trabalhador? @relation(fields: [trabalhadorId], references: [id])
+  casaId          String
+  casa            Casa         @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  tipo            String // ENTRADA, SAIDA
+  dataRegistro    DateTime     @default(now())
 }
 
 enum TipoVinculo {
@@ -512,19 +513,19 @@ enum TipoVinculo {
 // Cadastro (registry) de trabalhador da obra — base do modulo de SST. ASO, EPI,
 // DDS, CAT e o ponto do canteiro referenciam este cadastro.
 model Trabalhador {
-  id              String            @id @default(uuid())
+  id              String             @id @default(uuid())
   nome            String
-  cpf             String?           @unique
+  cpf             String?            @unique
   rg              String?
   funcao          String? // pedreiro, servente, mestre de obras...
-  tipoVinculo     TipoVinculo       @default(PROPRIO)
+  tipoVinculo     TipoVinculo        @default(PROPRIO)
   empresa         String? // empreiteira/terceirizada (quando nao for proprio)
   telefone        String?
   dataAdmissao    DateTime?
   observacoes     String?
-  ativo           Boolean           @default(true)
-  dataCriacao     DateTime          @default(now())
-  dataAtualizacao DateTime          @updatedAt
+  ativo           Boolean            @default(true)
+  dataCriacao     DateTime           @default(now())
+  dataAtualizacao DateTime           @updatedAt
   pontos          PontoTrabalhador[]
   asos            ASO[]
   episEntregues   EntregaEPI[]
@@ -562,31 +563,31 @@ model ASO {
 
 // Entrega de EPI (equipamento de protecao individual) a um trabalhador.
 model EntregaEPI {
-  id             String      @id @default(uuid())
-  trabalhadorId  String
-  trabalhador    Trabalhador @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
-  equipamento    String // capacete, botina, luva, cinto...
-  ca             String? // Certificado de Aprovacao
-  quantidade     Int         @default(1)
-  dataEntrega    DateTime
-  dataValidade   DateTime? // validade do EPI/CA (opcional)
-  devolvido      Boolean     @default(false)
-  observacoes    String?
-  dataCriacao    DateTime    @default(now())
+  id            String      @id @default(uuid())
+  trabalhadorId String
+  trabalhador   Trabalhador @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
+  equipamento   String // capacete, botina, luva, cinto...
+  ca            String? // Certificado de Aprovacao
+  quantidade    Int         @default(1)
+  dataEntrega   DateTime
+  dataValidade  DateTime? // validade do EPI/CA (opcional)
+  devolvido     Boolean     @default(false)
+  observacoes   String?
+  dataCriacao   DateTime    @default(now())
 }
 
 model TransacaoBancaria {
-  id                   String        @id @default(uuid())
-  contaBancariaId      String
-  contaBancaria        ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Cascade)
-  data                 DateTime
-  valor                Float
-  descricao            String
-  tipo                 String        // CREDITO, DEBITO
-  conciliado           Boolean       @default(false)
-  documentoIdentificador String?     @unique
-  origem               String?       // Tag do que originou o lançamento: SOCIO_APORTE, DESPESA_PAGA, ESTORNO, RESET_AJUSTE, SALDO_INICIAL, etc. Null = importado/externo (conciliação).
-  dataCriacao          DateTime      @default(now())
+  id                     String        @id @default(uuid())
+  contaBancariaId        String
+  contaBancaria          ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Cascade)
+  data                   DateTime
+  valor                  Float
+  descricao              String
+  tipo                   String // CREDITO, DEBITO
+  conciliado             Boolean       @default(false)
+  documentoIdentificador String?       @unique
+  origem                 String? // Tag do que originou o lançamento: SOCIO_APORTE, DESPESA_PAGA, ESTORNO, RESET_AJUSTE, SALDO_INICIAL, etc. Null = importado/externo (conciliação).
+  dataCriacao            DateTime      @default(now())
 }
 
 model Distrato {
@@ -606,7 +607,7 @@ model AssinaturaContrato {
   contrato       ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
   status         String        @default("PENDENTE") // PENDENTE, ASSINADO, REJEITADO
   dataAssinatura DateTime?
-  externalId     String?       // Token da ZapSign
+  externalId     String? // Token da ZapSign
   dataCriacao    DateTime      @default(now())
 }
 
@@ -690,22 +691,22 @@ model Fornecedor {
 // NF-e de entrada (compra): importada por XML, gera conta a pagar e, quando os
 // itens casam com o catalogo, entrada de estoque. Base do modulo Fiscal (Fase 4).
 model NotaFiscalEntrada {
-  id               String          @id @default(uuid())
-  chave            String?         @unique // chave de acesso (44 digitos)
-  numero           String?
-  serie            String?
-  emitenteCnpj     String?
-  emitenteNome     String?
-  valorTotal       Float
-  dataEmissao      DateTime?
-  fornecedorId     String?
-  fornecedor       Fornecedor?     @relation(fields: [fornecedorId], references: [id])
-  empreendimentoId String?
-  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
-  contaPagarId     String? // TransacaoFinanceira (conta a pagar) gerada
-  itensGeraramEstoque Int          @default(0)
-  itens            Json? // itens parseados do XML
-  dataCriacao      DateTime        @default(now())
+  id                  String          @id @default(uuid())
+  chave               String?         @unique // chave de acesso (44 digitos)
+  numero              String?
+  serie               String?
+  emitenteCnpj        String?
+  emitenteNome        String?
+  valorTotal          Float
+  dataEmissao         DateTime?
+  fornecedorId        String?
+  fornecedor          Fornecedor?     @relation(fields: [fornecedorId], references: [id])
+  empreendimentoId    String?
+  empreendimento      Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+  contaPagarId        String? // TransacaoFinanceira (conta a pagar) gerada
+  itensGeraramEstoque Int             @default(0)
+  itens               Json? // itens parseados do XML
+  dataCriacao         DateTime        @default(now())
 }
 
 model OrdemCompra {
@@ -723,7 +724,7 @@ model MovimentacaoEstoque {
   insumoId         String
   insumo           InsumoPadrao @relation(fields: [insumoId], references: [id], onDelete: Restrict)
   quantidade       Float
-  tipo             String       // ENTRADA, SAIDA, PERDA
+  tipo             String // ENTRADA, SAIDA, PERDA
   casaId           String?
   casa             Casa?        @relation(fields: [casaId], references: [id], onDelete: SetNull)
   dataMovimentacao DateTime     @default(now())
@@ -736,7 +737,72 @@ enum TipoDocumentoAnexo {
   PROJETO_ELETRICO
   MATRICULA_TERRENO
   ALVARA_LOTEAMENTO
+  // Documentos de conformidade MCMV/Caixa
+  PBQP_H_SIAC
+  LAUDO_DESEMPENHO_NBR15575
+  LAUDO_ACESSIBILIDADE_NBR9050
+  ART_RRT
+  CND_FEDERAL
+  CND_FGTS
+  CND_TRABALHISTA
+  REGISTRO_INCORPORACAO
+  ESPECIFICACOES_MINIMAS
   OUTRO
+}
+
+// ── Conformidade MCMV / Caixa ────────────────────────────────────────────────
+
+enum FaixaMCMV {
+  FAIXA_1
+  FAIXA_2
+  FAIXA_3
+  FAIXA_4
+}
+
+enum StatusConformidade {
+  PENDENTE
+  EM_ANDAMENTO
+  CONFORME
+  NAO_CONFORME
+  NAO_APLICAVEL
+}
+
+// Parametros regulatorios da Caixa por faixa (teto de valor, area minima,
+// % de unidades acessiveis). Defaults semeados; editaveis por ADMIN e
+// atualizaveis por consulta de IA (portaria vigente). 1 linha por faixa.
+model ParametroMCMV {
+  id                           String    @id @default(uuid())
+  faixa                        FaixaMCMV @unique
+  tetoValorImovel              Decimal
+  areaUtilMinima               Decimal
+  percentualUnidadesAcessiveis Float     @default(3)
+  portariaReferencia           String?
+  dataVigencia                 DateTime?
+  fonteUrl                     String?
+  atualizadoPor                String?
+  atualizadoEm                 DateTime  @updatedAt
+  dataCriacao                  DateTime  @default(now())
+}
+
+// Estado de cada item do checklist de conformidade por empreendimento. O
+// catalogo (lib/mcmv/catalogo.ts) e a fonte da verdade de titulo/categoria/
+// obrigatorio/tipoAvaliacao; aqui guardamos apenas o ESTADO (status manual,
+// evidencia e observacao). Itens AUTO/DOC tem o status recalculado na leitura.
+model ItemConformidadeMCMV {
+  id               String             @id @default(uuid())
+  empreendimentoId String
+  empreendimento   Empreendimento     @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  chave            String
+  status           StatusConformidade @default(PENDENTE)
+  observacao       String?
+  documentoId      String?
+  dataVerificacao  DateTime?
+  verificadoPor    String?
+  dataCriacao      DateTime           @default(now())
+  dataAtualizacao  DateTime           @updatedAt
+
+  @@unique([empreendimentoId, chave])
+  @@index([empreendimentoId])
 }
 
 model Milestone {
@@ -756,23 +822,23 @@ model Milestone {
 }
 
 model AtividadeCronograma {
-  id                 String           @id @default(uuid())
-  titulo             String
-  descricao          String?
-  escopo             EscopoCronograma
-  status             StatusObra       @default(BACKLOG)
-  ordem              Int              @default(0)
-  dataInicioPrevista DateTime
-  dataFimPrevista    DateTime
-  dataInicioReal     DateTime?
-  dataFimReal        DateTime?
-  percentualConcluido Float           @default(0)
-  empreendimentoId   String
-  empreendimento     Empreendimento   @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
-  casaId             String?
-  casa               Casa?            @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  dataCriacao        DateTime         @default(now())
-  dataAtualizacao    DateTime         @updatedAt
+  id                  String           @id @default(uuid())
+  titulo              String
+  descricao           String?
+  escopo              EscopoCronograma
+  status              StatusObra       @default(BACKLOG)
+  ordem               Int              @default(0)
+  dataInicioPrevista  DateTime
+  dataFimPrevista     DateTime
+  dataInicioReal      DateTime?
+  dataFimReal         DateTime?
+  percentualConcluido Float            @default(0)
+  empreendimentoId    String
+  empreendimento      Empreendimento   @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  casaId              String?
+  casa                Casa?            @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  dataCriacao         DateTime         @default(now())
+  dataAtualizacao     DateTime         @updatedAt
 
   @@index([empreendimentoId])
   @@index([casaId])
@@ -799,7 +865,7 @@ model MetaEficiencia {
   id                String   @id @default("default")
   cpiMinimo         Float    @default(0.95) // custo: EV/AC minimo aceitavel
   spiMinimo         Float    @default(0.95) // prazo: EV/PV minimo aceitavel
-  maxInsumosEstouro Int      @default(0)    // quantos insumos em estouro fisico toleramos
+  maxInsumosEstouro Int      @default(0) // quantos insumos em estouro fisico toleramos
   alertarRuptura    Boolean  @default(true) // alerta se ha ruptura de caixa projetada
   dataAtualizacao   DateTime @updatedAt
 }
