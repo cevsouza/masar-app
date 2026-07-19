@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import DashboardShell from "@/components/DashboardShell";
-import { identidadeVisualDoHost } from "@/lib/empresaVisual";
+import { identidadeVisualAtual } from "@/lib/empresaVisual";
 
 // O painel já é dinâmico (depende de sessão), então resolver a empresa aqui não
 // custa geração estática — ao contrário do layout raiz.
 export async function generateMetadata(): Promise<Metadata> {
-  const marca = await identidadeVisualDoHost();
+  const marca = await identidadeVisualAtual();
   return { title: `${marca.nome} | Gestão de Obras` };
 }
 
@@ -14,7 +14,7 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const marca = await identidadeVisualDoHost();
+  const marca = await identidadeVisualAtual();
 
   // As cores do tenant entram como variáveis CSS: qualquer componente pode usar
   // var(--cor-primaria) sem receber a marca por props em cascata.
@@ -28,7 +28,7 @@ export default async function DashboardLayout({
       }
       className="contents"
     >
-      <DashboardShell>{children}</DashboardShell>
+      <DashboardShell empresaNome={marca.nome} ehRaiz={marca.ehRaiz}>{children}</DashboardShell>
     </div>
   );
 }

@@ -15,37 +15,37 @@ export async function POST(request: NextRequest) {
     }
 
     const emailLower = email.toLowerCase().trim();
+    const empresaEscolhida: string | undefined = body.empresaId;
 
     // O login é o ÚNICO ponto que consulta sem escopo de empresa: ainda não há
     // sessão, então não há como saber o tenant antes de achar o usuário.
-    // Em instância white-label com domínio próprio, o Host restringe a busca —
-    // assim o mesmo e-mail pode existir em empresas diferentes sem ambiguidade.
+    //
+    // O MESMO E-MAIL PODE EXISTIR EM EMPRESAS DIFERENTES — e existe na vida
+    // real: engenheiro que atende duas construtoras, ou um contato@ genérico.
+    // Por isso buscamos TODOS os candidatos, não o primeiro.
+    //
+    // Antes daqui um findFirst pegava um registro qualquer. O resultado não era
+    // vazamento, era IMPEDIMENTO DE ACESSO: a busca sempre devolvia a conta de
+    // um dos clientes, a senha do outro nunca conferia, e a segunda pessoa via
+    // "senha incorreta" para sempre — um chamado impossível de diagnosticar.
     const host = request.headers.get('host')?.split(':')[0] ?? '';
-    const user = await runSemEscopoDeEmpresa(async () => {
-      const empresaDoDominio = host
-        ? await db.empresa.findFirst({ where: { dominio: host, ativa: true }, select: { id: true } })
-        : null;
-      // O `await` aqui é OBRIGATÓRIO e não é estilo.
-      //
-      // As promises do Prisma são lazy: a query só dispara quando alguém dá
-      // await. Devolvendo a promise sem aguardar, quem a executa é a máquina de
-      // resolução de promise DEPOIS que esta função async retornou — e nesse
-      // momento o contexto "sem escopo" já saiu de cena. A extensão então não
-      // acha empresa e recusa a operação, derrubando o login inteiro com 500.
-      //
-      // Note que `runSemEscopoDeEmpresa(() => db.x.find())` (arrow simples, sem
-      // async) é seguro: ali o await acontece sobre a própria promise do Prisma,
-      // ainda dentro do contexto. O perigo é só a função ASYNC que retorna sem
-      // aguardar, como esta era.
-      return await db.user.findFirst({
-        where: {
-          email: emailLower,
-          ...(empresaDoDominio ? { empresaId: empresaDoDominio.id } : {}),
-        },
-      });
-    });
+    const empresaDoDominio = host
+      ? await runSemEscopoDeEmpresa(() =>
+          db.empresa.findFirst({ where: { dominio: host, ativa: true }, select: { id: true } })
+        )
+      : null;
 
-    if (!user) {
+    // Filtro por domínio (instância white-label) ou pela empresa que o usuário
+    // escolheu na segunda etapa. Sem nenhum dos dois, todos os candidatos.
+    const empresaFiltro = empresaDoDominio?.id ?? empresaEscolhida;
+
+    const candidatos = await runSemEscopoDeEmpresa(() =>
+      db.user.findMany({
+        where: { email: emailLower, ...(empresaFiltro ? { empresaId: empresaFiltro } : {}) },
+      })
+    );
+
+    if (candidatos.length === 0) {
       return NextResponse.json({ error: 'E-mail ou senha incorretos' }, { status: 400 });
     }
 
@@ -55,11 +55,36 @@ export async function POST(request: NextRequest) {
     // cliente isso é um superusuário do fornecedor dentro do sistema do cliente.
     // A role vem do banco; o primeiro admin é criado por scripts/provisionar-cliente.mjs.
 
-    // Verify password
-    const passwordOk = await verifyPassword(password, user.password);
-    if (!passwordOk) {
+    // A senha é conferida contra CADA candidato. Isso é o que resolve a
+    // ambiguidade sem contar nada a quem não sabe a senha: e-mails iguais com
+    // senhas diferentes se separam sozinhos aqui.
+    const autenticados: typeof candidatos = [];
+    for (const c of candidatos) {
+      if (await verifyPassword(password, c.password)) autenticados.push(c);
+    }
+
+    if (autenticados.length === 0) {
       return NextResponse.json({ error: 'E-mail ou senha incorretos' }, { status: 400 });
     }
+
+    // Mesmo e-mail E mesma senha em mais de uma empresa. Raro, mas aqui não há
+    // como adivinhar — e só agora é seguro mostrar os nomes, porque quem chegou
+    // até este ponto provou saber a senha de todas elas.
+    if (autenticados.length > 1) {
+      const empresas = await runSemEscopoDeEmpresa(() =>
+        db.empresa.findMany({
+          where: { id: { in: autenticados.map((a) => a.empresaId) }, ativa: true },
+          select: { id: true, nome: true },
+          orderBy: { nome: 'asc' },
+        })
+      );
+      return NextResponse.json(
+        { escolhaEmpresa: true, empresas },
+        { status: 409 }
+      );
+    }
+
+    const user = autenticados[0];
 
     // Migração transparente: regrava hashes antigos/fracos no formato forte.
     // Licenciamento: empresa desativada (contrato encerrado/suspenso) não entra.

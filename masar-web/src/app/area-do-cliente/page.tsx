@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 import ClientPortalDashboard from '@/components/ClientPortalDashboard';
+import { identidadeVisualAtual } from '@/lib/empresaVisual';
 
 export const revalidate = 0;
 
@@ -89,5 +90,6 @@ export default async function AreaDoClientePage() {
     }))
   };
 
-  return <ClientPortalDashboard cliente={serializedCliente} />;
+  const marca = await identidadeVisualAtual();
+  return <ClientPortalDashboard cliente={serializedCliente} empresaNome={marca.nome} />;
 }

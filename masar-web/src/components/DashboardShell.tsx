@@ -6,15 +6,18 @@ import Sidebar from './Sidebar';
 
 interface DashboardShellProps {
   children: React.ReactNode;
+  /** Nome da construtora do usuário logado. Vem da sessão, não do Host. */
+  empresaNome: string;
+  ehRaiz: boolean;
 }
 
-export default function DashboardShell({ children }: DashboardShellProps) {
+export default function DashboardShell({ children, empresaNome, ehRaiz }: DashboardShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <div className="flex w-full min-h-screen bg-[#0b0f19]">
       {/* Sidebar - responsivo via props */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} empresaNome={empresaNome} ehRaiz={ehRaiz} />
 
       {/* Main Content Area */}
       <div className="flex-1 pl-0 md:pl-64 min-h-screen flex flex-col w-full">
@@ -22,12 +25,18 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         {/* Mobile Top Header (Visível apenas em telas menores que MD) */}
         <header className="flex md:hidden items-center justify-between px-5 py-3.5 bg-[#0f1422] border-b border-slate-800/80 sticky top-0 z-30">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-blue-600 rounded-lg text-white">
-              <span className="font-extrabold text-[10px] tracking-widest block font-sans">M</span>
+            <div
+              className="p-1.5 rounded-lg text-white"
+              style={{ backgroundColor: 'var(--cor-primaria, #2563eb)' }}
+            >
+              <span className="font-extrabold text-[10px] tracking-widest block font-sans">
+                {empresaNome.trim().charAt(0).toUpperCase() || 'M'}
+              </span>
             </div>
             <div>
-              <span className="font-extrabold text-sm text-white tracking-wide block font-sans">MASAR</span>
-              <span className="text-[9px] text-blue-450 font-semibold tracking-wider uppercase block">Empreendimentos</span>
+              <span className="font-extrabold text-sm text-white tracking-wide block font-sans truncate max-w-[180px]">
+                {empresaNome}
+              </span>
             </div>
           </div>
           <button

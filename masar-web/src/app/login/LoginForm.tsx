@@ -15,24 +15,27 @@ export default function LoginForm({ marca }: { marca: IdentidadeVisual }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      setError('Por favor, preencha todos os campos.');
-      return;
-    }
+  // Segunda etapa: o mesmo e-mail e a mesma senha existem em mais de uma
+  // construtora. Só chega aqui quem já provou saber a senha — por isso é
+  // seguro mostrar os nomes.
+  const [empresas, setEmpresas] = useState<{ id: string; nome: string }[] | null>(null);
 
+  const entrar = async (empresaId?: string) => {
     setLoading(true);
     setError(null);
-
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, ...(empresaId ? { empresaId } : {}) }),
       });
 
       const data = await res.json();
+
+      if (res.status === 409 && data.escolhaEmpresa) {
+        setEmpresas(data.empresas);
+        return;
+      }
 
       if (!res.ok) {
         throw new Error(data.error || 'Erro ao realizar login');
@@ -45,6 +48,15 @@ export default function LoginForm({ marca }: { marca: IdentidadeVisual }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError('Por favor, preencha todos os campos.');
+      return;
+    }
+    await entrar();
   };
 
   return (
@@ -90,7 +102,44 @@ export default function LoginForm({ marca }: { marca: IdentidadeVisual }) {
           )}
         </div>
 
-        {/* Card */}
+        {/* Escolha de construtora: só aparece quando o e-mail + senha servem
+            para mais de uma. Sem isso, o acesso da segunda ficava impossível. */}
+        {empresas && (
+          <div className="glassmorphism p-6 rounded-2xl border border-blue-800/50 shadow-2xl space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-white">Em qual construtora deseja entrar?</h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Este e-mail está cadastrado em mais de uma empresa.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {empresas.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => entrar(e.id)}
+                  className="w-full text-left px-4 py-3 rounded-xl border border-slate-700 hover:border-blue-500 bg-slate-900/60 hover:bg-slate-800/60 transition disabled:opacity-50 flex items-center gap-3"
+                >
+                  <Building2 size={16} style={{ color: marca.corPrimaria }} />
+                  <span className="text-sm font-semibold text-slate-100">{e.nome}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setEmpresas(null)}
+              className="text-xs text-slate-500 hover:text-slate-300"
+            >
+              Voltar
+            </button>
+          </div>
+        )}
+
+        {/* Card. Some enquanto a escolha de construtora está na tela —
+            duas caixas de entrada ao mesmo tempo confundiriam. */}
+        {!empresas && (
+        <>
         <div className="glassmorphism p-8 rounded-2xl border border-slate-800/80 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
@@ -172,6 +221,8 @@ export default function LoginForm({ marca }: { marca: IdentidadeVisual }) {
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* Modal: Esqueceu a Senha */}

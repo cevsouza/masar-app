@@ -123,16 +123,20 @@ const NAV_GROUPS = [
 ];
 
 interface SidebarProps {
+  /** Nome da construtora do usuário logado. */
+  empresaNome?: string;
+  /** Só a empresa raiz exibe o selo árabe — é marca da Masar, não do produto. */
+  ehRaiz?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, empresaNome = 'Masar Empreendimentos', ehRaiz = true }: SidebarProps) {
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
 
   const [hasGlosa, setHasGlosa] = useState(false);
-  const [user, setUser] = useState({ nome: 'Carregando...', email: 'gestor@masar.com', role: 'COMERCIAL' });
+  const [user, setUser] = useState({ nome: 'Carregando...', email: '', role: 'COMERCIAL' });
   const [modulos, setModulos] = useState<string[] | null>(null);
 
   // Theme state
@@ -316,17 +320,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Brand Header */}
         <div className="p-6 border-b border-[#1e293b] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
+            <div
+              className="p-2 rounded-xl text-white shadow-lg"
+              style={{ backgroundColor: 'var(--cor-primaria, #2563eb)' }}
+            >
               <Building2 size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base text-white tracking-wide block font-sans">MASAR</span>
-                <span className="text-xs font-serif text-slate-400 font-bold animate-pulse" dir="rtl" lang="ar" title="مسار - Trajetória">
-                  مسار
+                <span className="font-extrabold text-base text-white tracking-wide block font-sans truncate max-w-[150px]">
+                  {empresaNome}
                 </span>
+                {ehRaiz && (
+                  <span className="text-xs font-serif text-slate-400 font-bold" dir="rtl" lang="ar" title="مسار - Trajetória">
+                    مسار
+                  </span>
+                )}
               </div>
-              <span className="text-[10px] text-blue-400 font-semibold tracking-wider uppercase block">Empreendimentos</span>
             </div>
           </div>
 

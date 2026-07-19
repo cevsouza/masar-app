@@ -60,6 +60,9 @@ interface ClienteData {
 }
 
 interface ClientPortalDashboardProps {
+  /** Nome da construtora. Quem lê esta tela é o COMPRADOR da casa — ver a
+      marca de outra construtora aqui é o pior lugar possível para isso. */
+  empresaNome: string;
   cliente: ClienteData;
 }
 
@@ -74,7 +77,7 @@ const JORNADA_ETAPAS = [
   { key: 'CHAVES_ENTREGUES', label: 'Chaves Entregues', desc: 'Unidade finalizada e chaves entregues!' }
 ];
 
-export default function ClientPortalDashboard({ cliente }: ClientPortalDashboardProps) {
+export default function ClientPortalDashboard({ cliente, empresaNome }: ClientPortalDashboardProps) {
   const router = useRouter();
   const contratoAtivo = cliente.contratos[0];
   
@@ -156,7 +159,7 @@ export default function ClientPortalDashboard({ cliente }: ClientPortalDashboard
             <Building2 size={20} />
           </div>
           <div>
-            <span className="font-extrabold text-base text-white tracking-wide block font-sans">MASAR</span>
+            <span className="font-extrabold text-base text-white tracking-wide block font-sans truncate max-w-[220px]">{empresaNome}</span>
             <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase block">Portal do Cliente</span>
           </div>
         </div>

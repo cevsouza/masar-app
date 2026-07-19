@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { db } from '@/lib/db';
-import { runSemEscopoDeEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
+import { runSemEscopoDeEmpresa, resolverEmpresaId, EMPRESA_RAIZ_ID } from '@/lib/tenant';
 
 /**
  * Identidade visual do tenant, resolvida ANTES do login.
@@ -101,6 +101,24 @@ export async function identidadeVisualDoHost(): Promise<IdentidadeVisual> {
     // volta quando algo está errado. Sem banco, marca padrão e segue.
     return PADRAO;
   }
+}
+
+/**
+ * Identidade da empresa do USUÁRIO LOGADO, caindo no Host quando não há sessão.
+ *
+ * Dentro do app é esta que vale, não a do Host. Numa instância compartilhada
+ * sem domínio por cliente, `identidadeVisualDoHost()` devolve a empresa raiz —
+ * então alguém logado na Construtora B veria a marca da A no cabeçalho, sem ter
+ * como perceber em qual das duas está mexendo.
+ */
+export async function identidadeVisualAtual(): Promise<IdentidadeVisual> {
+  try {
+    const empresaId = await resolverEmpresaId();
+    if (empresaId) return identidadeVisualDaEmpresa(empresaId);
+  } catch {
+    // sem sessão resolvível; cai no Host
+  }
+  return identidadeVisualDoHost();
 }
 
 /** Identidade de uma empresa já conhecida (usuário logado, e-mail, relatório). */
