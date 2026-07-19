@@ -1,25 +1,37 @@
 #!/usr/bin/env node
 /**
- * Provisiona a PRIMEIRA conta ADMIN de uma instância nova de cliente.
+ * Provisiona uma EMPRESA (tenant) e a sua primeira conta ADMIN.
  *
- * Substitui o `/api/seed` neste cenário: aquele endpoint APAGA o banco e recria
- * os dados de demonstração da Masar (usuários "Julio Souza", empreendimentos
- * "Residencial Bela Vista" e "Jardim das Palmeiras"). Rodar o seed numa
- * instância de cliente entregaria dados de outra empresa — nunca faça isso.
+ * Serve para dois casos:
+ *   1. cliente novo entrando na instância multi-tenant;
+ *   2. recolocar um admin num banco que foi esvaziado (é o caminho de volta
+ *      para dentro do sistema quando não sobrou nenhum usuário).
  *
- * Este script é aditivo e defensivo: se já houver QUALQUER usuário no banco,
- * ele aborta sem escrever nada.
+ * Substitui o `/api/seed` nos dois: aquele endpoint APAGA e recria dados de
+ * demonstração fictícios ("Julio Souza", "Residencial Bela Vista"). Instância de
+ * cliente nunca deve recebê-los.
  *
- * Uso (a partir de masar-web/, com as migrations já aplicadas no banco alvo):
+ * É aditivo e defensivo: se a empresa alvo JÁ tiver usuário, aborta sem escrever.
+ *
+ * Uso (a partir de masar-web/, com as migrations aplicadas no banco alvo):
  *
  *   DATABASE_URL="postgresql://..." \
+ *   EMPRESA_NOME="Construtora Fulano" \
+ *   EMPRESA_SLUG="fulano" \
  *   ADMIN_NOME="Fulano de Tal" \
  *   ADMIN_EMAIL="fulano@construtora.com.br" \
  *   ADMIN_SENHA="<senha forte gerada na hora>" \
  *   node scripts/provisionar-cliente.mjs
  *
- * A senha é lida de variável de ambiente, nunca de argumento de linha de
- * comando (argv fica visível na lista de processos e no histórico do shell).
+ * Opcionais: EMPRESA_DOMINIO (domínio próprio, white label),
+ *            EMPRESA_COR (cor primária, ex.: #2563eb).
+ *
+ * A senha vem de variável de ambiente, nunca de argumento — argv aparece na
+ * lista de processos e no histórico do shell.
+ *
+ * NOTA: usa o PrismaClient CRU de propósito, sem a extensão de isolamento por
+ * empresa (lib/db). A extensão exige um tenant já resolvido, e aqui estamos
+ * justamente criando o primeiro — seria uma dependência circular.
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -60,11 +72,20 @@ function exigir(nome) {
 }
 
 async function main() {
+  const empresaNome = exigir('EMPRESA_NOME');
+  const empresaSlug = exigir('EMPRESA_SLUG').toLowerCase().replace(/[^a-z0-9-]/g, '');
   const nome = exigir('ADMIN_NOME');
   const email = exigir('ADMIN_EMAIL').toLowerCase();
   const senha = exigir('ADMIN_SENHA');
   exigir('DATABASE_URL');
 
+  const dominio = process.env.EMPRESA_DOMINIO?.trim() || null;
+  const cor = process.env.EMPRESA_COR?.trim() || undefined;
+
+  if (!empresaSlug) {
+    console.error('✗ EMPRESA_SLUG inválido (use letras, números e hífen).');
+    process.exit(1);
+  }
   if (senha.length < 12) {
     console.error('✗ ADMIN_SENHA deve ter pelo menos 12 caracteres.');
     process.exit(1);
@@ -73,37 +94,59 @@ async function main() {
   const db = new PrismaClient();
 
   try {
-    // Trava: instância de cliente tem que nascer vazia. Se já tem usuário, ou
-    // este banco não é novo, ou o script já rodou — nos dois casos, não escreva.
-    const existentes = await db.user.count();
-    if (existentes > 0) {
-      console.error(
-        `✗ Abortado: o banco já tem ${existentes} usuário(s). ` +
-        `Este script só provisiona instância nova e vazia.`
-      );
-      process.exit(1);
+    // A empresa pode já existir: a migration inicial cria a raiz ("masar"), e
+    // recolocar um admin num banco esvaziado é justamente este caso.
+    let empresa = await db.empresa.findUnique({ where: { slug: empresaSlug } });
+
+    if (empresa) {
+      // Trava: só provisionamos o PRIMEIRO admin. Se esta empresa já tem gente,
+      // criar usuário por script é caminho errado — use a tela de usuários.
+      const jaTem = await db.user.count({ where: { empresaId: empresa.id } });
+      if (jaTem > 0) {
+        console.error(
+          `✗ Abortado: a empresa "${empresa.nome}" já tem ${jaTem} usuário(s). ` +
+          `Este script só cria o primeiro acesso. Para adicionar gente, use a tela de usuários.`
+        );
+        process.exit(1);
+      }
+      console.log(`• Empresa "${empresa.nome}" já existia (slug ${empresaSlug}); reaproveitando.`);
+    } else {
+      empresa = await db.empresa.create({
+        data: {
+          nome: empresaNome,
+          slug: empresaSlug,
+          dominio,
+          ...(cor ? { corPrimaria: cor } : {}),
+        },
+      });
+      console.log(`✓ Empresa criada: ${empresa.nome} (slug ${empresa.slug})`);
     }
 
-    // Sanidade: banco novo não pode ter dado de operação de ninguém.
-    const empreendimentos = await db.empreendimento.count();
+    // Sanidade: empresa nova não deveria ter dado de operação de ninguém.
+    const empreendimentos = await db.empreendimento.count({ where: { empresaId: empresa.id } });
     if (empreendimentos > 0) {
-      console.error(
-        `✗ Abortado: o banco já tem ${empreendimentos} empreendimento(s). ` +
-        `Confirme que a DATABASE_URL aponta para a instância NOVA do cliente.`
+      console.warn(
+        `! Atenção: esta empresa já tem ${empreendimentos} empreendimento(s). ` +
+        `Confirme que a DATABASE_URL e o EMPRESA_SLUG apontam para o alvo certo.`
       );
-      process.exit(1);
     }
 
     const admin = await db.user.create({
-      data: { nome, email, password: await hashPassword(senha), role: 'ADMIN' },
+      data: {
+        nome,
+        email,
+        password: await hashPassword(senha),
+        role: 'ADMIN',
+        empresaId: empresa.id,
+      },
     });
 
-    console.log('✓ Instância provisionada.');
-    console.log(`  Admin: ${admin.nome} <${admin.email}> (role ADMIN)`);
-    console.log('  Banco: vazio, exceto por este usuário.');
     console.log('');
-    console.log('  Próximo passo: entregar a senha ao cliente por canal seguro');
-    console.log('  e pedir que ele a troque no primeiro acesso.');
+    console.log('✓ Provisionado.');
+    console.log(`  Empresa: ${empresa.nome} (${empresa.slug})${dominio ? ` · ${dominio}` : ''}`);
+    console.log(`  Admin:   ${admin.nome} <${admin.email}> (ADMIN)`);
+    console.log('');
+    console.log('  Entregue a senha por canal seguro e peça a troca no primeiro acesso.');
   } finally {
     await db.$disconnect();
   }
