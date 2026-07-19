@@ -47,6 +47,11 @@ export async function middleware(request: NextRequest) {
     // Portal do comprador: autenticado por masar_client_session na própria rota.
     pathname.startsWith('/area-do-cliente') ||
     pathname.startsWith('/api/cliente') ||
+    // CONTROL PLANE: autenticado por masar_admin_session, verificado em
+    // lib/plataforma. Fica fora daqui de propósito — o cookie do staff NÃO
+    // pode dar acesso a ele, então esta trava não serve; a de lá serve.
+    pathname.startsWith('/plataforma') ||
+    pathname.startsWith('/api/plataforma') ||
     pathname.includes('.') ||
     pathname.startsWith('/_next');
 

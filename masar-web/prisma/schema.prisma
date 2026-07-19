@@ -1206,3 +1206,66 @@ model Empresa {
   acidentes              Acidente[]
   checklistsNR           ChecklistNR[]
 }
+
+// ============================================================================
+// CONTROL PLANE — o plano de CONTROLE, separado do plano de DADOS.
+//
+// Tudo abaixo desta linha existe FORA do modelo de tenant: nenhum destes
+// modelos tem `empresaId` como dono, nenhum é filho de `Empresa`, e a extensão
+// de isolamento os ignora de propósito.
+//
+// A razão é de segurança, não de organização: se o administrador da plataforma
+// fosse um `User` de algum tenant, bastaria um ADMIN de construtora escalar
+// privilégio para virar administrador de TODOS os clientes. Separando as
+// entidades, o código do aplicativo do cliente não tem como assumir um papel
+// do control plane — ele nem enxerga esta tabela.
+// ============================================================================
+
+/// Administrador da PLATAFORMA (nós). Não pertence a nenhuma construtora.
+/// Autentica por cookie próprio (`masar_admin_session`), nunca pelo do staff.
+model AdminPlataforma {
+  id           String    @id @default(uuid())
+  nome         String
+  email        String    @unique
+  password     String
+  ativo        Boolean   @default(true)
+  ultimoAcesso DateTime?
+  dataCriacao  DateTime  @default(now())
+
+  acessosAssistidos AcessoAssistido[]
+
+  @@index([email])
+}
+
+/// Níveis de acesso do control plane, do menos ao mais invasivo.
+enum NivelAcessoPlataforma {
+  /// Só contagens e saúde das instâncias. Nenhum dado de obra. É o padrão.
+  AGREGADO
+  /// Cadastro, plano, vigência e faturamento do cliente. Ainda sem conteúdo.
+  FICHA
+  /// Conteúdo do tenant. Exige motivo, é temporário e fica registrado no log
+  /// de auditoria DO PRÓPRIO CLIENTE, onde ele consegue ver.
+  CONTEUDO
+}
+
+/// Concessão "break-glass": autoriza um admin de plataforma a enxergar o
+/// CONTEÚDO de um tenant por tempo limitado e com motivo declarado.
+///
+/// Existe para que a promessa comercial ("não navego nos seus dados") seja
+/// verificável, e não retórica: sem uma concessão válida e não expirada, o
+/// acesso ao conteúdo simplesmente não acontece.
+model AcessoAssistido {
+  id         String          @id @default(uuid())
+  adminId    String
+  admin      AdminPlataforma @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  /// Tenant alvo. É uma referência solta de propósito: este registro é do
+  /// control plane e não deve ser apagado junto com a empresa.
+  empresaId  String
+  motivo     String
+  criadoEm   DateTime        @default(now())
+  expiraEm   DateTime
+  revogadoEm DateTime?
+
+  @@index([adminId])
+  @@index([empresaId, expiraEm])
+}

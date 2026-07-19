@@ -33,6 +33,18 @@ const LEITURAS = new Set([
 const ESCRITAS_POR_WHERE = new Set(['update', 'updateMany', 'delete', 'deleteMany']);
 const ESCRITAS_POR_DATA = new Set(['create', 'createMany', 'createManyAndReturn']);
 
+/**
+ * Modelos que vivem FORA do modelo de tenant (control plane).
+ *
+ * `Empresa` é o registro dos tenants; `AdminPlataforma` somos nós, que não
+ * pertencemos a construtora nenhuma; `AcessoAssistido` é a concessão
+ * break-glass, que fala SOBRE um tenant sem ser DE um tenant.
+ *
+ * Cuidado ao acrescentar nomes aqui: cada entrada é uma tabela que deixa de
+ * ter isolamento automático.
+ */
+const MODELOS_CONTROL_PLANE = new Set(['Empresa', 'AdminPlataforma', 'AcessoAssistido']);
+
 function criarClient() {
   const base = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
@@ -44,7 +56,10 @@ function criarClient() {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
           // A própria Empresa não é escopada por empresa.
-          if (model === 'Empresa') return query(args);
+          // Modelos do CONTROL PLANE não são escopados por empresa — eles são
+          // sobre os tenants, não de um tenant. Escopá-los seria incoerente
+          // (a Empresa não pertence a si mesma) e quebraria o provisionamento.
+          if (MODELOS_CONTROL_PLANE.has(model)) return query(args);
           if (escopoIrrestrito()) return query(args);
 
           const empresaId = await resolverEmpresaId();
