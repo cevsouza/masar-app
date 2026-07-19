@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import ReportGenerator from '@/components/ReportGenerator';
-import { identidadeVisualDoHost } from '@/lib/empresaVisual';
+import { identidadeVisualAtual } from '@/lib/empresaVisual';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -10,7 +10,12 @@ export const revalidate = 0;
 export default async function RelatoriosPage() {
   // A marca vai IMPRESSA no relatório, que o cliente entrega a banco,
   // prefeitura e comprador — não pode ser a nossa.
-  const marca = await identidadeVisualDoHost();
+  //
+  // Resolver pela SESSÃO, não pelo Host: numa instância compartilhada sem
+  // domínio por cliente, o Host devolve a empresa raiz, e o relatório da
+  // Construtora B sairia impresso com a marca da Masar. Dentro do app
+  // autenticado, `identidadeVisualDoHost()` nunca é a função certa.
+  const marca = await identidadeVisualAtual();
 
   // Verificar permissões
   const cookieStore = await cookies();

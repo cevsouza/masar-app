@@ -72,6 +72,22 @@ const SELECAO = {
  */
 export async function identidadeVisualDoHost(): Promise<IdentidadeVisual> {
   try {
+    // Tripwire de desenvolvimento. Chamar esta função COM sessão ativa é quase
+    // sempre engano: numa instância compartilhada sem domínio por cliente ela
+    // devolve a empresa raiz, e o resultado é plausível — a tela funciona,
+    // só mostra a marca errada. Foi assim que a página de relatórios ficou
+    // imprimindo "Masar" para qualquer construtora.
+    // Dentro do app autenticado, o certo é identidadeVisualAtual().
+    if (process.env.NODE_ENV !== 'production') {
+      const sessao = await resolverEmpresaId().catch(() => null);
+      if (sessao) {
+        console.warn(
+          '[empresaVisual] identidadeVisualDoHost() chamada com sessão ativa. ' +
+            'Dentro do app use identidadeVisualAtual() — senão a marca sai a da empresa raiz.'
+        );
+      }
+    }
+
     const host = (await headers()).get('host')?.split(':')[0] ?? '';
 
     return await runSemEscopoDeEmpresa(async () => {
