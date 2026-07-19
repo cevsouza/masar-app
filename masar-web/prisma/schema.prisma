@@ -117,24 +117,34 @@ enum EscopoCronograma {
 // as rotas de API seguem checando o papel como backstop de seguranca.
 model PermissaoPapelModulo {
   id        String      @id @default(uuid())
+  empresaId String
+  empresa   Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   role      RoleUsuario
   modulo    String
   permitido Boolean     @default(false)
 
-  @@unique([role, modulo])
+  @@unique([empresaId, role, modulo])
+  @@index([empresaId])
 }
 
 model User {
   id          String      @id @default(uuid())
-  email       String      @unique
+  empresaId   String
+  empresa     Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  email       String
   password    String
   nome        String
   role        RoleUsuario @default(COMERCIAL)
   dataCriacao DateTime    @default(now())
+
+  @@unique([empresaId, email])
+  @@index([empresaId])
 }
 
 model Empreendimento {
   id                          String                 @id @default(uuid())
+  empresaId                   String
+  empresa                     Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome                        String
   localizacao                 String
   statusLegal                 StatusLegal            @default(ESTUDO_VIABILIDADE)
@@ -185,10 +195,14 @@ model Empreendimento {
   acidentes                   Acidente[]
   checklistsNR                ChecklistNR[]
   itensConformidadeMCMV       ItemConformidadeMCMV[]
+
+  @@index([empresaId])
 }
 
 model MarcoBurocratico {
   id                String         @id @default(uuid())
+  empresaId         String
+  empresa           Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   empreendimentoId  String
   empreendimento    Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
   tipo              TipoMarco
@@ -197,15 +211,19 @@ model MarcoBurocratico {
   dataAprovacaoReal DateTime?
   dataCriacao       DateTime       @default(now())
   dataAtualizacao   DateTime       @updatedAt
+
+  @@index([empresaId])
 }
 
 model Cliente {
   id                String                @id @default(uuid())
+  empresaId         String
+  empresa           Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome              String
-  cpf               String                @unique
+  cpf               String
   rg                String?
   contrachequeUrl   String?
-  email             String?               @unique
+  email             String?
   telefone          String?
   rendaComprovada   Float
   statusCredito     StatusCredito         @default(DOCUMENTACAO_PENDENTE)
@@ -218,11 +236,17 @@ model Cliente {
   documentos        DocumentoAnexo[]
   usuarioCliente    UsuarioCliente?
   transacoes        TransacaoFinanceira[]
+
+  @@unique([empresaId, cpf])
+  @@unique([empresaId, email])
+  @@index([empresaId])
 }
 
 model InsumoPadrao {
   id                   String                @id @default(uuid())
-  nome                 String                @unique
+  empresaId            String
+  empresa              Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nome                 String
   unidadeMedida        UnidadeMedida
   categoria            CategoriaInsumo
   // Saldo de estoque em cache (Σ ENTRADA − Σ SAIDA/PERDA). Mutado apenas via
@@ -234,10 +258,15 @@ model InsumoPadrao {
   transacoes           TransacaoFinanceira[]
   solicitacoes         SolicitacaoCompra[]
   movimentacoesEstoque MovimentacaoEstoque[]
+
+  @@unique([empresaId, nome])
+  @@index([empresaId])
 }
 
 model Casa {
   id                   String                 @id @default(uuid())
+  empresaId            String
+  empresa              Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   numero               String
   quadra               String
   empreendimentoId     String
@@ -279,27 +308,39 @@ model Casa {
   ddsSeguranca         DialogoSeguranca[]
   acidentes            Acidente[]
   checklistsNR         ChecklistNR[]
+
+  @@index([empresaId])
 }
 
 model OrcamentoCasa {
-  id     String          @id @default(uuid())
-  casaId String          @unique
-  casa   Casa            @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  itens  ItemOrcamento[]
+  id        String          @id @default(uuid())
+  empresaId String
+  empresa   Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  casaId    String          @unique
+  casa      Casa            @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  itens     ItemOrcamento[]
+
+  @@index([empresaId])
 }
 
 model ItemOrcamento {
   id                    String        @id @default(uuid())
+  empresaId             String
+  empresa               Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   orcamentoCasaId       String
   orcamentoCasa         OrcamentoCasa @relation(fields: [orcamentoCasaId], references: [id], onDelete: Cascade)
   insumoId              String
   insumo                InsumoPadrao  @relation(fields: [insumoId], references: [id], onDelete: Restrict)
   quantidadePlanejada   Float
   custoUnitarioPrevisto Float
+
+  @@index([empresaId])
 }
 
 model DiarioDeObra {
   id                   String   @id @default(uuid())
+  empresaId            String
+  empresa              Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId               String
   casa                 Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
   data                 DateTime @default(now())
@@ -307,10 +348,14 @@ model DiarioDeObra {
   efetivoTrabalhadores Int
   atividadesExecutadas String
   ocorrencias          String
+
+  @@index([empresaId])
 }
 
 model InfraestruturaUnidade {
   id                         String  @id @default(uuid())
+  empresaId                  String
+  empresa                    Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId                     String  @unique
   casa                       Casa    @relation(fields: [casaId], references: [id], onDelete: Cascade)
   padraoEnergiaInstalado     Boolean @default(false)
@@ -318,10 +363,14 @@ model InfraestruturaUnidade {
   fossaFiltroEsgotoConcluido Boolean @default(false)
   numeroMedidorLuz           String?
   numeroMedidorAgua          String?
+
+  @@index([empresaId])
 }
 
 model MedicaoCaixa {
   id                 String        @id @default(uuid())
+  empresaId          String
+  empresa            Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId             String
   casa               Casa          @relation(fields: [casaId], references: [id], onDelete: Cascade)
   percentualMedido   Float
@@ -331,19 +380,28 @@ model MedicaoCaixa {
   dataMedicao        DateTime      @default(now())
   dataCriacao        DateTime      @default(now())
   dataAtualizacao    DateTime      @updatedAt
+
+  @@index([empresaId])
 }
 
 model Corretor {
   id                 String          @id @default(uuid())
+  empresaId          String
+  empresa            Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome               String
-  creci              String          @unique
+  creci              String
   comissaoPercentual Float           @default(1.5)
   dataCriacao        DateTime        @default(now())
   contratos          ContratoVenda[]
+
+  @@unique([empresaId, creci])
+  @@index([empresaId])
 }
 
 model ContratoVenda {
   id              String                @id @default(uuid())
+  empresaId       String
+  empresa         Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId          String                @unique
   casa            Casa                  @relation(fields: [casaId], references: [id], onDelete: Cascade)
   clienteId       String
@@ -363,27 +421,41 @@ model ContratoVenda {
   dataAtualizacao DateTime              @updatedAt
   distrato        Distrato?
   assinatura      AssinaturaContrato?
+
+  @@index([empresaId])
 }
 
 model ContaBancaria {
   id              String              @id @default(uuid())
-  nome            String              @unique
+  empresaId       String
+  empresa         Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nome            String
   saldoAtual      Float               @default(0.0)
   dataCriacao     DateTime            @default(now())
   dataAtualizacao DateTime            @updatedAt
   transacoes      TransacaoBancaria[]
+
+  @@unique([empresaId, nome])
+  @@index([empresaId])
 }
 
 model Socio {
   id              String              @id @default(uuid())
-  nome            String              @unique
+  empresaId       String
+  empresa         Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nome            String
   percentualCotas Float               @default(0.0)
   dataCriacao     DateTime            @default(now())
   movimentacoes   MovimentacaoSocio[]
+
+  @@unique([empresaId, nome])
+  @@index([empresaId])
 }
 
 model MovimentacaoSocio {
   id               String                @id @default(uuid())
+  empresaId        String
+  empresa          Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   socioId          String
   socio            Socio                 @relation(fields: [socioId], references: [id], onDelete: Cascade)
   empreendimentoId String?
@@ -391,6 +463,8 @@ model MovimentacaoSocio {
   tipo             TipoMovimentacaoSocio
   valor            Float
   data             DateTime              @default(now())
+
+  @@index([empresaId])
 }
 
 enum NaturezaFinanceira {
@@ -416,6 +490,8 @@ enum CategoriaFinanceira {
 
 model TransacaoFinanceira {
   id             String              @id @default(uuid())
+  empresaId      String
+  empresa        Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   descricao      String
   valor          Float
   dataVencimento DateTime
@@ -443,10 +519,14 @@ model TransacaoFinanceira {
 
   dataCriacao     DateTime @default(now())
   dataAtualizacao DateTime @updatedAt
+
+  @@index([empresaId])
 }
 
 model LogAuditoria {
   id             String   @id @default(uuid())
+  empresaId      String
+  empresa        Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   usuarioId      String?
   usuarioNome    String?
   acao           String
@@ -455,10 +535,14 @@ model LogAuditoria {
   valoresAntigos Json?
   valoresNovos   Json?
   data           DateTime @default(now())
+
+  @@index([empresaId])
 }
 
 model DocumentoAnexo {
   id               String              @id @default(uuid())
+  empresaId        String
+  empresa          Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome             String
   caminhoArquivo   String
   dataVencimento   DateTime?
@@ -471,18 +555,26 @@ model DocumentoAnexo {
   empreendimentoId String?
   empreendimento   Empreendimento?     @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
   dataCriacao      DateTime            @default(now())
+
+  @@index([empresaId])
 }
 
 model Notificacao {
   id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   usuarioId String
   mensagem  String
   lida      Boolean  @default(false)
   data      DateTime @default(now())
+
+  @@index([empresaId])
 }
 
 model CotacaoMaterial {
   id               String         @id @default(uuid())
+  empresaId        String
+  empresa          Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   material         String
   quantidade       Float
   fornecedor       String
@@ -492,10 +584,14 @@ model CotacaoMaterial {
   empreendimento   Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
   dataCriacao      DateTime       @default(now())
   dataAtualizacao  DateTime       @updatedAt
+
+  @@index([empresaId])
 }
 
 model PontoTrabalhador {
   id              String       @id @default(uuid())
+  empresaId       String
+  empresa         Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhadorNome String
   trabalhadorCpf  String
   trabalhadorId   String?
@@ -504,6 +600,8 @@ model PontoTrabalhador {
   casa            Casa         @relation(fields: [casaId], references: [id], onDelete: Cascade)
   tipo            String // ENTRADA, SAIDA
   dataRegistro    DateTime     @default(now())
+
+  @@index([empresaId])
 }
 
 enum TipoVinculo {
@@ -516,8 +614,10 @@ enum TipoVinculo {
 // DDS, CAT e o ponto do canteiro referenciam este cadastro.
 model Trabalhador {
   id              String             @id @default(uuid())
+  empresaId       String
+  empresaTenant   Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome            String
-  cpf             String?            @unique
+  cpf             String?
   rg              String?
   funcao          String? // pedreiro, servente, mestre de obras...
   tipoVinculo     TipoVinculo        @default(PROPRIO)
@@ -532,6 +632,9 @@ model Trabalhador {
   asos            ASO[]
   episEntregues   EntregaEPI[]
   acidentes       Acidente[]
+
+  @@unique([empresaId, cpf])
+  @@index([empresaId])
 }
 
 enum TipoASO {
@@ -552,6 +655,8 @@ enum ResultadoASO {
 // e, na Fase 3.4, trava a liberacao de medicao se estiver vencida.
 model ASO {
   id             String       @id @default(uuid())
+  empresaId      String
+  empresa        Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhadorId  String
   trabalhador    Trabalhador  @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
   tipo           TipoASO      @default(PERIODICO)
@@ -561,11 +666,15 @@ model ASO {
   medico         String? // medico/clinica emitente
   observacoes    String?
   dataCriacao    DateTime     @default(now())
+
+  @@index([empresaId])
 }
 
 // Entrega de EPI (equipamento de protecao individual) a um trabalhador.
 model EntregaEPI {
   id            String      @id @default(uuid())
+  empresaId     String
+  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhadorId String
   trabalhador   Trabalhador @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
   equipamento   String // capacete, botina, luva, cinto...
@@ -576,10 +685,14 @@ model EntregaEPI {
   devolvido     Boolean     @default(false)
   observacoes   String?
   dataCriacao   DateTime    @default(now())
+
+  @@index([empresaId])
 }
 
 model TransacaoBancaria {
   id                     String        @id @default(uuid())
+  empresaId              String
+  empresa                Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   contaBancariaId        String
   contaBancaria          ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Cascade)
   data                   DateTime
@@ -587,13 +700,18 @@ model TransacaoBancaria {
   descricao              String
   tipo                   String // CREDITO, DEBITO
   conciliado             Boolean       @default(false)
-  documentoIdentificador String?       @unique
+  documentoIdentificador String?
   origem                 String? // Tag do que originou o lançamento: SOCIO_APORTE, DESPESA_PAGA, ESTORNO, RESET_AJUSTE, SALDO_INICIAL, etc. Null = importado/externo (conciliação).
   dataCriacao            DateTime      @default(now())
+
+  @@unique([empresaId, documentoIdentificador])
+  @@index([empresaId])
 }
 
 model Distrato {
   id              String        @id @default(uuid())
+  empresaId       String
+  empresa         Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   contratoId      String        @unique
   contrato        ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
   data            DateTime      @default(now())
@@ -601,29 +719,42 @@ model Distrato {
   valorRestituido Float
   motivo          String
   dataCriacao     DateTime      @default(now())
+
+  @@index([empresaId])
 }
 
 model AssinaturaContrato {
   id             String        @id @default(uuid())
+  empresaId      String
+  empresa        Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   contratoId     String        @unique
   contrato       ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
   status         String        @default("PENDENTE") // PENDENTE, ASSINADO, REJEITADO
   dataAssinatura DateTime?
   externalId     String? // Token da ZapSign
   dataCriacao    DateTime      @default(now())
+
+  @@index([empresaId])
 }
 
 model UsuarioCliente {
   id          String   @id @default(uuid())
+  empresaId   String
+  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   clienteId   String   @unique
   cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  email       String   @unique
+  email       String
   password    String
   dataCriacao DateTime @default(now())
+
+  @@unique([empresaId, email])
+  @@index([empresaId])
 }
 
 model SolicitacaoCompra {
   id                   String              @id @default(uuid())
+  empresaId            String
+  empresa              Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId               String?
   casa                 Casa?               @relation(fields: [casaId], references: [id], onDelete: Cascade)
   empreendimentoId     String?
@@ -636,10 +767,14 @@ model SolicitacaoCompra {
   tokenCotacao         String              @unique
   cotacoes             CotacaoFornecedor[]
   dataCriacao          DateTime            @default(now())
+
+  @@index([empresaId])
 }
 
 model CotacaoFornecedor {
   id               String            @id @default(uuid())
+  empresaId        String
+  empresa          Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   solicitacaoId    String
   solicitacao      SolicitacaoCompra @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
   fornecedorNome   String
@@ -650,6 +785,8 @@ model CotacaoFornecedor {
   comprovanteUrl   String?
   ordemCompra      OrdemCompra?
   dataCriacao      DateTime          @default(now())
+
+  @@index([empresaId])
 }
 
 enum TipoContaBancaria {
@@ -659,9 +796,11 @@ enum TipoContaBancaria {
 
 model Fornecedor {
   id                 String              @id @default(uuid())
+  empresaId          String
+  empresa            Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome               String
-  cnpj               String?             @unique
-  cpf                String?             @unique
+  cnpj               String?
+  cpf                String?
   email              String?
   telefone           String?
   ramo               String? // material, mao de obra, servico...
@@ -688,13 +827,19 @@ model Fornecedor {
   dataAtualizacao    DateTime            @updatedAt
   cotacoes           CotacaoFornecedor[]
   notasEntrada       NotaFiscalEntrada[]
+
+  @@unique([empresaId, cnpj])
+  @@unique([empresaId, cpf])
+  @@index([empresaId])
 }
 
 // NF-e de entrada (compra): importada por XML, gera conta a pagar e, quando os
 // itens casam com o catalogo, entrada de estoque. Base do modulo Fiscal (Fase 4).
 model NotaFiscalEntrada {
   id                  String          @id @default(uuid())
-  chave               String?         @unique // chave de acesso (44 digitos)
+  empresaId           String
+  empresa             Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  chave               String? // chave de acesso (44 digitos)
   numero              String?
   serie               String?
   emitenteCnpj        String?
@@ -709,20 +854,29 @@ model NotaFiscalEntrada {
   itensGeraramEstoque Int             @default(0)
   itens               Json? // itens parseados do XML
   dataCriacao         DateTime        @default(now())
+
+  @@unique([empresaId, chave])
+  @@index([empresaId])
 }
 
 model OrdemCompra {
   id                  String            @id @default(uuid())
+  empresaId           String
+  empresa             Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   cotacaoId           String            @unique
   cotacao             CotacaoFornecedor @relation(fields: [cotacaoId], references: [id], onDelete: Cascade)
   usuarioAprovadorId  String?
   statusEntrega       String            @default("PENDENTE") // PENDENTE, ENTREGUE
   excepcionalAprovado Boolean           @default(false)
   dataCriacao         DateTime          @default(now())
+
+  @@index([empresaId])
 }
 
 model MovimentacaoEstoque {
   id               String       @id @default(uuid())
+  empresaId        String
+  empresa          Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   insumoId         String
   insumo           InsumoPadrao @relation(fields: [insumoId], references: [id], onDelete: Restrict)
   quantidade       Float
@@ -730,6 +884,8 @@ model MovimentacaoEstoque {
   casaId           String?
   casa             Casa?        @relation(fields: [casaId], references: [id], onDelete: SetNull)
   dataMovimentacao DateTime     @default(now())
+
+  @@index([empresaId])
 }
 
 enum TipoDocumentoAnexo {
@@ -774,7 +930,9 @@ enum StatusConformidade {
 // atualizaveis por consulta de IA (portaria vigente). 1 linha por faixa.
 model ParametroMCMV {
   id                           String    @id @default(uuid())
-  faixa                        FaixaMCMV @unique
+  empresaId                    String
+  empresa                      Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  faixa                        FaixaMCMV
   tetoValorImovel              Decimal
   areaUtilMinima               Decimal
   percentualUnidadesAcessiveis Float     @default(3)
@@ -784,6 +942,9 @@ model ParametroMCMV {
   atualizadoPor                String?
   atualizadoEm                 DateTime  @updatedAt
   dataCriacao                  DateTime  @default(now())
+
+  @@unique([empresaId, faixa])
+  @@index([empresaId])
 }
 
 // Estado de cada item do checklist de conformidade por empreendimento. O
@@ -792,6 +953,8 @@ model ParametroMCMV {
 // evidencia e observacao). Itens AUTO/DOC tem o status recalculado na leitura.
 model ItemConformidadeMCMV {
   id               String             @id @default(uuid())
+  empresaId        String
+  empresa          Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   empreendimentoId String
   empreendimento   Empreendimento     @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
   chave            String
@@ -805,10 +968,13 @@ model ItemConformidadeMCMV {
 
   @@unique([empreendimentoId, chave])
   @@index([empreendimentoId])
+  @@index([empresaId])
 }
 
 model Milestone {
   id               String          @id @default(uuid())
+  empresaId        String
+  empresa          Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   titulo           String
   descricao        String?
   categoria        String          @default("PROJETO") // PROJETO, OBRA, COMERCIAL, FINANCEIRO
@@ -821,10 +987,14 @@ model Milestone {
   casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: Cascade)
   dataCriacao      DateTime        @default(now())
   dataAtualizacao  DateTime        @updatedAt
+
+  @@index([empresaId])
 }
 
 model AtividadeCronograma {
   id                  String           @id @default(uuid())
+  empresaId           String
+  empresa             Empresa          @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   titulo              String
   descricao           String?
   escopo              EscopoCronograma
@@ -844,6 +1014,7 @@ model AtividadeCronograma {
 
   @@index([empreendimentoId])
   @@index([casaId])
+  @@index([empresaId])
 }
 
 // Linha de base congelada da obra (Fase 6.2b): snapshot do plano (orcado +
@@ -851,6 +1022,8 @@ model AtividadeCronograma {
 // (o quanto o orcamento/cronograma mudou desde o congelamento). 1:1 com Casa.
 model LinhaBaseObra {
   id                  String    @id @default(uuid())
+  empresaId           String
+  empresa             Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId              String    @unique
   casa                Casa      @relation(fields: [casaId], references: [id], onDelete: Cascade)
   orcadoBaseline      Float     @default(0)
@@ -859,17 +1032,24 @@ model LinhaBaseObra {
   itensBaseline       Json? // snapshot [{insumoId, nome, quantidade, custoUnitario}]
   dataSnapshot        DateTime  @default(now())
   dataAtualizacao     DateTime  @updatedAt
+
+  @@index([empresaId])
 }
 
 // Metas de eficiencia da construtora (config singleton, id fixo "default").
 // Base do painel de eficiencia diaria e dos alertas do cron (Fase 6.5).
 model MetaEficiencia {
   id                String   @id @default("default")
+  empresaId         String
+  empresa           Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   cpiMinimo         Float    @default(0.95) // custo: EV/AC minimo aceitavel
   spiMinimo         Float    @default(0.95) // prazo: EV/PV minimo aceitavel
   maxInsumosEstouro Int      @default(0) // quantos insumos em estouro fisico toleramos
   alertarRuptura    Boolean  @default(true) // alerta se ha ruptura de caixa projetada
   dataAtualizacao   DateTime @updatedAt
+
+  @@unique([empresaId])
+  @@index([empresaId])
 }
 
 // ── Registros documentais de SST (Fase 3.3) ──────────────────────────────────
@@ -890,6 +1070,8 @@ enum GravidadeAcidente {
 // DDS — Dialogo Diario de Seguranca (registro da conversa de seguranca).
 model DialogoSeguranca {
   id               String          @id @default(uuid())
+  empresaId        String
+  empresa          Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   data             DateTime        @default(now())
   tema             String
   responsavel      String
@@ -900,11 +1082,15 @@ model DialogoSeguranca {
   casaId           String?
   casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: SetNull)
   dataCriacao      DateTime        @default(now())
+
+  @@index([empresaId])
 }
 
 // Acidente / CAT (Comunicacao de Acidente de Trabalho).
 model Acidente {
   id               String            @id @default(uuid())
+  empresaId        String
+  empresa          Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhadorId    String
   trabalhador      Trabalhador       @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
   data             DateTime          @default(now())
@@ -920,11 +1106,15 @@ model Acidente {
   casaId           String?
   casa             Casa?             @relation(fields: [casaId], references: [id], onDelete: SetNull)
   dataCriacao      DateTime          @default(now())
+
+  @@index([empresaId])
 }
 
 // Checklist de conformidade por Norma Regulamentadora (NR-18, NR-35...).
 model ChecklistNR {
   id               String          @id @default(uuid())
+  empresaId        String
+  empresa          Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   norma            String // "NR-18", "NR-35", "NR-06"...
   data             DateTime        @default(now())
   responsavel      String
@@ -935,4 +1125,84 @@ model ChecklistNR {
   casaId           String?
   casa             Casa?           @relation(fields: [casaId], references: [id], onDelete: SetNull)
   dataCriacao      DateTime        @default(now())
+
+  @@index([empresaId])
+}
+
+/// Tenant. Cada construtora cliente e uma Empresa; TODO dado do sistema pendura
+/// aqui. O filtro por empresaId e injetado automaticamente pela extensao do
+/// Prisma (lib/tenant) — nao depende de cada rota lembrar de filtrar.
+model Empresa {
+  id    String  @id @default(uuid())
+  nome  String
+  slug  String  @unique
+  cnpj  String? @unique
+  ativa Boolean @default(true)
+
+  // --- White label ---
+  /// Dominio proprio do cliente (ex.: erp.construtorafulano.com.br). Resolve o
+  /// tenant no login quando ha mais de uma empresa na mesma instancia.
+  dominio        String? @unique
+  logoUrl        String?
+  corPrimaria    String  @default("#2563eb")
+  corSecundaria  String  @default("#1e293b")
+  /// Remetente dos e-mails desta empresa. Cai em EMAIL_FROM quando vazio.
+  emailRemetente String?
+  /// Destinatarios extras de alerta, separados por virgula.
+  emailsAlerta   String?
+
+  // --- Licenciamento ---
+  plano           String    @default("PADRAO")
+  limiteObras     Int?
+  dataContratacao DateTime?
+  dataExpiracao   DateTime?
+
+  dataCriacao     DateTime @default(now())
+  dataAtualizacao DateTime @updatedAt
+
+  permissoesPapelModulo  PermissaoPapelModulo[]
+  users                  User[]
+  empreendimentos        Empreendimento[]
+  marcoBurocraticos      MarcoBurocratico[]
+  clientes               Cliente[]
+  insumoPadraos          InsumoPadrao[]
+  casas                  Casa[]
+  orcamentoCasas         OrcamentoCasa[]
+  itemOrcamentos         ItemOrcamento[]
+  diarioDeObras          DiarioDeObra[]
+  infraestruturaUnidades InfraestruturaUnidade[]
+  medicaoCaixas          MedicaoCaixa[]
+  corretors              Corretor[]
+  contratoVendas         ContratoVenda[]
+  contaBancarias         ContaBancaria[]
+  socios                 Socio[]
+  movimentacaoSocios     MovimentacaoSocio[]
+  transacaoFinanceiras   TransacaoFinanceira[]
+  logAuditorias          LogAuditoria[]
+  documentoAnexos        DocumentoAnexo[]
+  notificacaos           Notificacao[]
+  cotacaoMaterials       CotacaoMaterial[]
+  pontoTrabalhadors      PontoTrabalhador[]
+  trabalhadors           Trabalhador[]
+  asos                   ASO[]
+  entregaEPIs            EntregaEPI[]
+  transacaoBancarias     TransacaoBancaria[]
+  distratos              Distrato[]
+  assinaturaContratos    AssinaturaContrato[]
+  usuarioClientes        UsuarioCliente[]
+  solicitacaoCompras     SolicitacaoCompra[]
+  cotacaoFornecedors     CotacaoFornecedor[]
+  fornecedors            Fornecedor[]
+  notaFiscalEntradas     NotaFiscalEntrada[]
+  ordemCompras           OrdemCompra[]
+  movimentacaoEstoques   MovimentacaoEstoque[]
+  parametroMCMVs         ParametroMCMV[]
+  itemConformidadeMCMVs  ItemConformidadeMCMV[]
+  milestones             Milestone[]
+  atividadeCronogramas   AtividadeCronograma[]
+  linhaBaseObras         LinhaBaseObra[]
+  metasEficiencia        MetaEficiencia[]
+  dialogoSegurancas      DialogoSeguranca[]
+  acidentes              Acidente[]
+  checklistsNR           ChecklistNR[]
 }
