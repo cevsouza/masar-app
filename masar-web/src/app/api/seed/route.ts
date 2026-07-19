@@ -1,20 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { runComEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
+import { runComEmpresa, runSemEscopoDeEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
 import { hashPassword } from '@/lib/auth';
+
+/**
+ * Popula a BASE DE DEMONSTRAÇÃO — e só ela.
+ *
+ * Esta rota APAGA e recria dados. Antes ela apontava para a empresa raiz (a
+ * operação real) e aceitava `?empresaId=` para mirar qualquer outra: era
+ * literalmente um parâmetro de URL capaz de zerar o banco de um cliente
+ * pagante. O parâmetro foi REMOVIDO e o alvo é fixo.
+ *
+ * A demonstração vive num tenant próprio (slug `demo`), com nome de construtora
+ * fictícia. Assim dá para mostrar o sistema cheio numa reunião sem expor a
+ * operação real e sem risco de dado fictício aparecer na instância de alguém.
+ *
+ * Instância de cliente nasce VAZIA — isso é outro caminho, o
+ * scripts/provisionar-cliente.mjs, que só cria empresa + primeiro admin.
+ */
+
+const DEMO_SLUG = 'demo';
+const DEMO_NOME = 'Construtora Modelo';
 
 export async function GET(request: NextRequest) {
   try {
-    // 0. Trava de segurança: este endpoint APAGA e recria todo o banco.
-    // Exige o secret SEED_SECRET (mesmo padrão do cron) — antes era público,
-    // então qualquer visitante podia resetar a base de produção.
+    // Trava 1: segredo obrigatório. Fail-closed — instância de cliente
+    // simplesmente não define SEED_SECRET, e aí a rota não existe na prática.
     const seedSecret = process.env.SEED_SECRET;
     const authHeader = request.headers.get('authorization');
     if (!seedSecret || authHeader !== `Bearer ${seedSecret}`) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    // Senha do admin vem de variável de ambiente — nunca hardcoded no repositório.
+    // Trava 2: senha do admin de demonstração vem do ambiente, nunca do código.
     const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!seedAdminPassword) {
       return NextResponse.json(
@@ -23,12 +41,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // O seed APAGA e recria os dados de demonstração. Escopado à empresa alvo:
-    // antes do multi-tenant, os deleteMany abaixo varriam o banco INTEIRO — numa
-    // instância com mais de uma empresa isso apagaria os dados de todas elas.
-    // Alvo default = empresa raiz; `?empresaId=` permite semear outra.
-    const empresaAlvo = request.nextUrl.searchParams.get('empresaId') || EMPRESA_RAIZ_ID;
-    return runComEmpresa(empresaAlvo, () => semear(seedAdminPassword));
+    // Trava 3: o alvo é SEMPRE o tenant de demonstração. Sem parâmetro, sem
+    // escolha, sem jeito de mirar a operação real ou um cliente.
+    const demo = await runSemEscopoDeEmpresa(async () =>
+      (await db.empresa.findUnique({ where: { slug: DEMO_SLUG } })) ??
+      (await db.empresa.create({
+        data: { nome: DEMO_NOME, slug: DEMO_SLUG, corPrimaria: '#0ea5e9' },
+      }))
+    );
+
+    if (demo.id === EMPRESA_RAIZ_ID) {
+      return NextResponse.json(
+        { error: 'Recusado: o tenant de demonstração não pode ser a empresa raiz.' },
+        { status: 409 }
+      );
+    }
+
+    return await runComEmpresa(demo.id, () => semear(seedAdminPassword));
   } catch (error: any) {
     console.error('Erro ao rodar o seed via API:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -62,8 +91,8 @@ async function semear(seedAdminPassword: string) {
     const adminPasswordHash = await hashPassword(seedAdminPassword);
     await db.user.create({
       data: {
-        nome: 'Julio Souza',
-        email: 'cevsouza@hotmail',
+        nome: 'Administrador (Demonstração)',
+        email: 'admin@demo.local',
         password: adminPasswordHash,
         role: 'ADMIN'
       }
@@ -71,8 +100,8 @@ async function semear(seedAdminPassword: string) {
 
     await db.user.create({
       data: {
-        nome: 'Julio Souza',
-        email: 'cevsouza@hotmail.com',
+        nome: 'Engenharia (Demonstração)',
+        email: 'engenharia@demo.local',
         password: adminPasswordHash,
         role: 'ADMIN'
       }
@@ -350,7 +379,7 @@ async function semear(seedAdminPassword: string) {
     // Criar Contas Bancárias — o saldo inicial é lançado no razão (SALDO_INICIAL),
     // para a invariante saldoAtual = Σrazão valer desde o começo.
     const contaSeed = await db.contaBancaria.create({
-      data: { nome: 'Conta Corrente CEF - Masar App', saldoAtual: 285000.00 }
+      data: { nome: 'Conta Corrente CEF - Construtora Modelo', saldoAtual: 285000.00 }
     });
     await db.transacaoBancaria.create({
       data: {
