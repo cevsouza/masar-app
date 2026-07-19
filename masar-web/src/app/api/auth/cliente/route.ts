@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { runComEmpresa, runSemEscopoDeEmpresa } from '@/lib/tenant';
 import { verifyPassword, needsRehash, hashPassword, signSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
@@ -15,13 +16,17 @@ export async function POST(request: NextRequest) {
 
     logger.info('[Auth Cliente] Tentativa de login no Portal do Cliente', { traceId, email });
 
-    // Buscar usuário cliente
-    const clientUser = await db.usuarioCliente.findFirst({
-      where: { email },
-      include: {
-        cliente: true
-      }
-    });
+    // Login do portal: ainda não há sessão, então a busca roda sem escopo —
+    // é ela que descobre de qual empresa é o comprador. Depois disso tudo é
+    // escopado (ver runComEmpresa abaixo).
+    const clientUser = await runSemEscopoDeEmpresa(() =>
+      db.usuarioCliente.findFirst({
+        where: { email },
+        include: {
+          cliente: true
+        }
+      })
+    );
 
     if (!clientUser) {
       logger.warn('[Auth Cliente] E-mail do cliente não cadastrado', { traceId, email });
@@ -39,7 +44,9 @@ export async function POST(request: NextRequest) {
     if (needsRehash(clientUser.password)) {
       try {
         const upgraded = await hashPassword(password);
-        await db.usuarioCliente.update({ where: { id: clientUser.id }, data: { password: upgraded } });
+        await runComEmpresa(clientUser.empresaId, () =>
+          db.usuarioCliente.update({ where: { id: clientUser.id }, data: { password: upgraded } })
+        );
       } catch (rehashErr) {
         logger.error('[Auth Cliente] Falha ao migrar hash de senha (login não bloqueado)', rehashErr);
       }

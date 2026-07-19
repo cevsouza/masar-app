@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { caminhoAbsoluto } from '@/lib/storage';
 import { verifySession } from '@/lib/auth';
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -28,14 +29,18 @@ export async function GET(
       return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 });
     }
 
-    // Verificar se o arquivo físico existe no volume
-    if (!existsSync(documento.caminhoArquivo)) {
+    // O documento já vem escopado pela empresa (a extensão do Prisma injeta o
+    // empresaId no where), então documento de outro cliente devolve 404 acima.
+    // Aqui só resolvemos o caminho — relativo nos registros novos, absoluto nos
+    // antigos —, com guarda contra sair do diretório base.
+    const caminho = caminhoAbsoluto(documento.caminhoArquivo);
+
+    if (!existsSync(caminho)) {
       return NextResponse.json({ error: 'Arquivo físico não encontrado no volume' }, { status: 404 });
     }
 
-    // Ler arquivo
-    const fileBuffer = await readFile(documento.caminhoArquivo);
-    const fileExtension = documento.caminhoArquivo.split('.').pop() || 'pdf';
+    const fileBuffer = await readFile(caminho);
+    const fileExtension = caminho.split('.').pop() || 'pdf';
 
     const contentType = fileExtension === 'pdf' 
       ? 'application/pdf' 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendEmail, getExtraAlertEmails } from '@/lib/resend';
+import { runComEmpresa, runSemEscopoDeEmpresa } from '@/lib/tenant';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 import { buscarVencimentosSST } from '@/lib/sst';
 import { avaliarMetas } from '@/lib/metaEficiencia';
@@ -34,6 +35,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 403 });
     }
 
+    // Multi-tenant: o cron atende TODAS as empresas ativas da instancia.
+    // Falha de uma nao pode derrubar o alerta das outras — o alerta diario e
+    // justamente o que se vende, entao cada empresa roda isolada.
+    const empresas = await runSemEscopoDeEmpresa(() =>
+      db.empresa.findMany({ where: { ativa: true }, select: { id: true, nome: true } })
+    );
+
+    const porEmpresa: any[] = [];
+    for (const empresa of empresas) {
+      try {
+        const resumo = await runComEmpresa(empresa.id, () => processarEmpresa());
+        porEmpresa.push({ empresa: empresa.nome, ...resumo });
+      } catch (e: any) {
+        console.error(`[cron] falha na empresa ${empresa.nome}:`, e);
+        porEmpresa.push({ empresa: empresa.nome, erro: String(e?.message || e) });
+      }
+    }
+
+    return NextResponse.json({ success: true, empresas: porEmpresa.length, porEmpresa });
+  } catch (error: any) {
+    console.error('Erro no cron job:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
+  }
+}
+
+// Todo o processamento de um tenant. Roda SEMPRE dentro de runComEmpresa, entao
+// cada query aqui ja sai filtrada pela empresa — nao ha filtro manual neste arquivo.
+async function processarEmpresa() {
     const today = new Date();
     const limitDate = new Date();
     limitDate.setDate(today.getDate() + 15);
@@ -429,8 +458,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
+    return {
       documentosExpirando: documentosExpirando.length,
       marcosAtrasados: marcosAtrasados.length,
       milestonesAtrasados: milestonesAtrasados.length,
@@ -450,9 +478,5 @@ export async function GET(request: NextRequest) {
       recomendacoesCriticas: resumoRec.criticos,
       valorEmJogo: resumoRec.valorEmJogo,
       alertasGerados: totalAlertas
-    });
-  } catch (error: any) {
-    console.error('Erro no cron job:', error);
-    return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });
-  }
+    };
 }

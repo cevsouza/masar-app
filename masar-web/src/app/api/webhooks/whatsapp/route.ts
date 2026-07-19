@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { runComEmpresa, runSemEscopoDeEmpresa } from '@/lib/tenant';
 import { logMutation } from '@/lib/audit';
 import { logger } from '@/lib/logger';
 import { isWebhookAuthorized } from '@/lib/webhookAuth';
@@ -27,20 +28,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Status inválido. Valores permitidos: ${validStatus.join(', ')}` }, { status: 400 });
     }
 
-    // Localizar cliente
-    const cliente = await db.cliente.findFirst({
-      where: { cpf: clienteCpf }
-    });
+    // Webhook não tem sessão: o CPF é o que identifica de qual empresa é o dado.
+    // A busca roda sem escopo só para descobrir o tenant; tudo depois dela já
+    // roda dentro dele.
+    const cliente = await runSemEscopoDeEmpresa(() =>
+      db.cliente.findFirst({ where: { cpf: clienteCpf } })
+    );
 
     if (!cliente) {
       return NextResponse.json({ error: `Cliente com CPF ${clienteCpf} não encontrado.` }, { status: 404 });
     }
 
     // Atualizar status de crédito
-    const updatedCliente = await db.cliente.update({
-      where: { id: cliente.id },
-      data: { statusCredito: statusCredito as any }
-    });
+    const updatedCliente = await runComEmpresa(cliente.empresaId, () =>
+      db.cliente.update({
+        where: { id: cliente.id },
+        data: { statusCredito: statusCredito as any }
+      })
+    );
 
     // Gravar log de auditoria
     await logMutation({

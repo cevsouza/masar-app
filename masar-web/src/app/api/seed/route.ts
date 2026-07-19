@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { runComEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
 import { hashPassword } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -22,6 +23,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // O seed APAGA e recria os dados de demonstração. Escopado à empresa alvo:
+    // antes do multi-tenant, os deleteMany abaixo varriam o banco INTEIRO — numa
+    // instância com mais de uma empresa isso apagaria os dados de todas elas.
+    // Alvo default = empresa raiz; `?empresaId=` permite semear outra.
+    const empresaAlvo = request.nextUrl.searchParams.get('empresaId') || EMPRESA_RAIZ_ID;
+    return runComEmpresa(empresaAlvo, () => semear(seedAdminPassword));
+  } catch (error: any) {
+    console.error('Erro ao rodar o seed via API:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+async function semear(seedAdminPassword: string) {
+  try {
     const hoje = new Date();
     // 1. Limpar banco na ordem de dependência
     await db.user.deleteMany();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { salvarArquivoDaEmpresa } from '@/lib/storage';
 import { verifySession } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { logMutation } from '@/lib/audit';
@@ -34,22 +34,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Gravar o arquivo no volume persistente
-    const uploadDir = process.env.NODE_ENV === 'production' 
-      ? '/app/uploads' 
-      : join(process.cwd(), 'uploads');
-
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    const uniqueId = crypto.randomUUID();
-    const extension = file.name.split('.').pop() || 'pdf';
-    const fileName = `${uniqueId}.${extension}`;
-    const filePath = join(uploadDir, fileName);
-
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    const filePath = await salvarArquivoDaEmpresa(buffer, file.name);
 
     logger.info(`[Portal Cliente] Arquivo ${file.name} gravado com sucesso em ${filePath}`, { traceId, clienteId });
 

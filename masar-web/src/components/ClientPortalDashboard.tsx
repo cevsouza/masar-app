@@ -415,15 +415,15 @@ export default function ClientPortalDashboard({ cliente }: ClientPortalDashboard
                             Pago
                           </span>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              alert(`Boleto Gerado!\nInstruções:\nFavorecido: Masar Empreendimentos LTDA\nBanco: 104 - Caixa Econômica Federal\nValor: ${formatCurrency(parcela.valor)}\nLinha Digitável: 10490.12345 67890.123456 78901.234567 1 999900000${Math.floor(parcela.valor)}`);
-                            }}
-                            className="flex items-center gap-1 text-blue-400 hover:text-white font-semibold text-[10px] bg-blue-950/20 border border-blue-900/30 px-2 py-1 rounded-lg cursor-pointer"
-                          >
-                            <Download size={10} /> PDF
-                          </button>
+                          // NÃO reintroduzir geração de boleto no cliente.
+                          // Aqui havia um alert() com boleto FABRICADO: favorecido fixo,
+                          // banco 104 e linha digitável inventada. Enquanto o app era de
+                          // uso próprio era mock inofensivo; para um comprador de casa é
+                          // uma linha digitável falsa que ele pode tentar pagar.
+                          // Só volta como integração real de cobrança (banco/PSP).
+                          <span className="text-[9px] text-slate-400 font-semibold bg-slate-800/40 border border-slate-700/40 px-2 py-1 rounded-lg block">
+                            Em aberto
+                          </span>
                         )}
                       </div>
                     </div>

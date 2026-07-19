@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
+import { salvarArquivoDaEmpresa } from '@/lib/storage';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { logMutation } from '@/lib/audit';
@@ -44,23 +44,9 @@ export async function POST(request: NextRequest) {
 
     // 1. Gravar PDF fisicamente se fornecido
     if (file && file.size > 0) {
-      const uploadDir = process.env.NODE_ENV === 'production' 
-        ? '/app/uploads' 
-        : join(process.cwd(), 'uploads');
-
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-
-      const uniqueId = crypto.randomUUID();
-      const extension = file.name.split('.').pop() || 'pdf';
-      const fileName = `cotacao-${uniqueId}.${extension}`;
-      const filePath = join(uploadDir, fileName);
-
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
-      comprovanteUrl = filePath;
+      comprovanteUrl = await salvarArquivoDaEmpresa(buffer, file.name);
     }
 
     // 2. Gravar cotação no banco

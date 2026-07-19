@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { salvarArquivoDaEmpresa } from '@/lib/storage';
 import { verifySession } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { logMutation } from '@/lib/audit';
@@ -65,24 +65,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Arquivo e nome do documento são obrigatórios' }, { status: 400 });
     }
 
-    // 1. Resolver o diretório do volume persistente (Produção vs Local Dev)
-    const uploadDir = process.env.NODE_ENV === 'production' 
-      ? '/app/uploads' 
-      : join(process.cwd(), 'uploads');
-
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // 2. Gravar o arquivo fisicamente no volume
-    const uniqueId = crypto.randomUUID();
-    const extension = file.name.split('.').pop() || 'pdf';
-    const fileName = `${uniqueId}.${extension}`;
-    const filePath = join(uploadDir, fileName);
-
+    // Grava na pasta da empresa vigente; o banco guarda o caminho RELATIVO.
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    const filePath = await salvarArquivoDaEmpresa(buffer, file.name);
 
     // 3. Cadastrar o documento na tabela DocumentoAnexo
     const documento = await db.documentoAnexo.create({
