@@ -10,7 +10,20 @@ import { logger } from '@/lib/logger';
 export async function POST(request: NextRequest) {
   try {
     const traceId = crypto.randomUUID();
-    const formData = await request.formData();
+
+    // O parse do corpo tem um teto próprio do runtime (~10 MB), abaixo do qual
+    // ele estoura ANTES de qualquer validação nossa — e devolvia 500 com
+    // "Failed to parse body as FormData", que não diz nada a um fornecedor.
+    // Aqui viramos isso num erro compreensível.
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return NextResponse.json(
+        { error: 'Arquivo grande demais. Envie um anexo de até 8 MB.' },
+        { status: 413 }
+      );
+    }
     
     const solicitacaoId = formData.get('solicitacaoId') as string;
     let fornecedorNome = formData.get('fornecedorNome') as string;
@@ -36,14 +49,65 @@ export async function POST(request: NextRequest) {
     const solicitacao = await runSemEscopoDeEmpresa(() =>
       db.solicitacaoCompra.findUnique({
         where: { id: solicitacaoId },
-        select: { id: true, empresaId: true },
+        select: { id: true, empresaId: true, status: true },
       })
     );
     if (!solicitacao) {
       return NextResponse.json({ error: 'Solicitação de cotação não encontrada.' }, { status: 404 });
     }
 
+    // A checagem de status existe TAMBÉM aqui, e não só na página: este endpoint
+    // é público e pode ser chamado direto, sem passar por tela nenhuma.
+    if (!['PENDENTE', 'ABERTA', 'EM_COTACAO'].includes(solicitacao.status)) {
+      return NextResponse.json(
+        { error: 'Esta solicitação não está mais recebendo propostas.' },
+        { status: 409 }
+      );
+    }
+
+    // Anexo: validação NO SERVIDOR. O `accept` do formulário é só uma dica ao
+    // navegador e cai com um curl. Sem isto, qualquer um de posse do link
+    // gravava arquivo de qualquer tipo e tamanho no volume da construtora — o
+    // MESMO volume do cofre GED. Enchê-lo impede novos documentos, e documento
+    // faltando trava medição: um link vazado viraria congelamento de obra.
+    // 8 MB, deliberadamente ABAIXO do teto de parse do runtime (~10 MB).
+    // Se o limite ficasse em 10, esta checagem nunca rodaria — o corpo estouraria
+    // antes — e a proteção real seria um detalhe interno do framework, que muda
+    // de versão sem aviso. Com folga, quem recusa é o nosso código, com mensagem
+    // própria e status correto.
+    const TAMANHO_MAX = 8 * 1024 * 1024;
+    const EXTENSOES_OK = ['pdf', 'png', 'jpg', 'jpeg'];
+    if (file && file.size > 0) {
+      if (file.size > TAMANHO_MAX) {
+        return NextResponse.json(
+          { error: 'Arquivo muito grande. O limite é 8 MB.' },
+          { status: 413 }
+        );
+      }
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (!EXTENSOES_OK.includes(ext)) {
+        return NextResponse.json(
+          { error: 'Formato não aceito. Envie PDF, PNG ou JPG.' },
+          { status: 415 }
+        );
+      }
+    }
+
     return await runComEmpresa(solicitacao.empresaId, async () => {
+    // Teto de propostas por solicitação. O endereço é público e o envio não
+    // exige conta: sem um limite, um script posta milhares de cotações, entope
+    // a caixa de suprimentos e enche o banco. Vinte é folgado para um processo
+    // real de compra e barra o abuso.
+    const TETO_COTACOES = 20;
+    const jaRecebidas = await db.cotacaoFornecedor.count({ where: { solicitacaoId } });
+    if (jaRecebidas >= TETO_COTACOES) {
+      logger.warn(`[Portal Fornecedor] Teto de cotações atingido na solicitação ${solicitacaoId}`, { traceId });
+      return NextResponse.json(
+        { error: 'Esta solicitação já atingiu o número máximo de propostas.' },
+        { status: 429 }
+      );
+    }
+
     // Se veio um fornecedor cadastrado, o nome autoritativo vem do cadastro.
     if (fornecedorId) {
       const fornecedor = await db.fornecedor.findUnique({ where: { id: fornecedorId } });

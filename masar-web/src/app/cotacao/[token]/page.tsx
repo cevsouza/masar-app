@@ -43,6 +43,25 @@ export default async function SupplierQuotePage({ params }: PageProps) {
     );
   }
 
+  // O link não pode ser eterno. Sem esta checagem, um fornecedor que recebeu o
+  // endereço meses atrás continuava conseguindo lançar preço num processo já
+  // decidido — e o token, sendo @unique e permanente, nunca caducava.
+  const ABERTAS_PARA_COTACAO = ['PENDENTE', 'ABERTA', 'EM_COTACAO'];
+  if (!ABERTAS_PARA_COTACAO.includes(solicitacao.status)) {
+    return (
+      <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center p-4">
+        <div className="glassmorphism max-w-md w-full p-8 rounded-2xl border border-slate-800 text-center space-y-4 shadow-2xl">
+          <AlertCircleIcon className="text-amber-500 mx-auto w-12 h-12" />
+          <h2 className="text-xl font-bold text-white">Cotação Encerrada</h2>
+          <p className="text-xs text-slate-400">
+            Esta solicitação não está mais recebendo propostas. Se você acredita que
+            deveria estar aberta, fale com o setor de suprimentos da construtora.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // A marca aqui é a da CONSTRUTORA cliente, não a nossa: quem lê esta página é
   // o fornecedor dela, e ver a marca de outra empresa levantaria a pergunta
   // errada no meio de uma cotação.
