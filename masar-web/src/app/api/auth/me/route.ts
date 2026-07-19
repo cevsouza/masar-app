@@ -20,13 +20,7 @@ export async function GET(request: NextRequest) {
       select: { id: true, role: true, email: true }
     });
 
-    if (user && ['cevsouza@hotmail.com', 'cevsouza@hotmail'].includes(user.email.toLowerCase().trim()) && user.role !== 'ADMIN') {
-      await db.user.update({
-        where: { id: user.id },
-        data: { role: 'ADMIN' }
-      });
-      user.role = 'ADMIN';
-    }
+    // (Removida a auto-promoção a ADMIN por e-mail fixo — ver comentário em api/auth/login.)
 
     const userRole = user?.role || session.role || 'COMERCIAL';
 

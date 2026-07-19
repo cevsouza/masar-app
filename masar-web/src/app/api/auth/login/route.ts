@@ -24,14 +24,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'E-mail ou senha incorretos' }, { status: 400 });
     }
 
-    // Auto-promoção de segurança para o administrador
-    if (['cevsouza@hotmail.com', 'cevsouza@hotmail'].includes(emailLower) && user.role !== 'ADMIN') {
-      await db.user.update({
-        where: { id: user.id },
-        data: { role: 'ADMIN' }
-      });
-      user.role = 'ADMIN';
-    }
+    // NÃO reintroduzir auto-promoção por e-mail aqui.
+    // Havia um bloco que promovia a ADMIN qualquer conta com um e-mail fixo do
+    // fornecedor — e rodava ANTES da verificação de senha. Numa instância de
+    // cliente isso é um superusuário do fornecedor dentro do sistema do cliente.
+    // A role vem do banco; o primeiro admin é criado por scripts/provisionar-cliente.mjs.
 
     // Verify password
     const passwordOk = await verifyPassword(password, user.password);

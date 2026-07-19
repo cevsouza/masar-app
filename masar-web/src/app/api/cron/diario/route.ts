@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { sendEmail } from '@/lib/resend';
+import { sendEmail, getExtraAlertEmails } from '@/lib/resend';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 import { buscarVencimentosSST } from '@/lib/sst';
 import { avaliarMetas } from '@/lib/metaEficiencia';
@@ -14,7 +14,7 @@ const formatBRL = (val: number) =>
 
 // Destinatários extras do relatório diário, além dos usuários ADMIN/FINANCEIRO do app.
 // (só recebem e-mail; não há notificação in-app pois não têm conta.)
-const EXTRA_ALERT_EMAILS = ['cevsouza74@gmail.com'];
+// Vem da env EXTRA_ALERT_EMAILS — ver getExtraAlertEmails() em lib/resend.
 
 export async function GET(request: NextRequest) {
   try {
@@ -418,7 +418,7 @@ export async function GET(request: NextRequest) {
       // Envia para ADMIN + FINANCEIRO + destinatários extras (deduplicado por e-mail)
       const recipientEmails = Array.from(new Set([
         ...financeiroUsers.map(u => u.email),
-        ...EXTRA_ALERT_EMAILS
+        ...getExtraAlertEmails()
       ]));
       for (const email of recipientEmails) {
         await sendEmail({

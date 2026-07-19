@@ -27,8 +27,10 @@ export async function fetchCoordinates(
     const numberMatch = endereco ? endereco.match(/\b\d+\b/) : null;
     const houseNumber = numberMatch ? numberMatch[0] : '';
 
+    // O Nominatim exige um User-Agent identificável com contato. Vem de env para
+    // não vazar o e-mail pessoal do fornecedor a partir da instância do cliente.
     const headers = {
-      'User-Agent': 'Masar-ERP-App/1.0 (cevsouza@masar.com)'
+      'User-Agent': process.env.GEOCODING_USER_AGENT || 'Masar-ERP-App/1.0 (contato@masarempreendimentos.com.br)'
     };
 
     // 2. Tentar geocodificar com Logradouro + Número + CEP + Cidade + Estado

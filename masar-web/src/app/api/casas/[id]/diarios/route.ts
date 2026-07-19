@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { sendEmail } from '@/lib/resend';
+import { sendEmail, getExtraAlertEmails } from '@/lib/resend';
 
 // Sócios/gestão que acompanham a operação recebem o sino a cada diário.
 const SOCIO_ROLES = ['ADMIN', 'FINANCEIRO'] as const;
-// Destinatário adicional de e-mails críticos (mesmo do cron diário).
-const EXTRA_ALERT_EMAILS = ['cevsouza74@gmail.com'];
+// Destinatários adicionais vêm da env EXTRA_ALERT_EMAILS (mesmo do cron diário).
 
 const CLIMA_LABEL: Record<string, string> = {
   BOM: 'tempo bom',
@@ -109,7 +108,7 @@ export async function POST(
         const destinatarios = Array.from(
           new Set([
             ...socios.map((s) => s.email).filter((e): e is string => !!e),
-            ...EXTRA_ALERT_EMAILS,
+            ...getExtraAlertEmails(),
           ])
         );
 

@@ -2,14 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 
-export async function GET(request: NextRequest) {
+// Este endpoint APAGA o banco inteiro. Três travas, todas obrigatórias:
+//   1. É POST — era GET, e um GET destrutivo dispara por link, histórico ou prefetch
+//      do navegador, sem o usuário clicar em nada.
+//   2. Exige CLEAN_SECRET no ambiente E no corpo. Fail-closed: instância de cliente
+//      simplesmente NÃO define a env, e aí a rota não existe na prática.
+//   3. Exige sessão ADMIN.
+// A conta preservada é a de QUEM EXECUTOU (antes eram dois e-mails fixos do fornecedor).
+export async function POST(request: NextRequest) {
   try {
-    // 0. Trava de segurança: só ADMIN autenticado pode limpar o banco.
-    // (Antes este endpoint apagava TODO o banco sem nenhuma verificação de sessão.)
+    const CLEAN_SECRET = process.env.CLEAN_SECRET;
+    if (!CLEAN_SECRET) {
+      return NextResponse.json(
+        { error: 'Rota desabilitada nesta instância (CLEAN_SECRET não definido).' },
+        { status: 404 }
+      );
+    }
+
     const sessionToken = request.cookies.get('masar_session')?.value;
     const session = sessionToken ? await verifySession(sessionToken) : null;
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    if (body?.secret !== CLEAN_SECRET) {
+      return NextResponse.json({ error: 'Segredo inválido' }, { status: 403 });
     }
 
     // 1. Limpar todas as tabelas de dados na ordem de dependência para evitar violações de FK
@@ -35,19 +53,14 @@ export async function GET(request: NextRequest) {
     await db.marcoBurocratico.deleteMany();
     await db.empreendimento.deleteMany();
 
-    // 2. Limpar outros usuários cadastrados, preservando apenas as credenciais administrativas
+    // 2. Limpar os demais usuários, preservando APENAS quem executou a limpeza
+    //    (evita ficar sem nenhum admin e não deixa e-mail de fornecedor no código).
     await db.user.deleteMany({
-      where: {
-        NOT: {
-          email: {
-            in: ['cevsouza@hotmail.com', 'cevsouza@hotmail']
-          }
-        }
-      }
+      where: { NOT: { id: session.userId } }
     });
 
     return new Response(
-      `<html>
+      `<!-- resposta HTML mantida por compatibilidade com o uso manual --><html>
         <head>
           <title>Banco de Dados Limpo</title>
           <style>
@@ -63,7 +76,7 @@ export async function GET(request: NextRequest) {
           <div class="card">
             <h1>✓ Banco de Dados Limpo!</h1>
             <p>Todos os dados fictícios de teste (empreendimentos, orçamentos, vendas, movimentações financeiras e corretores) foram deletados com sucesso.</p>
-            <p>As contas administrativas de <strong>cevsouza@hotmail.com</strong> e <strong>cevsouza@hotmail</strong> foram <strong>preservadas</strong>.</p>
+            <p>A sua conta de administrador foi <strong>preservada</strong>. Todas as demais foram removidas.</p>
             <a href="/">Voltar ao Sistema</a>
           </div>
         </body>
