@@ -20,7 +20,14 @@ export interface Ficha {
   limiteObras: number | null;
   dataExpiracao: string | null;
   ehRaiz: boolean;
+  empreendimentos: number;
+  casas: number;
+  transacoes: number;
+  /** Positivo = venceu há N dias. Negativo = vigente. Null = sem data. */
+  diasVencido: number | null;
 }
+
+const DIAS_QUARENTENA = 90;
 
 const campo =
   'w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2.5 text-sm text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500/60';
@@ -36,6 +43,19 @@ export default function FichaEmpresaForm({ inicial }: { inicial: Ficha }) {
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [nomeDigitado, setNomeDigitado] = useState('');
   const [apagando, setApagando] = useState(false);
+
+  const vazia = inicial.empreendimentos === 0;
+  const pendencias: string[] = [];
+  if (!vazia) {
+    const d = inicial.diasVencido;
+    if (d === null) pendencias.push('O contrato não tem data de vencimento definida.');
+    else if (d < 0) pendencias.push(`O contrato está vigente — vence em ${-d} dias.`);
+    else if (d < DIAS_QUARENTENA)
+      pendencias.push(
+        `Quarentena em curso: venceu há ${d} dias, faltam ${DIAS_QUARENTENA - d} para liberar.`
+      );
+    if (inicial.ativa) pendencias.push('A instância ainda está ativa — desative e salve primeiro.');
+  }
 
   const apagar = async () => {
     setApagando(true);
@@ -291,14 +311,39 @@ export default function FichaEmpresaForm({ inicial }: { inicial: Ficha }) {
             <Trash2 size={15} className="text-red-500" />
             <p className="text-xs font-bold text-red-400 uppercase tracking-wider">Apagar instância</p>
           </div>
-          <p className="text-[11px] text-stone-500 leading-relaxed">
-            Só funciona em instância <strong className="text-stone-400">vazia</strong> — sem nenhum
-            empreendimento cadastrado. Serve para limpar um teste ou um cadastro errado. Se já houver
-            obra dentro, o caminho é <strong className="text-stone-400">desativar</strong> acima:
-            ninguém entra e nada se perde.
-          </p>
+          {/* A elegibilidade olha o que está GRAVADO (inicial), não o que está
+              digitado no formulário — marcar a caixa "inativa" sem salvar não
+              pode fazer o botão de apagar parecer liberado. */}
+          {vazia ? (
+            <p className="text-[11px] text-stone-500 leading-relaxed">
+              Instância <strong className="text-stone-400">vazia</strong> — nenhum empreendimento
+              cadastrado. Pode ser apagada sem cerimônia: não há o que perder.
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                Instância com operação dentro: {inicial.empreendimentos} empreendimento(s),{' '}
+                {inicial.casas} casa(s), {inicial.transacoes} lançamento(s) financeiro(s) — mais
+                documentos do cofre e o log de auditoria. Apagar leva tudo junto, de uma vez, sem
+                volta.
+              </p>
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                Por isso só depois do <strong className="text-stone-400">encerramento consumado</strong>:
+                contrato vencido, instância desativada e {DIAS_QUARENTENA} dias de quarentena.
+                Vencimento sozinho não basta — quase sempre é atraso de pagamento, não fim de
+                contrato.
+              </p>
+              {pendencias.length > 0 && (
+                <ul className="text-[11px] text-amber-500/80 space-y-1 pl-4 list-disc">
+                  {pendencias.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
 
-          {!confirmandoExclusao ? (
+          {pendencias.length > 0 ? null : !confirmandoExclusao ? (
             <button
               type="button"
               onClick={() => setConfirmandoExclusao(true)}

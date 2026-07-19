@@ -20,7 +20,23 @@ export default async function FichaEmpresaPage({
   const e = await runSemEscopoDeEmpresa(() => db.empresa.findUnique({ where: { id } }));
   if (!e) notFound();
 
+  // O peso da instância decide qual regra de exclusão vale — a tela precisa
+  // dizer isso antes do clique, não depois do erro.
+  const [empreendimentos, casas, transacoes] = await runSemEscopoDeEmpresa(() =>
+    Promise.all([
+      db.empreendimento.count({ where: { empresaId: id } }),
+      db.casa.count({ where: { empresaId: id } }),
+      db.transacaoFinanceira.count({ where: { empresaId: id } }),
+    ])
+  );
+
   const inicial: Ficha = {
+    empreendimentos,
+    casas,
+    transacoes,
+    diasVencido: e.dataExpiracao
+      ? Math.floor((Date.now() - e.dataExpiracao.getTime()) / 86_400_000)
+      : null,
     id: e.id,
     nome: e.nome,
     slug: e.slug,

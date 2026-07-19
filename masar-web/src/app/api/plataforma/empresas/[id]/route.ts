@@ -40,9 +40,25 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Empresa não encontrada' }, { status: 404 });
     }
 
+    // Peso da instância: decide qual dos dois caminhos de exclusão se aplica, e
+    // é o que a tela mostra antes de alguém clicar em apagar.
+    const [empreendimentos, casas, transacoes] = await runSemEscopoDeEmpresa(() =>
+      Promise.all([
+        db.empreendimento.count({ where: { empresaId: id } }),
+        db.casa.count({ where: { empresaId: id } }),
+        db.transacaoFinanceira.count({ where: { empresaId: id } }),
+      ])
+    );
+    const diasVencido = empresa.dataExpiracao
+      ? Math.floor((Date.now() - empresa.dataExpiracao.getTime()) / 86_400_000)
+      : null;
+
     return NextResponse.json({
       id: empresa.id,
       nome: empresa.nome,
+      conteudo: { empreendimentos, casas, transacoes },
+      diasVencido,
+      diasQuarentena: DIAS_QUARENTENA_ENCERRAMENTO,
       slug: empresa.slug,
       cnpj: empresa.cnpj,
       ativa: empresa.ativa,
@@ -65,23 +81,31 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
+/** Quarentena depois do vencimento antes que a instância possa ser destruída. */
+const DIAS_QUARENTENA_ENCERRAMENTO = 90;
+
 /**
- * APAGA uma instância — de propósito, só as VAZIAS.
+ * APAGA uma instância. Dois caminhos, com exigências muito diferentes.
  *
- * O caso real é o único que justifica existir: o operador provisiona uma
- * construtora para testar (ou erra o nome) e quer o painel limpo. Para isso um
- * botão é adequado.
+ * CAMINHO 1 — instância VAZIA (nenhum empreendimento): apaga direto. É o teste
+ * que sobrou ou o cadastro digitado errado; não há nada a perder.
  *
- * O que este botão NÃO faz é destruir a operação de um cliente com obra dentro.
- * O schema tem onDelete: Cascade em toda a árvore do tenant — um delete aqui
- * levaria junto obras, medições, lançamentos, documentos e log de auditoria,
- * sem volta e sem rastro. Um clique errado no console apagaria a empresa do
- * cliente inteira. Por isso a regra é dura: com empreendimento cadastrado, a
- * rota recusa e manda desativar, que preserva tudo e produz o mesmo efeito
- * prático (ninguém entra).
+ * CAMINHO 2 — instância COM CONTEÚDO: só depois de encerramento consumado.
+ * Exige, juntos: contrato vencido, instância já DESATIVADA, e a quarentena de
+ * DIAS_QUARENTENA_ENCERRAMENTO dias corridos desde o vencimento.
  *
- * Três travas: empresa raiz nunca; instância com conteúdo nunca; e o nome
- * precisa ser digitado igual — confirmação que não se clica por reflexo.
+ * Por que não basta "vencido": vencimento quase sempre é atraso de pagamento,
+ * não fim de contrato. Se vencer bastasse, um cliente que renova três dias
+ * atrasado encontraria a obra apagada. A desativação manual é o ato humano que
+ * diz "este contrato acabou de verdade", e a quarentena é o tempo de arrependimento.
+ *
+ * Por que apagar afinal: a Masar é OPERADORA dos dados, não controladora. Fim
+ * do tratamento, os dados devem ser eliminados (LGPD art. 15/16) — guardar
+ * indefinidamente o financeiro e os CPFs de um ex-cliente é passivo, não zelo.
+ *
+ * O cascade do schema leva toda a árvore do tenant junto, INCLUSIVE o
+ * LogAuditoria dele. Por isso o que foi destruído é contado e registrado no log
+ * da aplicação ANTES do delete: é o único rastro que sobrevive.
  */
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -108,27 +132,63 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       );
     }
 
-    const empreendimentos = await runSemEscopoDeEmpresa(() =>
-      db.empreendimento.count({ where: { empresaId: id } })
+    const [empreendimentos, casas, lancamentos, documentos, usuarios] = await runSemEscopoDeEmpresa(
+      () =>
+        Promise.all([
+          db.empreendimento.count({ where: { empresaId: id } }),
+          db.casa.count({ where: { empresaId: id } }),
+          db.transacaoFinanceira.count({ where: { empresaId: id } }),
+          db.documentoAnexo.count({ where: { empresaId: id } }),
+          db.user.count({ where: { empresaId: id } }),
+        ])
     );
+
     if (empreendimentos > 0) {
-      return NextResponse.json(
-        {
-          error:
-            `"${empresa.nome}" tem ${empreendimentos} empreendimento(s) cadastrado(s). ` +
-            'Instância com obra dentro não é apagada por aqui — apagar levaria junto medições, ' +
-            'lançamentos, documentos e o log de auditoria, sem volta. Desative a instância: ' +
-            'ninguém entra e os dados ficam preservados.',
-        },
-        { status: 409 }
-      );
+      // Caminho 2: encerramento consumado. As três condições valem juntas.
+      const venceEm = empresa.dataExpiracao;
+      const diasVencido = venceEm
+        ? Math.floor((Date.now() - venceEm.getTime()) / 86_400_000)
+        : null;
+
+      const faltando: string[] = [];
+      if (diasVencido === null) {
+        faltando.push('o contrato não tem data de vencimento definida');
+      } else if (diasVencido < 0) {
+        faltando.push(`o contrato ainda está vigente (vence em ${-diasVencido} dias)`);
+      } else if (diasVencido < DIAS_QUARENTENA_ENCERRAMENTO) {
+        faltando.push(
+          `a quarentena ainda não terminou (venceu há ${diasVencido} dias; ` +
+            `faltam ${DIAS_QUARENTENA_ENCERRAMENTO - diasVencido})`
+        );
+      }
+      if (empresa.ativa) {
+        faltando.push('a instância ainda está marcada como ativa — desative primeiro');
+      }
+
+      if (faltando.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              `"${empresa.nome}" tem ${empreendimentos} empreendimento(s) e ${lancamentos} ` +
+              `lançamento(s) financeiro(s). Instância com operação dentro só é apagada após ` +
+              `encerramento consumado: contrato vencido, instância desativada e ` +
+              `${DIAS_QUARENTENA_ENCERRAMENTO} dias de quarentena. Falta: ${faltando.join('; ')}.`,
+          },
+          { status: 409 }
+        );
+      }
     }
 
-    await runSemEscopoDeEmpresa(() => db.empresa.delete({ where: { id } }));
-
+    // Contado ANTES do delete: o LogAuditoria do cliente some no cascade, então
+    // esta linha é o único registro que resta de que a instância existiu.
     logger.warn(
-      `[Plataforma] ${admin.email} APAGOU a instância "${empresa.nome}" (${empresa.slug}) — estava vazia`
+      `[Plataforma] ${admin.email} APAGOU a instância "${empresa.nome}" (${empresa.slug}) — ` +
+        `${empreendimentos} empreendimento(s), ${casas} casa(s), ${lancamentos} lançamento(s), ` +
+        `${documentos} documento(s), ${usuarios} usuário(s). Vencimento: ` +
+        `${empresa.dataExpiracao?.toISOString().slice(0, 10) ?? 'sem data'}.`
     );
+
+    await runSemEscopoDeEmpresa(() => db.empresa.delete({ where: { id } }));
 
     return NextResponse.json({ success: true, nome: empresa.nome });
   } catch (error: any) {
