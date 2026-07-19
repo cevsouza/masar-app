@@ -360,7 +360,17 @@ export default function ClientPortalDashboard({ cliente, empresaNome }: ClientPo
                         <span className="text-[10px] text-blue-400 hover:underline block mt-1">Use a caixa ao lado para enviar</span>
                       )}
                       {task.type === 'assinatura' && (
-                        <span className="text-[10px] text-blue-400 hover:underline block mt-1">Aguarde o link ZapSign no seu e-mail</span>
+                        // NÃO prometer canal nem fornecedor aqui.
+                        //
+                        // Dizia "Aguarde o link ZapSign no seu e-mail". Duas coisas
+                        // erradas: (1) o fluxo de assinatura está pela METADE — existe o
+                        // recebimento do webhook, mas nada cria o registro de assinatura
+                        // nem chama a API do fornecedor, então o link NUNCA chega;
+                        // (2) "ZapSign" é o fornecedor escolhido por nós, exibido ao
+                        // comprador de um cliente que pode usar outro, ou papel.
+                        <span className="text-[10px] text-slate-500 block mt-1">
+                          A construtora entrará em contato para a assinatura do contrato.
+                        </span>
                       )}
                     </div>
                   </div>
