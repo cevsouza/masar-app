@@ -37,43 +37,86 @@ export async function GET() {
     logger.error('[Health Check] Falha de conexão com o banco de dados', error);
   }
 
-  // 2. Validar Integridade do Volume Persistente (GED)
-  try {
-    const uploadDir = process.env.NODE_ENV === 'production' 
-      ? '/app/uploads' 
-      : join(process.cwd(), 'uploads');
+  // 2. Volume persistente do cofre (GED)
+  //
+  // Este bloco diagnostica em vez de só falhar. O motivo: quando o volume não
+  // está anexado ao serviço, as rotas de upload NÃO quebram — todas fazem
+  // `mkdir(..., { recursive: true })` e acabam gravando no disco EFÊMERO do
+  // container. O documento entra, o usuário vê "enviado", e some no próximo
+  // deploy. Como documento faltando trava medição, o sintoma aparece longe da
+  // causa, semanas depois.
+  //
+  // O Railway injeta RAILWAY_VOLUME_NAME e RAILWAY_VOLUME_MOUNT_PATH quando há
+  // volume anexado. A AUSÊNCIA dessas variáveis é o sinal mais confiável de que
+  // o volume não está ligado — mais que declarar em railway.json, que sozinho
+  // não faz o vínculo.
+  const volumeNome = process.env.RAILWAY_VOLUME_NAME || null;
+  const volumeMontagem = process.env.RAILWAY_VOLUME_MOUNT_PATH || null;
+  const uploadDir =
+    process.env.NODE_ENV === 'production' ? '/app/uploads' : join(process.cwd(), 'uploads');
 
-    const tempFileName = `.health-${crypto.randomUUID()}.tmp`;
-    const tempFilePath = join(uploadDir, tempFileName);
+  const armazenamento: any = {
+    caminhoUsadoPeloCodigo: uploadDir,
+    volumeAnexado: Boolean(volumeNome || volumeMontagem),
+    volumeNome,
+    volumeMontagem,
+  };
+
+  // O volume pode estar anexado e montado no lugar ERRADO — falha silenciosa
+  // igualmente traiçoeira, e que nenhum erro de escrita revelaria.
+  if (volumeMontagem && volumeMontagem !== uploadDir) {
+    armazenamento.avisoMontagem =
+      `Volume montado em "${volumeMontagem}", mas o código grava em "${uploadDir}". ` +
+      'Os arquivos não estão indo para o volume.';
+  }
+
+  try {
+    const tempFilePath = join(uploadDir, `.health-${crypto.randomUUID()}.tmp`);
     const testContent = `health_test_${Date.now()}`;
 
-    // Testar escrita
     await writeFile(tempFilePath, testContent, 'utf8');
-
-    // Testar leitura
     const readContent = await readFile(tempFilePath, 'utf8');
-    
-    // Testar deleção
     await unlink(tempFilePath);
 
     if (readContent !== testContent) {
       throw new Error('Conteúdo do arquivo lido difere do escrito');
     }
 
-    report.details.storage = {
-      status: 'UP',
-      path: uploadDir,
-      writeReadVerify: 'OK'
-    };
+    armazenamento.escritaLeitura = 'OK';
+
+    // Escrever funcionou — mas em QUE disco? Sem volume, é efêmero, e isso é
+    // um problema mesmo com o teste passando.
+    if (!armazenamento.volumeAnexado && process.env.NODE_ENV === 'production') {
+      hasError = true;
+      report.status = 'DOWN';
+      armazenamento.status = 'EFEMERO';
+      armazenamento.diagnostico =
+        'A escrita funciona, mas NÃO há volume anexado a este serviço: os arquivos estão no disco ' +
+        'descartável do container e serão perdidos no próximo deploy. Anexe um volume ao serviço ' +
+        `com ponto de montagem em "${uploadDir}".`;
+      logger.error('[Health Check] Cofre GED gravando em disco efêmero — volume não anexado');
+    } else if (armazenamento.avisoMontagem) {
+      hasError = true;
+      report.status = 'DOWN';
+      armazenamento.status = 'MONTAGEM_ERRADA';
+      armazenamento.diagnostico = armazenamento.avisoMontagem;
+      logger.error('[Health Check] Volume anexado em caminho diferente do usado pelo código');
+    } else {
+      armazenamento.status = 'UP';
+    }
   } catch (error: any) {
     hasError = true;
     report.status = 'DOWN';
-    report.details.storage = {
-      status: 'DOWN',
-      error: error.message || String(error)
-    };
-    logger.error('[Health Check] Falha no teste de escrita/leitura do Volume Persistente', error);
+    armazenamento.status = 'DOWN';
+    armazenamento.error = error.message || String(error);
+    armazenamento.diagnostico = armazenamento.volumeAnexado
+      ? 'O volume está anexado, mas a gravação falhou — verifique permissões e o ponto de montagem.'
+      : `Nenhum volume anexado e o diretório "${uploadDir}" não existe. ` +
+        'Anexe um volume ao serviço com este ponto de montagem.';
+    logger.error('[Health Check] Falha no teste de escrita/leitura do volume', error);
   }
+
+  report.details.storage = armazenamento;
 
   report.totalDurationMs = Date.now() - start;
 
