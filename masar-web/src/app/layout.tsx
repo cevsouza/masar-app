@@ -12,9 +12,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Título NEUTRO de propósito. Este é o layout raiz: resolver a empresa aqui
+// (via generateMetadata, que consulta o banco) tornaria TODA página dinâmica e
+// mataria a geração estática. Quem sabe de que empresa é — login e painel —
+// sobrescreve com o nome certo; o que sobra aqui é o produto, não o cliente.
 export const metadata: Metadata = {
-  title: "Masar Empreendimentos | Gestão de Medições e Fluxo de Caixa CEF",
-  description: "SaaS B2B para controle de fluxo de caixa, evolução de obras e medições da Caixa Econômica Federal (MCMV).",
+  title: "Gestão de Obras e Medições CEF",
+  description: "Controle de fluxo de caixa, evolução de obras e medições da Caixa Econômica Federal (MCMV).",
 };
 
 export default function RootLayout({
