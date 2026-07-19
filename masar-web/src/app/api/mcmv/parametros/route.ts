@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
+import { exigirEmpresaId } from '@/lib/tenant';
 import { logMutation } from '@/lib/audit';
 
 const FAIXAS = ['FAIXA_1', 'FAIXA_2', 'FAIXA_3', 'FAIXA_4'];
@@ -67,8 +68,11 @@ export async function PUT(request: NextRequest) {
         atualizadoPor: session.nome,
       };
 
+      // A unicidade da faixa passou a ser por empresa (cada cliente tem os seus
+      // parâmetros), então o upsert precisa da chave composta completa.
+      const empresaId = await exigirEmpresaId();
       const upserted = await db.parametroMCMV.upsert({
-        where: { faixa: p.faixa },
+        where: { empresaId_faixa: { empresaId, faixa: p.faixa } },
         create: { faixa: p.faixa, ...dados },
         update: dados,
       });

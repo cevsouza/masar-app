@@ -73,7 +73,7 @@ async function montarContexto(empreendimentoId: string, faixaMCMV: string | null
     }),
     db.atividadeCronograma.count({ where: { empreendimentoId } }),
     faixaMCMV
-      ? db.parametroMCMV.findUnique({ where: { faixa: faixaMCMV as any } })
+      ? db.parametroMCMV.findFirst({ where: { faixa: faixaMCMV as any } })
       : Promise.resolve(null),
     bloqueioSegurancaMedicao(),
   ]);

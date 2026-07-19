@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { db } from '@/lib/db';
+import { db, type ClienteTransacao } from '@/lib/db';
 import { deltaLancamento } from '@/lib/caixaMath';
 
 /**
@@ -34,7 +34,7 @@ interface PostLancamentoInput {
  * Retorna a conta usada (ou null se não houver conta cadastrada).
  */
 export async function postLancamento(
-  tx: Prisma.TransactionClient,
+  tx: ClienteTransacao,
   input: PostLancamentoInput
 ) {
   const conta = input.contaId

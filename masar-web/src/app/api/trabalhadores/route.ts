@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (data.cpf) {
-      const existe = await db.trabalhador.findUnique({ where: { cpf: data.cpf } });
+      const existe = await db.trabalhador.findFirst({ where: { cpf: data.cpf } });
       if (existe) {
         return NextResponse.json({ error: 'Já existe um trabalhador com este CPF' }, { status: 400 });
       }

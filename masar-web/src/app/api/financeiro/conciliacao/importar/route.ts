@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
       const doc = l.documentoIdentificador ? String(l.documentoIdentificador).trim() : null;
       if (doc) {
-        const existe = await db.transacaoBancaria.findUnique({ where: { documentoIdentificador: doc } });
+        const existe = await db.transacaoBancaria.findFirst({ where: { documentoIdentificador: doc } });
         if (existe) {
           ignoradas++;
           continue;

@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if client already exists by CPF
-    const existingClient = await db.cliente.findUnique({
+    const existingClient = await db.cliente.findFirst({
       where: { cpf },
     });
 

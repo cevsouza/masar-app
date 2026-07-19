@@ -117,7 +117,7 @@ enum EscopoCronograma {
 // as rotas de API seguem checando o papel como backstop de seguranca.
 model PermissaoPapelModulo {
   id        String      @id @default(uuid())
-  empresaId String
+  empresaId String      @default("00000000-0000-0000-0000-000000000001")
   empresa   Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   role      RoleUsuario
   modulo    String
@@ -129,7 +129,7 @@ model PermissaoPapelModulo {
 
 model User {
   id          String      @id @default(uuid())
-  empresaId   String
+  empresaId   String      @default("00000000-0000-0000-0000-000000000001")
   empresa     Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   email       String
   password    String
@@ -143,7 +143,7 @@ model User {
 
 model Empreendimento {
   id                          String                 @id @default(uuid())
-  empresaId                   String
+  empresaId                   String                 @default("00000000-0000-0000-0000-000000000001")
   empresa                     Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome                        String
   localizacao                 String
@@ -201,7 +201,7 @@ model Empreendimento {
 
 model MarcoBurocratico {
   id                String         @id @default(uuid())
-  empresaId         String
+  empresaId         String         @default("00000000-0000-0000-0000-000000000001")
   empresa           Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   empreendimentoId  String
   empreendimento    Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
@@ -217,7 +217,7 @@ model MarcoBurocratico {
 
 model Cliente {
   id                String                @id @default(uuid())
-  empresaId         String
+  empresaId         String                @default("00000000-0000-0000-0000-000000000001")
   empresa           Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome              String
   cpf               String
@@ -244,7 +244,7 @@ model Cliente {
 
 model InsumoPadrao {
   id                   String                @id @default(uuid())
-  empresaId            String
+  empresaId            String                @default("00000000-0000-0000-0000-000000000001")
   empresa              Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome                 String
   unidadeMedida        UnidadeMedida
@@ -265,7 +265,7 @@ model InsumoPadrao {
 
 model Casa {
   id                   String                 @id @default(uuid())
-  empresaId            String
+  empresaId            String                 @default("00000000-0000-0000-0000-000000000001")
   empresa              Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   numero               String
   quadra               String
@@ -314,7 +314,7 @@ model Casa {
 
 model OrcamentoCasa {
   id        String          @id @default(uuid())
-  empresaId String
+  empresaId String          @default("00000000-0000-0000-0000-000000000001")
   empresa   Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId    String          @unique
   casa      Casa            @relation(fields: [casaId], references: [id], onDelete: Cascade)
@@ -325,7 +325,7 @@ model OrcamentoCasa {
 
 model ItemOrcamento {
   id                    String        @id @default(uuid())
-  empresaId             String
+  empresaId             String        @default("00000000-0000-0000-0000-000000000001")
   empresa               Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   orcamentoCasaId       String
   orcamentoCasa         OrcamentoCasa @relation(fields: [orcamentoCasaId], references: [id], onDelete: Cascade)
@@ -339,7 +339,7 @@ model ItemOrcamento {
 
 model DiarioDeObra {
   id                   String   @id @default(uuid())
-  empresaId            String
+  empresaId            String   @default("00000000-0000-0000-0000-000000000001")
   empresa              Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId               String
   casa                 Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
@@ -354,7 +354,7 @@ model DiarioDeObra {
 
 model InfraestruturaUnidade {
   id                         String  @id @default(uuid())
-  empresaId                  String
+  empresaId                  String  @default("00000000-0000-0000-0000-000000000001")
   empresa                    Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId                     String  @unique
   casa                       Casa    @relation(fields: [casaId], references: [id], onDelete: Cascade)
@@ -369,7 +369,7 @@ model InfraestruturaUnidade {
 
 model MedicaoCaixa {
   id                 String        @id @default(uuid())
-  empresaId          String
+  empresaId          String        @default("00000000-0000-0000-0000-000000000001")
   empresa            Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId             String
   casa               Casa          @relation(fields: [casaId], references: [id], onDelete: Cascade)
@@ -386,7 +386,7 @@ model MedicaoCaixa {
 
 model Corretor {
   id                 String          @id @default(uuid())
-  empresaId          String
+  empresaId          String          @default("00000000-0000-0000-0000-000000000001")
   empresa            Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome               String
   creci              String
@@ -400,7 +400,7 @@ model Corretor {
 
 model ContratoVenda {
   id              String                @id @default(uuid())
-  empresaId       String
+  empresaId       String                @default("00000000-0000-0000-0000-000000000001")
   empresa         Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId          String                @unique
   casa            Casa                  @relation(fields: [casaId], references: [id], onDelete: Cascade)
@@ -427,7 +427,7 @@ model ContratoVenda {
 
 model ContaBancaria {
   id              String              @id @default(uuid())
-  empresaId       String
+  empresaId       String              @default("00000000-0000-0000-0000-000000000001")
   empresa         Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome            String
   saldoAtual      Float               @default(0.0)
@@ -441,7 +441,7 @@ model ContaBancaria {
 
 model Socio {
   id              String              @id @default(uuid())
-  empresaId       String
+  empresaId       String              @default("00000000-0000-0000-0000-000000000001")
   empresa         Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome            String
   percentualCotas Float               @default(0.0)
@@ -454,7 +454,7 @@ model Socio {
 
 model MovimentacaoSocio {
   id               String                @id @default(uuid())
-  empresaId        String
+  empresaId        String                @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   socioId          String
   socio            Socio                 @relation(fields: [socioId], references: [id], onDelete: Cascade)
@@ -490,7 +490,7 @@ enum CategoriaFinanceira {
 
 model TransacaoFinanceira {
   id             String              @id @default(uuid())
-  empresaId      String
+  empresaId      String              @default("00000000-0000-0000-0000-000000000001")
   empresa        Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   descricao      String
   valor          Float
@@ -525,7 +525,7 @@ model TransacaoFinanceira {
 
 model LogAuditoria {
   id             String   @id @default(uuid())
-  empresaId      String
+  empresaId      String   @default("00000000-0000-0000-0000-000000000001")
   empresa        Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   usuarioId      String?
   usuarioNome    String?
@@ -541,7 +541,7 @@ model LogAuditoria {
 
 model DocumentoAnexo {
   id               String              @id @default(uuid())
-  empresaId        String
+  empresaId        String              @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome             String
   caminhoArquivo   String
@@ -561,7 +561,7 @@ model DocumentoAnexo {
 
 model Notificacao {
   id        String   @id @default(uuid())
-  empresaId String
+  empresaId String   @default("00000000-0000-0000-0000-000000000001")
   empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   usuarioId String
   mensagem  String
@@ -573,7 +573,7 @@ model Notificacao {
 
 model CotacaoMaterial {
   id               String         @id @default(uuid())
-  empresaId        String
+  empresaId        String         @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   material         String
   quantidade       Float
@@ -590,7 +590,7 @@ model CotacaoMaterial {
 
 model PontoTrabalhador {
   id              String       @id @default(uuid())
-  empresaId       String
+  empresaId       String       @default("00000000-0000-0000-0000-000000000001")
   empresa         Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhadorNome String
   trabalhadorCpf  String
@@ -614,7 +614,7 @@ enum TipoVinculo {
 // DDS, CAT e o ponto do canteiro referenciam este cadastro.
 model Trabalhador {
   id              String             @id @default(uuid())
-  empresaId       String
+  empresaId       String             @default("00000000-0000-0000-0000-000000000001")
   empresaTenant   Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome            String
   cpf             String?
@@ -655,7 +655,7 @@ enum ResultadoASO {
 // e, na Fase 3.4, trava a liberacao de medicao se estiver vencida.
 model ASO {
   id             String       @id @default(uuid())
-  empresaId      String
+  empresaId      String       @default("00000000-0000-0000-0000-000000000001")
   empresa        Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhadorId  String
   trabalhador    Trabalhador  @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
@@ -673,7 +673,7 @@ model ASO {
 // Entrega de EPI (equipamento de protecao individual) a um trabalhador.
 model EntregaEPI {
   id            String      @id @default(uuid())
-  empresaId     String
+  empresaId     String      @default("00000000-0000-0000-0000-000000000001")
   empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhadorId String
   trabalhador   Trabalhador @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
@@ -691,7 +691,7 @@ model EntregaEPI {
 
 model TransacaoBancaria {
   id                     String        @id @default(uuid())
-  empresaId              String
+  empresaId              String        @default("00000000-0000-0000-0000-000000000001")
   empresa                Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   contaBancariaId        String
   contaBancaria          ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Cascade)
@@ -710,7 +710,7 @@ model TransacaoBancaria {
 
 model Distrato {
   id              String        @id @default(uuid())
-  empresaId       String
+  empresaId       String        @default("00000000-0000-0000-0000-000000000001")
   empresa         Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   contratoId      String        @unique
   contrato        ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
@@ -725,7 +725,7 @@ model Distrato {
 
 model AssinaturaContrato {
   id             String        @id @default(uuid())
-  empresaId      String
+  empresaId      String        @default("00000000-0000-0000-0000-000000000001")
   empresa        Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   contratoId     String        @unique
   contrato       ContratoVenda @relation(fields: [contratoId], references: [id], onDelete: Cascade)
@@ -739,7 +739,7 @@ model AssinaturaContrato {
 
 model UsuarioCliente {
   id          String   @id @default(uuid())
-  empresaId   String
+  empresaId   String   @default("00000000-0000-0000-0000-000000000001")
   empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   clienteId   String   @unique
   cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -753,7 +753,7 @@ model UsuarioCliente {
 
 model SolicitacaoCompra {
   id                   String              @id @default(uuid())
-  empresaId            String
+  empresaId            String              @default("00000000-0000-0000-0000-000000000001")
   empresa              Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId               String?
   casa                 Casa?               @relation(fields: [casaId], references: [id], onDelete: Cascade)
@@ -773,7 +773,7 @@ model SolicitacaoCompra {
 
 model CotacaoFornecedor {
   id               String            @id @default(uuid())
-  empresaId        String
+  empresaId        String            @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   solicitacaoId    String
   solicitacao      SolicitacaoCompra @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
@@ -796,7 +796,7 @@ enum TipoContaBancaria {
 
 model Fornecedor {
   id                 String              @id @default(uuid())
-  empresaId          String
+  empresaId          String              @default("00000000-0000-0000-0000-000000000001")
   empresa            Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome               String
   cnpj               String?
@@ -837,7 +837,7 @@ model Fornecedor {
 // itens casam com o catalogo, entrada de estoque. Base do modulo Fiscal (Fase 4).
 model NotaFiscalEntrada {
   id                  String          @id @default(uuid())
-  empresaId           String
+  empresaId           String          @default("00000000-0000-0000-0000-000000000001")
   empresa             Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   chave               String? // chave de acesso (44 digitos)
   numero              String?
@@ -861,7 +861,7 @@ model NotaFiscalEntrada {
 
 model OrdemCompra {
   id                  String            @id @default(uuid())
-  empresaId           String
+  empresaId           String            @default("00000000-0000-0000-0000-000000000001")
   empresa             Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   cotacaoId           String            @unique
   cotacao             CotacaoFornecedor @relation(fields: [cotacaoId], references: [id], onDelete: Cascade)
@@ -875,7 +875,7 @@ model OrdemCompra {
 
 model MovimentacaoEstoque {
   id               String       @id @default(uuid())
-  empresaId        String
+  empresaId        String       @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   insumoId         String
   insumo           InsumoPadrao @relation(fields: [insumoId], references: [id], onDelete: Restrict)
@@ -930,7 +930,7 @@ enum StatusConformidade {
 // atualizaveis por consulta de IA (portaria vigente). 1 linha por faixa.
 model ParametroMCMV {
   id                           String    @id @default(uuid())
-  empresaId                    String
+  empresaId                    String    @default("00000000-0000-0000-0000-000000000001")
   empresa                      Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   faixa                        FaixaMCMV
   tetoValorImovel              Decimal
@@ -953,7 +953,7 @@ model ParametroMCMV {
 // evidencia e observacao). Itens AUTO/DOC tem o status recalculado na leitura.
 model ItemConformidadeMCMV {
   id               String             @id @default(uuid())
-  empresaId        String
+  empresaId        String             @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   empreendimentoId String
   empreendimento   Empreendimento     @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
@@ -973,7 +973,7 @@ model ItemConformidadeMCMV {
 
 model Milestone {
   id               String          @id @default(uuid())
-  empresaId        String
+  empresaId        String          @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   titulo           String
   descricao        String?
@@ -993,7 +993,7 @@ model Milestone {
 
 model AtividadeCronograma {
   id                  String           @id @default(uuid())
-  empresaId           String
+  empresaId           String           @default("00000000-0000-0000-0000-000000000001")
   empresa             Empresa          @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   titulo              String
   descricao           String?
@@ -1022,7 +1022,7 @@ model AtividadeCronograma {
 // (o quanto o orcamento/cronograma mudou desde o congelamento). 1:1 com Casa.
 model LinhaBaseObra {
   id                  String    @id @default(uuid())
-  empresaId           String
+  empresaId           String    @default("00000000-0000-0000-0000-000000000001")
   empresa             Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   casaId              String    @unique
   casa                Casa      @relation(fields: [casaId], references: [id], onDelete: Cascade)
@@ -1040,7 +1040,7 @@ model LinhaBaseObra {
 // Base do painel de eficiencia diaria e dos alertas do cron (Fase 6.5).
 model MetaEficiencia {
   id                String   @id @default("default")
-  empresaId         String
+  empresaId         String   @default("00000000-0000-0000-0000-000000000001")
   empresa           Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   cpiMinimo         Float    @default(0.95) // custo: EV/AC minimo aceitavel
   spiMinimo         Float    @default(0.95) // prazo: EV/PV minimo aceitavel
@@ -1070,7 +1070,7 @@ enum GravidadeAcidente {
 // DDS — Dialogo Diario de Seguranca (registro da conversa de seguranca).
 model DialogoSeguranca {
   id               String          @id @default(uuid())
-  empresaId        String
+  empresaId        String          @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   data             DateTime        @default(now())
   tema             String
@@ -1089,7 +1089,7 @@ model DialogoSeguranca {
 // Acidente / CAT (Comunicacao de Acidente de Trabalho).
 model Acidente {
   id               String            @id @default(uuid())
-  empresaId        String
+  empresaId        String            @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhadorId    String
   trabalhador      Trabalhador       @relation(fields: [trabalhadorId], references: [id], onDelete: Cascade)
@@ -1113,7 +1113,7 @@ model Acidente {
 // Checklist de conformidade por Norma Regulamentadora (NR-18, NR-35...).
 model ChecklistNR {
   id               String          @id @default(uuid())
-  empresaId        String
+  empresaId        String          @default("00000000-0000-0000-0000-000000000001")
   empresa          Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   norma            String // "NR-18", "NR-35", "NR-06"...
   data             DateTime        @default(now())

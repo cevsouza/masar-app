@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Localizar cliente
-    const cliente = await db.cliente.findUnique({
+    const cliente = await db.cliente.findFirst({
       where: { cpf: clienteCpf }
     });
 

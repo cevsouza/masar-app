@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar duplicidade de e-mail
-    const userExists = await db.user.findUnique({
+    const userExists = await db.user.findFirst({
       where: { email: emailLower },
     });
 

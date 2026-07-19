@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     logger.info('[Auth Cliente] Tentativa de login no Portal do Cliente', { traceId, email });
 
     // Buscar usuário cliente
-    const clientUser = await db.usuarioCliente.findUnique({
+    const clientUser = await db.usuarioCliente.findFirst({
       where: { email },
       include: {
         cliente: true

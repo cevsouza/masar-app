@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { db } from '@/lib/db';
+import { db, type ClienteTransacao } from '@/lib/db';
 
 /**
  * Estoque — fonte ÚNICA de mutação do saldo em cache (InsumoPadrao.saldoEstoque).
@@ -31,7 +31,7 @@ function deltaEstoque(tipo: TipoMovimentacaoEstoque, quantidade: number): number
  * DEVE ser chamado dentro de uma transação Prisma (`tx`).
  */
 export async function registrarMovimentacaoEstoque(
-  tx: Prisma.TransactionClient,
+  tx: ClienteTransacao,
   input: RegistrarMovimentacaoInput
 ) {
   const mov = await tx.movimentacaoEstoque.create({

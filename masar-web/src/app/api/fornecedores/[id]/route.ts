@@ -41,13 +41,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Se mudou o CNPJ/CPF, garante que nao colide com outro fornecedor.
     if (data.cnpj && data.cnpj !== atual.cnpj) {
-      const existe = await db.fornecedor.findUnique({ where: { cnpj: data.cnpj } });
+      const existe = await db.fornecedor.findFirst({ where: { cnpj: data.cnpj } });
       if (existe && existe.id !== id) {
         return NextResponse.json({ error: 'Já existe um fornecedor com este CNPJ' }, { status: 400 });
       }
     }
     if (data.cpf && data.cpf !== atual.cpf) {
-      const existe = await db.fornecedor.findUnique({ where: { cpf: data.cpf } });
+      const existe = await db.fornecedor.findFirst({ where: { cpf: data.cpf } });
       if (existe && existe.id !== id) {
         return NextResponse.json({ error: 'Já existe um fornecedor com este CPF' }, { status: 400 });
       }

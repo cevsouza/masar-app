@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Dedup por chave de acesso.
     if (nfe.chave) {
-      const existe = await db.notaFiscalEntrada.findUnique({ where: { chave: nfe.chave } });
+      const existe = await db.notaFiscalEntrada.findFirst({ where: { chave: nfe.chave } });
       if (existe) {
         return NextResponse.json({ error: 'Esta NF-e já foi importada (chave de acesso duplicada).' }, { status: 409 });
       }

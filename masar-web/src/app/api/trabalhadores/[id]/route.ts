@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     if (data.cpf && data.cpf !== atual.cpf) {
-      const existe = await db.trabalhador.findUnique({ where: { cpf: data.cpf } });
+      const existe = await db.trabalhador.findFirst({ where: { cpf: data.cpf } });
       if (existe && existe.id !== id) {
         return NextResponse.json({ error: 'Já existe um trabalhador com este CPF' }, { status: 400 });
       }

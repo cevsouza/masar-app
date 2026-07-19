@@ -55,7 +55,7 @@ export default async function CasaDetailPage({ params }: { params: Promise<{ id:
   // Limites MCMV da faixa do empreendimento (para avisos inline de teto/área).
   let mcmvLimites: { faixa: string; tetoValorImovel: number; areaUtilMinima: number; percentualUnidadesAcessiveis: number } | null = null;
   if (casa.empreendimento?.regimeMCMV && casa.empreendimento?.faixaMCMV) {
-    const p = await db.parametroMCMV.findUnique({ where: { faixa: casa.empreendimento.faixaMCMV } });
+    const p = await db.parametroMCMV.findFirst({ where: { faixa: casa.empreendimento.faixaMCMV } });
     if (p) {
       mcmvLimites = {
         faixa: casa.empreendimento.faixaMCMV,

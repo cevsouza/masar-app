@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { type ClienteTransacao } from '@/lib/db';
 import { deltaLancamento } from '@/lib/caixaMath';
 
 /**
@@ -69,7 +69,7 @@ export function sugerirTitulo(
  * - saldo da conta ajustado pelo delta (crédito soma, débito subtrai)
  */
 export async function conciliar(
-  tx: Prisma.TransactionClient,
+  tx: ClienteTransacao,
   linha: LinhaBancaria,
   titulo: TituloAberto
 ) {

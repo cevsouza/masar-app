@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { exigirEmpresaId } from '@/lib/tenant';
 import { MatrizPermissao, modulosPermitidos } from '@/lib/permissoes';
 
 /**
@@ -25,9 +26,12 @@ export async function computarModulosUsuario(role: string): Promise<string[]> {
 }
 
 // Grava (upsert) uma célula da matriz.
+// A chave única passou a incluir empresaId (cada empresa tem a sua matriz), então
+// aqui o id da empresa é explícito — upsert precisa da chave composta completa.
 export async function salvarCelula(role: any, modulo: string, permitido: boolean) {
+  const empresaId = await exigirEmpresaId();
   return db.permissaoPapelModulo.upsert({
-    where: { role_modulo: { role, modulo } },
+    where: { empresaId_role_modulo: { empresaId, role, modulo } },
     create: { role, modulo, permitido },
     update: { permitido },
   });

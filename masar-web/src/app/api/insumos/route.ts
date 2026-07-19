@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar duplicidade por nome
-    const duplicate = await db.insumoPadrao.findUnique({
+    const duplicate = await db.insumoPadrao.findFirst({
       where: { nome }
     });
 

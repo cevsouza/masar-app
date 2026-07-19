@@ -29,13 +29,13 @@ export async function POST(request: NextRequest) {
 
     // CNPJ/CPF sao unicos: bloqueia duplicidade com mensagem clara.
     if (data.cnpj) {
-      const existe = await db.fornecedor.findUnique({ where: { cnpj: data.cnpj } });
+      const existe = await db.fornecedor.findFirst({ where: { cnpj: data.cnpj } });
       if (existe) {
         return NextResponse.json({ error: 'Já existe um fornecedor com este CNPJ' }, { status: 400 });
       }
     }
     if (data.cpf) {
-      const existe = await db.fornecedor.findUnique({ where: { cpf: data.cpf } });
+      const existe = await db.fornecedor.findFirst({ where: { cpf: data.cpf } });
       if (existe) {
         return NextResponse.json({ error: 'Já existe um fornecedor com este CPF' }, { status: 400 });
       }
