@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -51,6 +51,40 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
   const [newProjectStatus, setNewProjectStatus] = useState('ESTUDO_VIABILIDADE');
   const [newProjectMCMV, setNewProjectMCMV] = useState(false);
   const [newProjectFaixa, setNewProjectFaixa] = useState('FAIXA_2');
+
+  // Faixas que JÁ têm parâmetro regulatório cadastrado.
+  // `null` = ainda não consultado — importante para o aviso não piscar na tela
+  // antes da resposta chegar.
+  const [faixasComParametro, setFaixasComParametro] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!newProjectMCMV || faixasComParametro !== null) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const r = await fetch('/api/mcmv/parametros');
+        if (!r.ok) return;
+        const dados = await r.json();
+        if (cancelado) return;
+        // Só conta como cadastrada a faixa com teto > 0: a linha pode existir
+        // zerada e, zerada, ela não serve para verificar nada.
+        setFaixasComParametro(
+          (Array.isArray(dados) ? dados : [])
+            .filter((p: any) => Number(p.tetoValorImovel) > 0)
+            .map((p: any) => p.faixa)
+        );
+      } catch {
+        // Sem resposta, não afirmamos que falta parâmetro — silêncio é melhor
+        // que um alarme falso.
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [newProjectMCMV, faixasComParametro]);
+
+  const faixaSemParametro =
+    newProjectMCMV && faixasComParametro !== null && !faixasComParametro.includes(newProjectFaixa);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   // New House modal state
@@ -473,6 +507,36 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                     <p className="text-[11px] text-slate-500 mt-1.5">
                       A faixa define o teto de valor e a área mínima usados nos controles. Ajuste os parâmetros em Configurações → Parâmetros MCMV.
                     </p>
+
+                    {/* Aviso no momento da ESCOLHA, não semanas depois.
+                        Sem parâmetro cadastrado para a faixa, o item "teto de
+                        valor" fica PENDENTE — e PENDENTE conta como bloqueador,
+                        então NENHUMA medição deste empreendimento é liberada.
+                        A trava está certa (sem o teto não dá para verificar
+                        nada), mas descobrir isso só na primeira medição é o
+                        pior momento possível: o usuário quer liberar dinheiro e
+                        não faz ideia de onde está o problema. */}
+                    {faixaSemParametro && (
+                      <div className="mt-3 p-3 rounded-xl bg-amber-950/25 border border-amber-900/50 space-y-1.5">
+                        <p className="text-[11px] text-amber-300 font-bold">
+                          Esta faixa ainda não tem parâmetros cadastrados
+                        </p>
+                        <p className="text-[11px] text-amber-200/70 leading-relaxed">
+                          Sem o teto de valor da {newProjectFaixa.replace('FAIXA_', 'Faixa ')}, o
+                          sistema não consegue verificar as unidades — e a{' '}
+                          <strong>liberação de medição ficará bloqueada</strong> até que os
+                          parâmetros sejam preenchidos.
+                        </p>
+                        <a
+                          href="/configuracoes/mcmv"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-amber-400 font-bold hover:underline inline-block"
+                        >
+                          Preencher agora em Parâmetros MCMV →
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
