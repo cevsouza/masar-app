@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { runComEmpresa, runSemEscopoDeEmpresa } from '@/lib/tenant';
 import { salvarArquivoDaEmpresa } from '@/lib/storage';
 import { join } from 'path';
 import { existsSync } from 'fs';
@@ -29,6 +30,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valores numéricos inválidos.' }, { status: 400 });
     }
 
+    // Rota PÚBLICA: quem posta é o fornecedor do cliente, sem conta no sistema.
+    // A solicitação é que diz de qual empresa é esta cotação — a busca roda sem
+    // escopo só para descobrir isso, e todo o resto roda dentro do tenant.
+    const solicitacao = await runSemEscopoDeEmpresa(() =>
+      db.solicitacaoCompra.findUnique({
+        where: { id: solicitacaoId },
+        select: { id: true, empresaId: true },
+      })
+    );
+    if (!solicitacao) {
+      return NextResponse.json({ error: 'Solicitação de cotação não encontrada.' }, { status: 404 });
+    }
+
+    return await runComEmpresa(solicitacao.empresaId, async () => {
     // Se veio um fornecedor cadastrado, o nome autoritativo vem do cadastro.
     if (fornecedorId) {
       const fornecedor = await db.fornecedor.findUnique({ where: { id: fornecedorId } });
@@ -88,6 +103,7 @@ export async function POST(request: NextRequest) {
     logger.info(`[Portal Fornecedor] Cotação cadastrada com sucesso: ID ${cotacao.id}`, { traceId });
 
     return NextResponse.json({ success: true, message: 'Cotação enviada com sucesso!' });
+    });
   } catch (error: any) {
     logger.error('[Portal Fornecedor] Erro ao submeter cotação', error);
     return NextResponse.json({ error: 'Erro interno do servidor', message: error.message }, { status: 500 });

@@ -1,5 +1,7 @@
 import { db } from '@/lib/db';
 import { Building2, Calendar, ShoppingBag, Truck, DollarSign, Upload, CheckCircle } from 'lucide-react';
+import { runSemEscopoDeEmpresa } from '@/lib/tenant';
+import { identidadeVisualDaEmpresa } from '@/lib/empresaVisual';
 import SupplierQuoteForm from '@/components/SupplierQuoteForm';
 
 interface PageProps {
@@ -11,17 +13,21 @@ export const revalidate = 0;
 export default async function SupplierQuotePage({ params }: PageProps) {
   const { token } = await params;
 
-  // Localizar a solicitação de compra ativa associada ao token
-  const solicitacao = await db.solicitacaoCompra.findUnique({
-    where: { tokenCotacao: token },
-    include: {
-      insumo: true,
-      casa: {
-        include: { empreendimento: true }
-      },
-      empreendimento: true
-    }
-  });
+  // Página pública: quem abre é o FORNECEDOR do cliente, sem conta no sistema.
+  // O token secreto da URL é a credencial e é o que identifica o tenant, então
+  // a busca roda sem escopo — é ela que descobre de qual empresa é a cotação.
+  const solicitacao = await runSemEscopoDeEmpresa(() =>
+    db.solicitacaoCompra.findUnique({
+      where: { tokenCotacao: token },
+      include: {
+        insumo: true,
+        casa: {
+          include: { empreendimento: true }
+        },
+        empreendimento: true
+      }
+    })
+  );
 
   if (!solicitacao) {
     return (
@@ -37,23 +43,36 @@ export default async function SupplierQuotePage({ params }: PageProps) {
     );
   }
 
+  // A marca aqui é a da CONSTRUTORA cliente, não a nossa: quem lê esta página é
+  // o fornecedor dela, e ver a marca de outra empresa levantaria a pergunta
+  // errada no meio de uma cotação.
+  const marca = await identidadeVisualDaEmpresa(solicitacao.empresaId);
+
   // Nome do projeto destino
-  const localDestino = solicitacao.casa 
+  const localDestino = solicitacao.casa
     ? `${solicitacao.casa.empreendimento.nome} - Casa ${solicitacao.casa.numero}`
     : solicitacao.empreendimento?.nome || 'Estoque Geral';
 
   return (
     <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center p-4 py-12">
       <div className="max-w-xl w-full space-y-6">
-        {/* Brand */}
+        {/* Marca da construtora cliente */}
         <div className="flex flex-col items-center">
-          <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/20">
-            <Building2 size={36} />
-          </div>
+          {marca.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={marca.logoUrl} alt={marca.nome} className="h-14 w-auto max-w-[220px] object-contain" />
+          ) : (
+            <div
+              className="p-3 rounded-2xl text-white shadow-lg"
+              style={{ backgroundColor: marca.corPrimaria }}
+            >
+              <Building2 size={36} />
+            </div>
+          )}
           <h2 className="mt-4 text-center text-2xl font-bold text-white font-sans">
             Portal do Fornecedor
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Masar Empreendimentos - Cotação de Preços</p>
+          <p className="text-xs text-slate-400 mt-1">{marca.nome} — Cotação de Preços</p>
         </div>
 
         {/* Informações da Demanda */}

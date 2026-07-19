@@ -58,7 +58,10 @@ export async function POST(request: NextRequest) {
       clienteId: clientUser.clienteId,
       nome: clientUser.cliente.nome,
       email: clientUser.email,
-      role: 'CLIENT'
+      role: 'CLIENT',
+      // Sem isto o portal do comprador não resolve o tenant e toda query dele
+      // é recusada pela extensão de isolamento.
+      empresaId: clientUser.empresaId
     });
 
     const response = NextResponse.json({

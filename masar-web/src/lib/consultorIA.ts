@@ -1,5 +1,7 @@
 import { gerarRecomendacoes } from '@/lib/recomendacoes';
 import { calcularEvm } from '@/lib/evm';
+import { exigirEmpresaId } from '@/lib/tenant';
+import { identidadeVisualDaEmpresa } from '@/lib/empresaVisual';
 
 /**
  * Consultor de Eficiência — camada conversacional (Fase 7.3, "Motor B").
@@ -29,7 +31,10 @@ export interface RespostaConsultor {
   detalhe?: string;
 }
 
-const SYSTEM_PROMPT = `Você é o "Consultor de Eficiência" da Masar Empreendimentos, um ERP de construção civil (obras do programa MCMV / Caixa Econômica). Seu papel é ajudar os SÓCIOS a interpretar os indicadores e decidir o que fazer no dia a dia.
+// O nome da construtora entra por parâmetro: o assistente se apresenta como
+// consultor DA EMPRESA DO CLIENTE. Um consultor que diz trabalhar para outra
+// construtora é a forma mais constrangedora possível de a marca vazar.
+const montarSystemPrompt = (empresa: string) => `Você é o "Consultor de Eficiência" da ${empresa}, um ERP de construção civil (obras do programa MCMV / Caixa Econômica). Seu papel é ajudar os SÓCIOS a interpretar os indicadores e decidir o que fazer no dia a dia.
 
 REGRAS OBRIGATÓRIAS:
 - Responda SEMPRE em português do Brasil, de forma objetiva, prática e cordial.
@@ -97,8 +102,9 @@ export async function responderConsultor(pergunta: string, historico: TurnoChat[
     };
   }
 
-  const contexto = await montarContexto();
-  const systemText = `${SYSTEM_PROMPT}\n\n=== DADOS ATUAIS DO SISTEMA (JSON) ===\n${JSON.stringify(contexto)}`;
+  const [contexto, empresaId] = await Promise.all([montarContexto(), exigirEmpresaId()]);
+  const marca = await identidadeVisualDaEmpresa(empresaId);
+  const systemText = `${montarSystemPrompt(marca.nome)}\n\n=== DADOS ATUAIS DO SISTEMA (JSON) ===\n${JSON.stringify(contexto)}`;
 
   const contents = [
     ...sanitizarHistorico(historico).map((h) => ({ role: h.role, parts: [{ text: h.text }] })),

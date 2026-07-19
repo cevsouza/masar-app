@@ -21,16 +21,32 @@ function getDefaultRouteForRole(role: string): string {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Paths that do not require authentication
-  const isPublicPath = 
-    pathname.startsWith('/login') || 
-    pathname.startsWith('/signup') || 
+  // Paths that do not require the STAFF session (cookie masar_session).
+  //
+  // ATENÇÃO: "público aqui" não quer dizer "sem autenticação" — quer dizer que
+  // quem autentica é a própria rota, com outra credencial. O portal do cliente
+  // valida `masar_client_session` dentro da página; a cotação valida o token
+  // secreto da URL.
+  //
+  // /cotacao e /area-do-cliente ESTAVAM FALTANDO nesta lista desde sempre — e
+  // por isso o portal do fornecedor e o do comprador nunca funcionaram de fora:
+  // todo acesso externo caía no redirect para /login. Não foi notado porque o
+  // sistema só teve um usuário, e ele estava sempre logado.
+  const isPublicPath =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/health') ||
     pathname.startsWith('/api/seed') ||
     pathname.startsWith('/api/clean') ||
+    // Portal do fornecedor: autenticado pelo token da URL.
+    pathname.startsWith('/cotacao') ||
+    pathname.startsWith('/api/suprimentos/cotacao') ||
+    // Portal do comprador: autenticado por masar_client_session na própria rota.
+    pathname.startsWith('/area-do-cliente') ||
+    pathname.startsWith('/api/cliente') ||
     pathname.includes('.') ||
     pathname.startsWith('/_next');
 

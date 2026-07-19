@@ -60,11 +60,24 @@ export function contextoExplicito(): ContextoTenant | undefined {
 const empresaDoRequest = cache(async (): Promise<string | null> => {
   try {
     const jar = await cookies();
-    const token = jar.get('masar_session')?.value;
+    // Dois cookies válidos: o do staff e o do portal do COMPRADOR. Sem o
+    // segundo, toda query do portal do cliente é recusada pela extensão —
+    // que foi exatamente o que aconteceu quando o isolamento entrou.
+    const token = jar.get('masar_session')?.value ?? jar.get('masar_client_session')?.value;
     if (!token) return null;
     const sessao = await verifySession(token);
     if (!sessao) return null;
     if (sessao.empresaId) return sessao.empresaId;
+
+    // Sessão de comprador emitida antes de carregar empresaId: descobre pelo
+    // próprio UsuarioCliente.
+    if (sessao.role === 'CLIENT' && sessao.id) {
+      const { db } = await import('@/lib/db');
+      const uc = await runSemEscopoDeEmpresa(() =>
+        db.usuarioCliente.findUnique({ where: { id: sessao.id }, select: { empresaId: true } })
+      );
+      return uc?.empresaId ?? null;
+    }
 
     // Sessão emitida ANTES do multi-tenant: o token não carrega empresaId.
     // Em vez de derrubar quem já estava logado, descobrimos a empresa pelo

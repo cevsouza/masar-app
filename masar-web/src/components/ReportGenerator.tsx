@@ -1,5 +1,7 @@
 'use client';
 
+import type { IdentidadeVisual } from '@/lib/empresaVisual';
+
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
@@ -21,9 +23,11 @@ import {
 interface ReportGeneratorProps {
   empreendimentos: any[];
   casas: any[];
+  /** Marca da construtora — este relatório é IMPRESSO e entregue a terceiros. */
+  marca: IdentidadeVisual;
 }
 
-export default function ReportGenerator({ empreendimentos, casas }: ReportGeneratorProps) {
+export default function ReportGenerator({ empreendimentos, casas, marca }: ReportGeneratorProps) {
   const [reportType, setReportType] = useState<'OBRAS' | 'PROJETO' | 'FINANCEIRO'>('OBRAS');
   const [selectedEmpId, setSelectedEmpId] = useState('');
   const [selectedCasaId, setSelectedCasaId] = useState('');
@@ -389,13 +393,23 @@ export default function ReportGenerator({ empreendimentos, casas }: ReportGenera
                 <span>Data de Emissão: {new Date().toLocaleDateString('pt-BR')}</span>
               </div>
             </div>
-            {/* Logotipo Masar Empreendimentos */}
+            {/* Marca da construtora. O relatório sai impresso e vai para a mão
+                de banco, prefeitura e cliente final — aqui a marca errada é a
+                mais cara de todas. */}
             <div className="text-right flex flex-col items-end">
-              <div className="flex items-center gap-1.5 justify-end">
-                <span className="text-sm font-bold text-indigo-400 print-accent font-serif select-none" dir="rtl">مسار</span>
-                <span className="font-extrabold tracking-tight text-white print-text-dark text-base font-sans">Masar</span>
-              </div>
-              <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wider print-text-muted">empreendimentos</span>
+              {marca.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={marca.logoUrl} alt={marca.nome} className="h-10 w-auto max-w-[160px] object-contain" />
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5 justify-end">
+                    {marca.ehRaiz && (
+                      <span className="text-sm font-bold print-accent font-serif select-none" style={{ color: marca.corPrimaria }} dir="rtl">مسار</span>
+                    )}
+                    <span className="font-extrabold tracking-tight text-white print-text-dark text-base font-sans">{marca.nome}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -765,7 +779,7 @@ export default function ReportGenerator({ empreendimentos, casas }: ReportGenera
 
           {/* Rodapé da folha de relatório */}
           <div className="border-t border-slate-900/60 pt-6 mt-8 flex justify-between items-center text-[10px] text-slate-500 print-text-muted">
-            <span>Relatório gerado automaticamente via ERP Masar</span>
+            <span>Relatório gerado automaticamente por {marca.nome}</span>
             <span className="font-mono">Página 1 de 1</span>
           </div>
 

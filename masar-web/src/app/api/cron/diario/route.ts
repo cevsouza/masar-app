@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendEmail, getExtraAlertEmails } from '@/lib/resend';
-import { runComEmpresa, runSemEscopoDeEmpresa } from '@/lib/tenant';
+import { runComEmpresa, runSemEscopoDeEmpresa, exigirEmpresaId } from '@/lib/tenant';
+import { identidadeVisualDaEmpresa } from '@/lib/empresaVisual';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 import { buscarVencimentosSST } from '@/lib/sst';
 import { avaliarMetas } from '@/lib/metaEficiencia';
@@ -384,9 +385,13 @@ async function processarEmpresa() {
         ${casasEstouradas.length > 0 ? `<p style="margin: 8px 0 2px;"><strong style="color:#dc2626;">📈 Casas acima do orçamento:</strong></p><ul>${orcamentoListHtml}</ul>` : ''}
       `;
 
+      // A marca do e-mail e a da EMPRESA, nao a nossa: quem recebe e o socio
+      // do cliente, e assinatura de outra construtora entrega o white label.
+      const marca = await identidadeVisualDaEmpresa(await exigirEmpresaId());
+
       const emailHtml = `
         <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-          <h2 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 8px;">Relatório Diário de Alertas - Masar ERP</h2>
+          <h2 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 8px;">Relatório Diário de Alertas — ${marca.nome}</h2>
           <p>Prezado Sócio/Gestor,</p>
           <p>Identificamos ocorrências críticas que demandam atenção imediata:</p>
 
@@ -440,7 +445,7 @@ async function processarEmpresa() {
 
           <p style="margin-top: 20px;">Por favor, acesse o painel administrativo para regularizar as pendências.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="font-size: 11px; color: #9ca3af;">Masar Construtora ERP - Mensageria Integrada</p>
+          <p style="font-size: 11px; color: #9ca3af;">${marca.nome} — Mensageria Integrada</p>
         </div>
       `;
 
@@ -452,7 +457,7 @@ async function processarEmpresa() {
       for (const email of recipientEmails) {
         await sendEmail({
           to: email,
-          subject: `🚨 ALERTA DIÁRIO: ${totalAlertas} pendências críticas no Masar ERP`,
+          subject: `🚨 ALERTA DIÁRIO: ${totalAlertas} pendências críticas — ${marca.nome}`,
           html: emailHtml
         });
       }

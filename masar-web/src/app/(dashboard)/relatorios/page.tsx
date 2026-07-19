@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import ReportGenerator from '@/components/ReportGenerator';
+import { identidadeVisualDoHost } from '@/lib/empresaVisual';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -7,6 +8,10 @@ import { redirect } from 'next/navigation';
 export const revalidate = 0;
 
 export default async function RelatoriosPage() {
+  // A marca vai IMPRESSA no relatório, que o cliente entrega a banco,
+  // prefeitura e comprador — não pode ser a nossa.
+  const marca = await identidadeVisualDoHost();
+
   // Verificar permissões
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get('masar_session')?.value;
@@ -103,6 +108,7 @@ export default async function RelatoriosPage() {
       </div>
 
       <ReportGenerator 
+        marca={marca}
         empreendimentos={serializedEmpreendimentos}
         casas={serializedCasas}
       />
