@@ -113,6 +113,41 @@ export const getInsumoMCMVType = (nome: string, categoria: string): 'FIXO' | 'VA
 
 export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites = null }: HouseDetailsProps) {
   const router = useRouter();
+  const [registrandoAssinatura, setRegistrandoAssinatura] = useState(false);
+
+  // Registra que o contrato foi assinado. Confirmação explícita porque a ação
+  // dispara três efeitos de uma vez: avança a jornada do comprador, cria o
+  // recebível de entrada e destrava o pagamento de comissão.
+  const handleRegistrarAssinatura = async () => {
+    const contrato = initialCasa.contrato;
+    if (!contrato) return;
+    if (
+      !confirm(
+        'Confirmar que o contrato foi assinado?\n\n' +
+          '• A jornada do comprador avança para "Pagamento de Entrada"\n' +
+          '• O sinal/entrada vira um recebível com vencimento em 3 dias\n' +
+          '• O pagamento da comissão do corretor fica liberado'
+      )
+    ) {
+      return;
+    }
+
+    setRegistrandoAssinatura(true);
+    try {
+      const res = await fetch(`/api/comercial/contratos/${contrato.id}/assinatura`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao registrar a assinatura.');
+      router.refresh();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setRegistrandoAssinatura(false);
+    }
+  };
   const [activeTab, setActiveTab] = useState<'geral' | 'financeiro' | 'infra' | 'ged' | 'cronograma'>('geral');
   const [isUpdatingApproval, setIsUpdatingApproval] = useState<string | null>(null);
 
@@ -686,6 +721,49 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
                     </span>
                   </div>
                 </div>
+
+                {/* Assinatura do contrato.
+                    Não existia lugar nenhum para a equipe registrar isso — o único
+                    ponto que gravava ASSINADO_CAIXA era um webhook de integração
+                    que nunca chegou a ser ligada. Resultado: nenhum contrato
+                    ficava assinado em uso real, e a trava de comissão do corretor,
+                    que exige esse status, nunca podia ser liberada. */}
+                {initialCasa.contrato && (
+                  <div className="p-3 bg-[#0f1422]/60 rounded-xl border border-slate-850 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">
+                          Contrato
+                        </span>
+                        <span className={`font-bold text-xs mt-0.5 block ${
+                          initialCasa.contrato.status === 'ASSINADO_CAIXA' ? 'text-emerald-400' : 'text-amber-400'
+                        }`}>
+                          {initialCasa.contrato.status === 'ASSINADO_CAIXA'
+                            ? 'Assinado'
+                            : String(initialCasa.contrato.status || '').replace(/_/g, ' ')}
+                        </span>
+                      </div>
+
+                      {initialCasa.contrato.status !== 'ASSINADO_CAIXA' && (
+                        <button
+                          type="button"
+                          disabled={registrandoAssinatura}
+                          onClick={handleRegistrarAssinatura}
+                          className="text-[10px] font-bold px-3 py-1.5 rounded-lg border border-emerald-800/60 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-900/40 disabled:opacity-50 transition cursor-pointer whitespace-nowrap"
+                        >
+                          {registrandoAssinatura ? 'Registrando...' : 'Registrar assinatura'}
+                        </button>
+                      )}
+                    </div>
+
+                    {initialCasa.contrato.status !== 'ASSINADO_CAIXA' && (
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        Registre aqui quando o contrato for assinado. Isso avança a jornada do
+                        comprador, gera o recebível de entrada e libera o pagamento da comissão.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-4 gap-2 text-center text-xs">
                   <div className="p-2.5 bg-[#0f1422]/40 rounded-lg border border-slate-850">
