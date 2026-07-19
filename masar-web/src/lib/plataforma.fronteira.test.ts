@@ -237,15 +237,23 @@ describe('fronteira do control plane', () => {
     const alvo = panorama.find((t) => t.empresaId === empresaId);
     expect(alvo).toBeDefined();
 
-    // Só metadado: nome, plano, vigência e contagens.
+    // Lista FECHADA de propósito: se alguém acrescentar um campo ao panorama,
+    // este teste quebra e obriga a decidir se aquilo é metadado ou conteúdo.
+    // Já cumpriu esse papel uma vez, quando `ultimaAtividade` foi adicionada.
     const campos = Object.keys(alvo!).sort();
     expect(campos).toEqual(
       [
         'ativa', 'dataExpiracao', 'empreendimentos', 'empresaId',
-        'nome', 'plano', 'slug', 'unidades', 'usuarios',
+        'nome', 'plano', 'slug', 'ultimaAtividade', 'unidades', 'usuarios',
       ].sort()
     );
     expect(typeof alvo!.unidades).toBe('number');
+
+    // `ultimaAtividade` é um TIMESTAMP — diz QUE houve atividade, nunca QUAL.
+    // Se um dia virar objeto com ação/tabela/usuário, deixou de ser metadado.
+    expect(
+      alvo!.ultimaAtividade === null || alvo!.ultimaAtividade instanceof Date
+    ).toBe(true);
   });
 
   it('o panorama exige admin de plataforma', async () => {

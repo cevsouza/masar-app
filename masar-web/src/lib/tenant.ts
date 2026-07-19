@@ -26,7 +26,30 @@ export interface ContextoTenant {
   irrestrito?: boolean;
 }
 
-const storage = new AsyncLocalStorage<ContextoTenant>();
+/**
+ * O AsyncLocalStorage é fixado no globalThis, pelo mesmo motivo que o
+ * PrismaClient já era em lib/db.
+ *
+ * Em desenvolvimento, o Next recarrega módulos e chega a instanciar o mesmo
+ * arquivo mais de uma vez em grafos diferentes (rota de API, componente de
+ * servidor, middleware). Com duas instâncias de AsyncLocalStorage vivas,
+ * `storage.run()` grava numa e `storage.getStore()` lê da outra — o contexto
+ * "existe" e mesmo assim aparece como ausente.
+ *
+ * O sintoma é traiçoeiro: a operação falha com "sem empresa no contexto"
+ * exatamente onde o contexto foi definido. Foi o que derrubou o login inteiro
+ * com HTTP 500.
+ */
+const globalParaTenant = globalThis as unknown as {
+  __masarTenantStorage?: AsyncLocalStorage<ContextoTenant>;
+};
+
+const storage =
+  globalParaTenant.__masarTenantStorage ?? new AsyncLocalStorage<ContextoTenant>();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalParaTenant.__masarTenantStorage = storage;
+}
 
 /**
  * Roda `fn` com a empresa fixada. Para cron, scripts e provisionamento.

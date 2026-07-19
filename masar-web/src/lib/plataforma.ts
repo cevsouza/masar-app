@@ -203,6 +203,14 @@ export interface ResumoTenant {
   empreendimentos: number;
   unidades: number;
   usuarios: number;
+  /**
+   * Data do último registro de auditoria do tenant.
+   *
+   * É um TIMESTAMP, não conteúdo — não diz o que foi feito, só que houve
+   * atividade. E é o melhor sinal barato de abandono: cliente que parou de
+   * mexer no sistema está a caminho do cancelamento, e dá para agir antes.
+   */
+  ultimaAtividade: Date | null;
 }
 
 /**
@@ -229,17 +237,27 @@ export async function panoramaInstancias(): Promise<ResumoTenant[]> {
     });
 
     return Promise.all(
-      empresas.map(async (e) => ({
-        empresaId: e.id,
-        nome: e.nome,
-        slug: e.slug,
-        ativa: e.ativa,
-        plano: e.plano,
-        dataExpiracao: e.dataExpiracao,
-        empreendimentos: await db.empreendimento.count({ where: { empresaId: e.id } }),
-        unidades: await db.casa.count({ where: { empresaId: e.id } }),
-        usuarios: await db.user.count({ where: { empresaId: e.id } }),
-      }))
+      empresas.map(async (e) => {
+        // Só o TIMESTAMP do último registro. Nenhum campo de conteúdo é lido.
+        const ultimo = await db.logAuditoria.findFirst({
+          where: { empresaId: e.id },
+          orderBy: { data: 'desc' },
+          select: { data: true },
+        });
+
+        return {
+          empresaId: e.id,
+          nome: e.nome,
+          slug: e.slug,
+          ativa: e.ativa,
+          plano: e.plano,
+          dataExpiracao: e.dataExpiracao,
+          empreendimentos: await db.empreendimento.count({ where: { empresaId: e.id } }),
+          unidades: await db.casa.count({ where: { empresaId: e.id } }),
+          usuarios: await db.user.count({ where: { empresaId: e.id } }),
+          ultimaAtividade: ultimo?.data ?? null,
+        };
+      })
     );
   });
 }

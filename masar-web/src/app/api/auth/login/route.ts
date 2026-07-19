@@ -25,7 +25,19 @@ export async function POST(request: NextRequest) {
       const empresaDoDominio = host
         ? await db.empresa.findFirst({ where: { dominio: host, ativa: true }, select: { id: true } })
         : null;
-      return db.user.findFirst({
+      // O `await` aqui é OBRIGATÓRIO e não é estilo.
+      //
+      // As promises do Prisma são lazy: a query só dispara quando alguém dá
+      // await. Devolvendo a promise sem aguardar, quem a executa é a máquina de
+      // resolução de promise DEPOIS que esta função async retornou — e nesse
+      // momento o contexto "sem escopo" já saiu de cena. A extensão então não
+      // acha empresa e recusa a operação, derrubando o login inteiro com 500.
+      //
+      // Note que `runSemEscopoDeEmpresa(() => db.x.find())` (arrow simples, sem
+      // async) é seguro: ali o await acontece sobre a própria promise do Prisma,
+      // ainda dentro do contexto. O perigo é só a função ASYNC que retorna sem
+      // aguardar, como esta era.
+      return await db.user.findFirst({
         where: {
           email: emailLower,
           ...(empresaDoDominio ? { empresaId: empresaDoDominio.id } : {}),
