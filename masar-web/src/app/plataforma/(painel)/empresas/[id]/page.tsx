@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { adminPlataformaAtual } from '@/lib/plataforma';
 import { runSemEscopoDeEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
 import FichaEmpresaForm, { type Ficha } from './FichaEmpresaForm';
+import { DOMINIO_BASE } from '@/lib/dominioPlataforma';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,5 +54,6 @@ export default async function FichaEmpresaPage({
     ehRaiz: e.id === EMPRESA_RAIZ_ID,
   };
 
-  return <FichaEmpresaForm inicial={inicial} />;
+  // Base do servidor: em componente cliente a env não existe e cairia no padrão.
+  return <FichaEmpresaForm inicial={inicial} dominioBase={DOMINIO_BASE} />;
 }

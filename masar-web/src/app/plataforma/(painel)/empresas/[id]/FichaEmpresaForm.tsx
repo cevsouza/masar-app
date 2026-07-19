@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2, AlertCircle, CheckCircle2, ArrowLeft, Building2, Globe, Trash2 } from 'lucide-react';
+import { normalizarSubdominio, validarSubdominio } from '@/lib/dominioPlataforma';
 
 export interface Ficha {
   id: string;
@@ -34,7 +35,13 @@ const campo =
 const rotulo = 'text-xs text-stone-400 font-semibold block mb-1.5';
 const dica = 'text-[11px] text-stone-600 mt-1 leading-relaxed';
 
-export default function FichaEmpresaForm({ inicial }: { inicial: Ficha }) {
+export default function FichaEmpresaForm({
+  inicial,
+  dominioBase,
+}: {
+  inicial: Ficha;
+  dominioBase: string;
+}) {
   const router = useRouter();
   const [f, setF] = useState<Ficha>(inicial);
   const [erro, setErro] = useState<string | null>(null);
@@ -43,6 +50,17 @@ export default function FichaEmpresaForm({ inicial }: { inicial: Ficha }) {
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [nomeDigitado, setNomeDigitado] = useState('');
   const [apagando, setApagando] = useState(false);
+
+  // O banco guarda UM endereço por cliente. Os dois campos da tela são duas
+  // leituras do mesmo valor: se o host termina na base da plataforma, é
+  // subdomínio; senão, é domínio próprio. Derivar (em vez de manter estado
+  // paralelo) evita os dois divergirem e gravarem o que a tela não mostra.
+  const sufixo = `.${dominioBase}`;
+  const host = (f.dominio ?? '').trim().toLowerCase();
+  const ehSubdominio = host.endsWith(sufixo) && !host.slice(0, -sufixo.length).includes('.');
+  const sub = ehSubdominio ? host.slice(0, -sufixo.length) : '';
+  const dominioProprio = host && !ehSubdominio ? f.dominio ?? '' : '';
+  const problemaSub = sub ? validarSubdominio(sub) : null;
 
   const vazia = inicial.empreendimentos === 0;
   const pendencias: string[] = [];
@@ -206,18 +224,51 @@ export default function FichaEmpresaForm({ inicial }: { inicial: Ficha }) {
           <p className="text-xs font-bold text-stone-300 uppercase tracking-wider">Domínio próprio</p>
         </div>
 
+        <p className="text-[11px] text-stone-500 leading-relaxed">
+          O endereço resolve a marca <strong>antes</strong> do login — sem ele, quem abre a tela de
+          entrada vê a marca da empresa raiz.
+        </p>
+
         <div>
-          <label className={rotulo}>Endereço de acesso do cliente</label>
+          <label className={rotulo}>Subdomínio na plataforma</label>
+          <div className="flex items-stretch">
+            <input
+              className={campo + ' rounded-r-none border-r-0'}
+              value={sub}
+              onChange={(e) => {
+                const s = normalizarSubdominio(e.target.value);
+                set('dominio', s ? `${s}.${dominioBase}` : '');
+              }}
+              placeholder="construtorafulano"
+            />
+            <span className="flex items-center px-3 rounded-r-xl border border-stone-800 bg-stone-900 text-xs text-stone-500 font-mono whitespace-nowrap">
+              .{dominioBase}
+            </span>
+          </div>
+          {problemaSub ? (
+            <p className="text-[11px] text-red-400 mt-1">{problemaSub}</p>
+          ) : (
+            <p className={dica}>
+              Funciona de imediato — o curinga <code className="text-stone-500">*.{dominioBase}</code>{' '}
+              já está apontado. Nada a configurar por cliente.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className={rotulo}>
+            Domínio próprio do cliente <span className="text-stone-600 font-normal">(opcional)</span>
+          </label>
           <input
             className={campo}
-            value={f.dominio ?? ''}
+            value={dominioProprio}
             onChange={(e) => set('dominio', e.target.value)}
             placeholder="erp.construtorafulano.com.br"
           />
           <p className={dica}>
-            É o que resolve a marca <strong>antes</strong> do login — sem ele, quem abre a tela de
-            entrada vê a marca da empresa raiz. Precisa também ser apontado no DNS e cadastrado como
-            domínio do serviço no Railway.
+            Preenchido, <strong>substitui</strong> o subdomínio acima — o app guarda um endereço por
+            cliente. Exige que o TI do cliente crie o CNAME e que o domínio seja cadastrado no
+            Railway (cada um ocupa um slot; o curinga ocupa apenas um para todos).
           </p>
         </div>
 

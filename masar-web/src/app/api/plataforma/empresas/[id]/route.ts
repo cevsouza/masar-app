@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { exigirAdminPlataforma } from '@/lib/plataforma';
 import { runSemEscopoDeEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
 import { logger } from '@/lib/logger';
+import { subdominioDoHost, validarSubdominio } from '@/lib/dominioPlataforma';
 
 /**
  * Ficha do cliente (nível FICHA do control plane): identidade visual, domínio
@@ -250,6 +251,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.dominio !== undefined) {
       const dom = limparDominio(String(body.dominio ?? ''));
       if (dom) {
+        // Se o endereço cai sob o curinga da plataforma, vale a lista de nomes
+        // reservados — senão a tela recusaria "admin" e o PATCH direto aceitaria.
+        const sub = subdominioDoHost(dom);
+        if (sub) {
+          const problema = validarSubdominio(sub);
+          if (problema) return NextResponse.json({ error: problema }, { status: 400 });
+        }
+
         // Domínio é a chave que resolve o tenant no login. Duplicado faria duas
         // empresas disputarem a mesma porta de entrada.
         const conflito = await runSemEscopoDeEmpresa(() =>

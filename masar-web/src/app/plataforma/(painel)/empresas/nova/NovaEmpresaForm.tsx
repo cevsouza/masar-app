@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2, AlertCircle, CheckCircle2, Copy, ArrowLeft } from 'lucide-react';
+import { normalizarSubdominio, subdominioSugerido, validarSubdominio } from '@/lib/dominioPlataforma';
 
 function slugify(v: string) {
   return v
@@ -16,14 +17,15 @@ function slugify(v: string) {
 }
 
 interface Resultado {
-  empresa: { id: string; nome: string; slug: string };
+  empresa: { id: string; nome: string; slug: string; dominio: string | null };
   admin: { nome: string; email: string; senhaProvisoria: string };
 }
 
-export default function NovaEmpresaForm() {
+export default function NovaEmpresaForm({ dominioBase }: { dominioBase: string }) {
   const router = useRouter();
   const [nome, setNome] = useState('');
   const [slugManual, setSlugManual] = useState('');
+  const [subManual, setSubManual] = useState('');
   const [adminNome, setAdminNome] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [erro, setErro] = useState<string | null>(null);
@@ -33,6 +35,9 @@ export default function NovaEmpresaForm() {
   const [confirmando, setConfirmando] = useState(false);
 
   const slug = slugManual || slugify(nome);
+  const subdominio = subManual || subdominioSugerido(slug);
+  const problemaSub = subdominio ? validarSubdominio(subdominio) : null;
+  const enderecoCliente = subdominio ? `${subdominio}.${dominioBase}` : null;
 
   // Provisionar cria empresa, usuário e credencial de uma vez. É irreversível na
   // prática (a senha só aparece uma vez) e o identificador não muda depois.
@@ -51,7 +56,7 @@ export default function NovaEmpresaForm() {
       const r = await fetch('/api/plataforma/empresas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, slug, adminNome, adminEmail }),
+        body: JSON.stringify({ nome, slug, subdominio, adminNome, adminEmail }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Falha ao provisionar.');
@@ -88,7 +93,13 @@ export default function NovaEmpresaForm() {
           </p>
 
           <div className="bg-stone-950 border border-stone-800 rounded-lg p-3 space-y-1.5 font-mono text-sm">
-            <div className="text-stone-500 text-[11px]">usuário</div>
+            {empresa.dominio && (
+              <>
+                <div className="text-stone-500 text-[11px]">endereço</div>
+                <div className="text-stone-200 break-all">https://{empresa.dominio}/login</div>
+              </>
+            )}
+            <div className="text-stone-500 text-[11px] pt-1">usuário</div>
             <div className="text-stone-200">{admin.email}</div>
             <div className="text-stone-500 text-[11px] pt-1">senha</div>
             <div className="text-amber-300 tracking-wide break-all">{admin.senhaProvisoria}</div>
@@ -98,14 +109,15 @@ export default function NovaEmpresaForm() {
             type="button"
             onClick={() => {
               navigator.clipboard.writeText(
-                `Usuário: ${admin.email}\nSenha: ${admin.senhaProvisoria}`
+                (empresa.dominio ? `Endereço: https://${empresa.dominio}/login\n` : '') +
+                  `Usuário: ${admin.email}\nSenha: ${admin.senhaProvisoria}`
               );
               setCopiado(true);
               setTimeout(() => setCopiado(false), 2500);
             }}
             className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300"
           >
-            <Copy size={13} /> {copiado ? 'Copiado' : 'Copiar usuário e senha'}
+            <Copy size={13} /> {copiado ? 'Copiado' : 'Copiar dados de acesso'}
           </button>
         </div>
 
@@ -151,6 +163,7 @@ export default function NovaEmpresaForm() {
         <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-5">
           {linha('Construtora', nome)}
           {linha('Identificador', slug)}
+          {linha('Endereço de acesso', enderecoCliente ?? 'sem endereço próprio')}
           {linha('Responsável', adminNome)}
           {linha('E-mail de acesso', adminEmail)}
         </div>
@@ -217,6 +230,30 @@ export default function NovaEmpresaForm() {
             Gerado do nome. Usado internamente e não aparece para o cliente.
           </p>
         </div>
+
+        <div>
+          <label className={rotulo}>Endereço de acesso do cliente</label>
+          <div className="flex items-stretch">
+            <input
+              className={campo + ' rounded-r-none border-r-0'}
+              value={subdominio}
+              onChange={(e) => setSubManual(normalizarSubdominio(e.target.value))}
+              placeholder="construtorafulano"
+            />
+            <span className="flex items-center px-3 rounded-r-xl border border-stone-800 bg-stone-900 text-xs text-stone-500 font-mono whitespace-nowrap">
+              .{dominioBase}
+            </span>
+          </div>
+          {problemaSub ? (
+            <p className="text-[11px] text-red-400 mt-1">{problemaSub}</p>
+          ) : (
+            <p className="text-[11px] text-stone-600 mt-1 leading-relaxed">
+              É por aqui que o cliente entra — e é o que faz a marca DELE aparecer já na tela de
+              login, antes da senha. Passa a funcionar assim que a instância é criada: não há nada a
+              configurar por cliente.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-5 space-y-4">
@@ -255,7 +292,7 @@ export default function NovaEmpresaForm() {
 
       <button
         type="submit"
-        disabled={salvando || !nome || !adminNome || !adminEmail}
+        disabled={salvando || !nome || !adminNome || !adminEmail || !!problemaSub}
         className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-bold text-sm py-2.5 rounded-xl flex items-center justify-center gap-2"
       >
         Revisar e provisionar

@@ -4,6 +4,7 @@ import { hashPassword } from '@/lib/auth';
 import { exigirAdminPlataforma } from '@/lib/plataforma';
 import { runSemEscopoDeEmpresa, runComEmpresa } from '@/lib/tenant';
 import { logger } from '@/lib/logger';
+import { hostDoSubdominio, subdominioSugerido, validarSubdominio } from '@/lib/dominioPlataforma';
 
 /**
  * PROVISIONAMENTO DE CLIENTE pelo console — empresa + primeiro admin, num passo.
@@ -65,11 +66,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Endereço próprio já no nascimento (Modelo A). Sem isto, o cliente abre a
+    // tela de login e vê a marca da Masar — o white label só apareceria depois
+    // de digitar a senha, que é tarde demais para causar a impressão certa.
+    // Como o curinga já está apontado, não há passo de infraestrutura por cliente.
+    const subdominio = body.subdominio !== undefined
+      ? String(body.subdominio)
+      : subdominioSugerido(slug);
+
+    let dominio: string | null = null;
+    if (subdominio) {
+      const problema = validarSubdominio(subdominio);
+      if (problema) return NextResponse.json({ error: problema }, { status: 400 });
+
+      dominio = hostDoSubdominio(subdominio);
+      const conflito = await runSemEscopoDeEmpresa(() =>
+        db.empresa.findFirst({ where: { dominio }, select: { nome: true } })
+      );
+      if (conflito) {
+        return NextResponse.json(
+          { error: `O endereço ${dominio} já é usado por "${conflito.nome}". Escolha outro subdomínio.` },
+          { status: 409 }
+        );
+      }
+    }
+
     const senha = gerarSenha();
     const senhaHash = await hashPassword(senha);
 
     const empresa = await runSemEscopoDeEmpresa(() =>
-      db.empresa.create({ data: { nome, slug } })
+      db.empresa.create({ data: { nome, slug, dominio } })
     );
 
     // O usuário nasce DENTRO do tenant recém-criado.
@@ -86,7 +112,7 @@ export async function POST(request: NextRequest) {
     // A senha volta UMA vez. Não fica gravada em lugar nenhum em texto.
     return NextResponse.json({
       success: true,
-      empresa: { id: empresa.id, nome: empresa.nome, slug: empresa.slug },
+      empresa: { id: empresa.id, nome: empresa.nome, slug: empresa.slug, dominio: empresa.dominio },
       admin: { nome: adminNome, email: adminEmail, senhaProvisoria: senha },
     });
   } catch (error: any) {
