@@ -1,4 +1,5 @@
-import { Building2, Users, Home, Clock, AlertTriangle, Lock } from 'lucide-react';
+import { Building2, Users, Home, Clock, AlertTriangle, Lock, Plus, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { adminPlataformaAtual, panoramaInstancias } from '@/lib/plataforma';
 
@@ -56,6 +57,15 @@ export default async function CockpitPage() {
 
   return (
     <div className="space-y-8">
+      <div className="flex justify-end">
+        <Link
+          href="/plataforma/empresas/nova"
+          className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold px-4 py-2 rounded-xl"
+        >
+          <Plus size={14} /> Novo cliente
+        </Link>
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => (
           <div
@@ -101,7 +111,13 @@ export default async function CockpitPage() {
                   <tr key={i.empresaId} className="border-t border-stone-800/70">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-stone-100">{i.nome}</span>
+                        <Link
+                          href={`/plataforma/empresas/${i.empresaId}`}
+                          className="font-semibold text-stone-100 hover:text-amber-400 inline-flex items-center gap-1"
+                        >
+                          {i.nome}
+                          <ChevronRight size={13} className="text-stone-600" />
+                        </Link>
                         {!i.ativa && (
                           <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-red-950/40 text-red-400 border border-red-900/40">
                             inativa
