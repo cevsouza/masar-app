@@ -129,14 +129,17 @@ export default function ClientPortalDashboard({ cliente, empresaNome }: ClientPo
     }
   };
 
-  // Fotos para o carrossel (se não houver fotos reais no GED, exibe fotos demonstrativas estéticas de canteiro)
-  const mockObraPhotos = [
-    { url: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80', caption: 'Fundação da Unidade Concluída' },
-    { url: 'https://images.unsplash.com/photo-1590069261209-f8e9b8642343?auto=format&fit=crop&w=600&q=80', caption: 'Erguimento de Alvenaria das Paredes' },
-    { url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80', caption: 'Estruturação da Laje e Telhas' }
-  ];
-
-  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  // NÃO reintroduzir fotos ilustrativas aqui.
+  //
+  // Havia um carrossel com imagens de banco (Unsplash) sob o título "Diário
+  // Fotográfico de Construção", com legendas como "Fundação da Unidade
+  // Concluída" — apresentadas ao comprador como fotos DA CASA DELE. Enquanto o
+  // sistema era de uso próprio, era enfeite; para quem está pagando por um
+  // imóvel, é declaração falsa de progresso de obra.
+  //
+  // Enquanto não houver um caminho para o comprador ver as fotos REAIS do
+  // cofre (a rota de download exige sessão de staff, não serve para ele), o
+  // certo é não mostrar nada.
 
   // Determinar tarefas pendentes baseadas na etapa atual
   const pendingTasks = [];
@@ -261,31 +264,15 @@ export default function ClientPortalDashboard({ cliente, empresaNome }: ClientPo
                   />
                 </div>
 
-                {/* Carrossel de Fotos da Obra */}
+                {/* Acompanhamento fotográfico: só com foto real, nunca ilustrativa. */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Diário Fotográfico de Construção</h4>
-                  <div className="relative h-64 bg-[#0a0d16] rounded-2xl border border-slate-900 overflow-hidden group">
-                    <img 
-                      src={mockObraPhotos[activePhotoIdx].url} 
-                      alt="Etapa Obra"
-                      className="w-full h-full object-cover opacity-85 transition-all duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent flex items-end p-4">
-                      <p className="text-xs text-white font-semibold">{mockObraPhotos[activePhotoIdx].caption}</p>
-                    </div>
-
-                    <button 
-                      onClick={() => setActivePhotoIdx((prev) => (prev === 0 ? mockObraPhotos.length - 1 : prev - 1))}
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 p-2 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 rounded-full text-white cursor-pointer"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-                    <button 
-                      onClick={() => setActivePhotoIdx((prev) => (prev === mockObraPhotos.length - 1 ? 0 : prev + 1))}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 rounded-full text-white cursor-pointer"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Acompanhamento Fotográfico</h4>
+                  <div className="h-32 bg-[#0a0d16] rounded-2xl border border-slate-900 border-dashed flex flex-col items-center justify-center gap-2 px-6 text-center">
+                    <Clock size={18} className="text-slate-700" />
+                    <p className="text-xs text-slate-500">
+                      As fotos da sua unidade aparecerão aqui conforme a equipe de obra
+                      registrar o avanço no canteiro.
+                    </p>
                   </div>
                 </div>
               </div>
