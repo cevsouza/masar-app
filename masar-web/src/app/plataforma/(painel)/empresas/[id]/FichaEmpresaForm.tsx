@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertCircle, CheckCircle2, ArrowLeft, Building2, Globe } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, ArrowLeft, Building2, Globe, Trash2 } from 'lucide-react';
 
 export interface Ficha {
   id: string;
@@ -33,6 +33,27 @@ export default function FichaEmpresaForm({ inicial }: { inicial: Ficha }) {
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [nomeDigitado, setNomeDigitado] = useState('');
+  const [apagando, setApagando] = useState(false);
+
+  const apagar = async () => {
+    setApagando(true);
+    setErro(null);
+    try {
+      const r = await fetch(`/api/plataforma/empresas/${f.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmacaoNome: nomeDigitado }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Falha ao apagar.');
+      router.push('/plataforma');
+    } catch (e: any) {
+      setErro(e.message);
+      setApagando(false);
+    }
+  };
 
   const set = <K extends keyof Ficha>(k: K, v: Ficha[K]) => {
     setF((p) => ({ ...p, [k]: v }));
@@ -262,6 +283,67 @@ export default function FichaEmpresaForm({ inicial }: { inicial: Ficha }) {
         {salvando && <Loader2 size={15} className="animate-spin" />}
         Salvar
       </button>
+
+      {/* ---------------- apagar ---------------- */}
+      {!f.ehRaiz && (
+        <div className="rounded-xl border border-red-950/70 bg-red-950/10 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Trash2 size={15} className="text-red-500" />
+            <p className="text-xs font-bold text-red-400 uppercase tracking-wider">Apagar instância</p>
+          </div>
+          <p className="text-[11px] text-stone-500 leading-relaxed">
+            Só funciona em instância <strong className="text-stone-400">vazia</strong> — sem nenhum
+            empreendimento cadastrado. Serve para limpar um teste ou um cadastro errado. Se já houver
+            obra dentro, o caminho é <strong className="text-stone-400">desativar</strong> acima:
+            ninguém entra e nada se perde.
+          </p>
+
+          {!confirmandoExclusao ? (
+            <button
+              type="button"
+              onClick={() => setConfirmandoExclusao(true)}
+              className="text-xs font-bold text-red-400 hover:text-red-300"
+            >
+              Quero apagar esta instância
+            </button>
+          ) : (
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className={rotulo}>
+                  Digite <span className="text-red-400">{f.nome}</span> para confirmar
+                </label>
+                <input
+                  className={campo}
+                  value={nomeDigitado}
+                  onChange={(e) => setNomeDigitado(e.target.value)}
+                  placeholder={f.nome}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={apagar}
+                  disabled={apagando || nomeDigitado.trim() !== f.nome}
+                  className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-30 text-white font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2"
+                >
+                  {apagando && <Loader2 size={14} className="animate-spin" />}
+                  Apagar definitivamente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmandoExclusao(false);
+                    setNomeDigitado('');
+                  }}
+                  className="px-5 rounded-xl border border-stone-800 text-stone-400 hover:text-white text-xs font-semibold"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </form>
   );
 }

@@ -65,6 +65,81 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
+/**
+ * APAGA uma instância — de propósito, só as VAZIAS.
+ *
+ * O caso real é o único que justifica existir: o operador provisiona uma
+ * construtora para testar (ou erra o nome) e quer o painel limpo. Para isso um
+ * botão é adequado.
+ *
+ * O que este botão NÃO faz é destruir a operação de um cliente com obra dentro.
+ * O schema tem onDelete: Cascade em toda a árvore do tenant — um delete aqui
+ * levaria junto obras, medições, lançamentos, documentos e log de auditoria,
+ * sem volta e sem rastro. Um clique errado no console apagaria a empresa do
+ * cliente inteira. Por isso a regra é dura: com empreendimento cadastrado, a
+ * rota recusa e manda desativar, que preserva tudo e produz o mesmo efeito
+ * prático (ninguém entra).
+ *
+ * Três travas: empresa raiz nunca; instância com conteúdo nunca; e o nome
+ * precisa ser digitado igual — confirmação que não se clica por reflexo.
+ */
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const admin = await exigirAdminPlataforma();
+    const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+
+    if (id === EMPRESA_RAIZ_ID) {
+      return NextResponse.json(
+        { error: 'A empresa raiz não pode ser apagada — é a sua própria operação.' },
+        { status: 409 }
+      );
+    }
+
+    const empresa = await runSemEscopoDeEmpresa(() => db.empresa.findUnique({ where: { id } }));
+    if (!empresa) {
+      return NextResponse.json({ error: 'Empresa não encontrada' }, { status: 404 });
+    }
+
+    if (String(body.confirmacaoNome ?? '').trim() !== empresa.nome) {
+      return NextResponse.json(
+        { error: 'Digite o nome da construtora exatamente como aparece para confirmar.' },
+        { status: 400 }
+      );
+    }
+
+    const empreendimentos = await runSemEscopoDeEmpresa(() =>
+      db.empreendimento.count({ where: { empresaId: id } })
+    );
+    if (empreendimentos > 0) {
+      return NextResponse.json(
+        {
+          error:
+            `"${empresa.nome}" tem ${empreendimentos} empreendimento(s) cadastrado(s). ` +
+            'Instância com obra dentro não é apagada por aqui — apagar levaria junto medições, ' +
+            'lançamentos, documentos e o log de auditoria, sem volta. Desative a instância: ' +
+            'ninguém entra e os dados ficam preservados.',
+        },
+        { status: 409 }
+      );
+    }
+
+    await runSemEscopoDeEmpresa(() => db.empresa.delete({ where: { id } }));
+
+    logger.warn(
+      `[Plataforma] ${admin.email} APAGOU a instância "${empresa.nome}" (${empresa.slug}) — estava vazia`
+    );
+
+    return NextResponse.json({ success: true, nome: empresa.nome });
+  } catch (error: any) {
+    if (String(error?.message).includes('administrador da plataforma')) {
+      return NextResponse.json({ error: 'Acesso restrito ao console.' }, { status: 403 });
+    }
+    logger.error('[Plataforma] Erro ao apagar empresa', error);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await exigirAdminPlataforma();

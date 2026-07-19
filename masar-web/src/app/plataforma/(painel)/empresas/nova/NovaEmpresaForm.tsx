@@ -30,11 +30,21 @@ export default function NovaEmpresaForm() {
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   const slug = slugManual || slugify(nome);
 
-  const enviar = async (e: React.FormEvent) => {
+  // Provisionar cria empresa, usuário e credencial de uma vez. É irreversível na
+  // prática (a senha só aparece uma vez) e o identificador não muda depois.
+  // O passo de conferência existe para o erro de digitação aparecer ANTES.
+  const pedirConfirmacao = (e: React.FormEvent) => {
     e.preventDefault();
+    setErro(null);
+    setConfirmando(true);
+  };
+
+  const enviar = async () => {
+    setConfirmando(false);
     setSalvando(true);
     setErro(null);
     try {
@@ -121,8 +131,52 @@ export default function NovaEmpresaForm() {
     'w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2.5 text-sm text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500/60';
   const rotulo = 'text-xs text-stone-400 font-semibold block mb-1.5';
 
+  if (confirmando) {
+    const linha = (r: string, v: string) => (
+      <div className="flex justify-between gap-4 py-2 border-b border-stone-800/70 last:border-0">
+        <span className="text-xs text-stone-500">{r}</span>
+        <span className="text-xs text-stone-100 font-semibold text-right break-all">{v}</span>
+      </div>
+    );
+    return (
+      <div className="max-w-xl space-y-5">
+        <div className="rounded-xl border border-amber-900/50 bg-amber-950/20 p-5 space-y-1">
+          <p className="text-sm font-bold text-amber-300">Confira antes de criar</p>
+          <p className="text-xs text-amber-200/70 leading-relaxed">
+            Isto cria a instância e a conta de acesso do cliente. O identificador interno não muda
+            depois, e a senha aparece uma única vez na tela seguinte.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-5">
+          {linha('Construtora', nome)}
+          {linha('Identificador', slug)}
+          {linha('Responsável', adminNome)}
+          {linha('E-mail de acesso', adminEmail)}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={enviar}
+            disabled={salvando}
+            className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-bold text-sm py-2.5 rounded-xl flex items-center justify-center gap-2"
+          >
+            {salvando && <Loader2 size={15} className="animate-spin" />}
+            Confirmar e provisionar
+          </button>
+          <button
+            onClick={() => setConfirmando(false)}
+            className="px-5 rounded-xl border border-stone-800 text-stone-400 hover:text-white text-xs font-semibold"
+          >
+            Voltar e corrigir
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={enviar} className="max-w-xl space-y-5">
+    <form onSubmit={pedirConfirmacao} className="max-w-xl space-y-5">
       <Link
         href="/plataforma"
         className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300"
@@ -204,8 +258,7 @@ export default function NovaEmpresaForm() {
         disabled={salvando || !nome || !adminNome || !adminEmail}
         className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-bold text-sm py-2.5 rounded-xl flex items-center justify-center gap-2"
       >
-        {salvando && <Loader2 size={15} className="animate-spin" />}
-        Provisionar cliente
+        Revisar e provisionar
       </button>
     </form>
   );
