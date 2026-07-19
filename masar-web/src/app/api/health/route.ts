@@ -104,6 +104,45 @@ export async function GET() {
     } else {
       armazenamento.status = 'UP';
     }
+
+    // PROVA DE PERSISTENCIA.
+    //
+    // Escrever e ler um arquivo temporario prova que o disco aceita escrita —
+    // não prova que ele SOBREVIVE a um deploy, que é a promessa real do cofre.
+    // Disco efêmero passa no teste de escrita igualzinho.
+    //
+    // Então deixamos um marcador minúsculo e permanente. Se a data de criação
+    // dele for ANTERIOR ao início deste processo, o arquivo atravessou pelo
+    // menos um reinício — e isso é persistência observada, não inferida.
+    const marcadorPath = join(uploadDir, '.masar-persistencia.json');
+    const inicioDoProcesso = new Date(Date.now() - process.uptime() * 1000);
+    try {
+      if (existsSync(marcadorPath)) {
+        const { criadoEm } = JSON.parse(await readFile(marcadorPath, 'utf8'));
+        const criado = new Date(criadoEm);
+        const sobreviveu = criado < inicioDoProcesso;
+        armazenamento.persistencia = {
+          marcadorCriadoEm: criadoEm,
+          processoIniciadoEm: inicioDoProcesso.toISOString(),
+          sobreviveuAReinicio: sobreviveu,
+          veredito: sobreviveu
+            ? 'COMPROVADA — o marcador é anterior a este processo, logo atravessou um deploy.'
+            : 'AINDA NÃO — marcador criado por este mesmo processo. Reimplante e consulte de novo.',
+        };
+      } else {
+        const agora = new Date().toISOString();
+        await writeFile(marcadorPath, JSON.stringify({ criadoEm: agora }), 'utf8');
+        armazenamento.persistencia = {
+          marcadorCriadoEm: agora,
+          processoIniciadoEm: inicioDoProcesso.toISOString(),
+          sobreviveuAReinicio: false,
+          veredito: 'MARCADOR CRIADO agora. Reimplante e consulte de novo para comprovar.',
+        };
+      }
+    } catch (e: any) {
+      // Falhar aqui não derruba o health: é diagnóstico, não requisito.
+      armazenamento.persistencia = { erro: e.message || String(e) };
+    }
   } catch (error: any) {
     hasError = true;
     report.status = 'DOWN';
