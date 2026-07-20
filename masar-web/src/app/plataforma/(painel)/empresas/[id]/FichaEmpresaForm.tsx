@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertCircle, CheckCircle2, ArrowLeft, Building2, Globe, Trash2, Upload } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, ArrowLeft, Building2, Globe, Trash2, Upload, KeyRound, Copy, Check } from 'lucide-react';
 import { normalizarSubdominio, validarSubdominio } from '@/lib/dominioPlataforma';
 
 export interface Ficha {
@@ -73,6 +73,41 @@ export default function FichaEmpresaForm({
   };
   const [nomeDigitado, setNomeDigitado] = useState('');
   const [apagando, setApagando] = useState(false);
+
+  // Gerar login de admin numa empresa já existente (demo na raiz, ou socorro a
+  // cliente que perdeu o acesso).
+  const [mostrarFormAcesso, setMostrarFormAcesso] = useState(false);
+  const [acNome, setAcNome] = useState('');
+  const [acEmail, setAcEmail] = useState('');
+  const [gerandoAcesso, setGerandoAcesso] = useState(false);
+  const [acessoGerado, setAcessoGerado] = useState<{ email: string; senha: string; resetado: boolean } | null>(null);
+  const [copiadoAcesso, setCopiadoAcesso] = useState<'u' | 's' | null>(null);
+
+  const copiar = async (qual: 'u' | 's', texto: string) => {
+    try { await navigator.clipboard.writeText(texto); } catch { return; }
+    setCopiadoAcesso(qual);
+    setTimeout(() => setCopiadoAcesso(null), 2000);
+  };
+
+  const gerarAcesso = async () => {
+    setGerandoAcesso(true);
+    setErro(null);
+    try {
+      const r = await fetch(`/api/plataforma/empresas/${f.id}/usuario`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: acNome, email: acEmail }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Falha ao gerar acesso.');
+      setAcessoGerado({ email: d.usuario.email, senha: d.usuario.senhaProvisoria, resetado: d.resetado });
+      setMostrarFormAcesso(false);
+    } catch (e: any) {
+      setErro(e.message);
+    } finally {
+      setGerandoAcesso(false);
+    }
+  };
 
   // O banco guarda UM endereço por cliente. Os dois campos da tela são duas
   // leituras do mesmo valor: se o host termina na base da plataforma, é
@@ -436,6 +471,99 @@ export default function FichaEmpresaForm({
         {salvando && <Loader2 size={15} className="animate-spin" />}
         Salvar
       </button>
+
+      {/* ---------------- gerar acesso ---------------- */}
+      <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <KeyRound size={15} className="text-amber-500" />
+          <p className="text-xs font-bold text-stone-300 uppercase tracking-wider">Acesso ao sistema</p>
+        </div>
+        <p className="text-[11px] text-stone-500 leading-relaxed">
+          {inicial.ehRaiz
+            ? 'Cria um login de administrador para você entrar nesta instância pelo /login e montar uma demonstração.'
+            : 'Gera um login de administrador para o cliente — ou reseta a senha se ele perdeu o acesso. Fica registrado no log de auditoria dele.'}
+        </p>
+
+        {acessoGerado ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-3 text-xs text-emerald-300">
+              {acessoGerado.resetado ? 'Senha redefinida.' : 'Usuário criado.'} Entre em{' '}
+              <code className="text-emerald-200">
+                {inicial.dominio ? `${inicial.dominio}/login` : '/login'}
+              </code>
+              .
+            </div>
+            <div className="bg-stone-950 border border-stone-800 rounded-lg p-3 space-y-2 font-mono text-sm">
+              <div>
+                <div className="text-stone-500 text-[11px]">usuário</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-stone-200 break-all flex-1">{acessoGerado.email}</span>
+                  <button type="button" onClick={() => copiar('u', acessoGerado.email)} className="shrink-0 text-stone-500 hover:text-amber-300">
+                    {copiadoAcesso === 'u' ? <Check size={13} /> : <Copy size={13} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div className="text-stone-500 text-[11px]">senha</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-300 tracking-wide break-all flex-1">{acessoGerado.senha}</span>
+                  <button type="button" onClick={() => copiar('s', acessoGerado.senha)} className="shrink-0 text-stone-500 hover:text-amber-300">
+                    {copiadoAcesso === 's' ? <Check size={13} /> : <Copy size={13} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] text-stone-600">A senha não fica gravada — copie agora.</p>
+          </div>
+        ) : mostrarFormAcesso ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                className={campo}
+                value={acNome}
+                onChange={(e) => setAcNome(e.target.value)}
+                placeholder="Nome do responsável"
+              />
+              <input
+                type="email"
+                className={campo}
+                value={acEmail}
+                onChange={(e) => setAcEmail(e.target.value)}
+                placeholder="e-mail"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={gerarAcesso}
+                disabled={gerandoAcesso || !acNome || !acEmail}
+                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2"
+              >
+                {gerandoAcesso && <Loader2 size={14} className="animate-spin" />}
+                Gerar login
+              </button>
+              <button
+                type="button"
+                onClick={() => setMostrarFormAcesso(false)}
+                className="px-5 rounded-xl border border-stone-800 text-stone-400 hover:text-white text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setMostrarFormAcesso(true);
+              setAcNome(inicial.ehRaiz ? 'Administrador' : '');
+            }}
+            className="text-xs font-bold text-amber-400 hover:text-amber-300"
+          >
+            Gerar login de administrador
+          </button>
+        )}
+      </div>
 
       {/* ---------------- apagar ---------------- */}
       {!f.ehRaiz && (
