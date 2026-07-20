@@ -403,7 +403,7 @@ export default function ReportGenerator({ empreendimentos, casas, marca }: Repor
               ) : (
                 <>
                   <div className="flex items-center gap-1.5 justify-end">
-                    {marca.ehRaiz && (
+                    {marca.exibeSeloMasar && (
                       <span className="text-sm font-bold print-accent font-serif select-none" style={{ color: marca.corPrimaria }} dir="rtl">مسار</span>
                     )}
                     <span className="font-extrabold tracking-tight text-white print-text-dark text-base font-sans">{marca.nome}</span>

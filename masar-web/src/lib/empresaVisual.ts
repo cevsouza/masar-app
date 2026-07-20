@@ -20,17 +20,37 @@ export interface IdentidadeVisual {
   logoUrl: string | null;
   corPrimaria: string;
   corSecundaria: string;
-  /** Só a empresa raiz exibe o selo árabe "مسار" — é a marca da Masar, não do produto. */
-  ehRaiz: boolean;
+  /**
+   * Exibe o selo árabe "مسار" — marca da MASAR, não do produto.
+   *
+   * Isto já se chamou `ehRaiz` e era calculado pelo id da empresa raiz. Duas
+   * coisas diferentes com um nome só: "é a empresa raiz desta instância"
+   * (conceito de control plane: não pode ser apagada nem desativada) e "é a
+   * Masar" (marca). Enquanto existiu uma instância só, deu na mesma.
+   *
+   * Numa instância comercial nova elas divergem: a migração inicial cria a
+   * empresa raiz com o id fixo, e o selo árabe apareceria na tela de login de
+   * um produto que não é da Masar. Agora quem manda é o SLUG — renomeou, o
+   * selo some.
+   */
+  exibeSeloMasar: boolean;
 }
 
+/**
+ * Marca usada quando o banco não responde — a tela de login não pode cair.
+ *
+ * O nome vem de env porque este é o único texto de marca que aparece SEM
+ * consultar o banco: fixo, uma instância comercial em pane exibiria a marca da
+ * Masar para o cliente de outra pessoa. E nunca o selo árabe: um modo degradado
+ * não carimba a marca de ninguém.
+ */
 const PADRAO: IdentidadeVisual = {
   empresaId: null,
-  nome: 'Masar Empreendimentos',
+  nome: process.env.MARCA_PADRAO_NOME?.trim() || 'Masar Empreendimentos',
   logoUrl: null,
   corPrimaria: '#2563eb',
   corSecundaria: '#1e293b',
-  ehRaiz: true,
+  exibeSeloMasar: false,
 };
 
 function daEmpresa(e: {
@@ -47,7 +67,7 @@ function daEmpresa(e: {
     logoUrl: e.logoUrl,
     corPrimaria: e.corPrimaria,
     corSecundaria: e.corSecundaria,
-    ehRaiz: e.id === EMPRESA_RAIZ_ID || e.slug === 'masar',
+    exibeSeloMasar: e.slug === 'masar',
   };
 }
 

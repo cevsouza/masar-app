@@ -85,7 +85,7 @@ export default function LoginForm({ marca }: { marca: IdentidadeVisual }) {
           </h2>
           {/* O selo árabe é a marca da Masar ("مسار" = trajetória), não do
               produto — só aparece na empresa raiz. */}
-          {marca.ehRaiz && (
+          {marca.exibeSeloMasar && (
             <div className="mt-3 flex flex-col items-center gap-1 select-none">
               <span
                 className="text-3xl font-serif tracking-widest leading-none font-bold"

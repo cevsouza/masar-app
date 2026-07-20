@@ -126,12 +126,15 @@ interface SidebarProps {
   /** Nome da construtora do usuário logado. */
   empresaNome?: string;
   /** Só a empresa raiz exibe o selo árabe — é marca da Masar, não do produto. */
-  ehRaiz?: boolean;
+  exibeSeloMasar?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
 }
 
-export default function Sidebar({ isOpen, onClose, empresaNome = 'Masar Empreendimentos', ehRaiz = true }: SidebarProps) {
+// exibeSeloMasar cai para FALSE por omissão: marca alheia se carimba por
+// engano, nunca por falta. O padrão anterior era `true` e vinha de quando havia
+// uma instância só, onde a Masar era o único caso possível.
+export default function Sidebar({ isOpen, onClose, empresaNome = 'Masar Empreendimentos', exibeSeloMasar = false }: SidebarProps) {
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -331,7 +334,7 @@ export default function Sidebar({ isOpen, onClose, empresaNome = 'Masar Empreend
                 <span className="font-extrabold text-base text-white tracking-wide block font-sans truncate max-w-[150px]">
                   {empresaNome}
                 </span>
-                {ehRaiz && (
+                {exibeSeloMasar && (
                   <span className="text-xs font-serif text-slate-400 font-bold" dir="rtl" lang="ar" title="مسار - Trajetória">
                     مسار
                   </span>

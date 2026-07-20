@@ -28,7 +28,7 @@ export default async function DashboardLayout({
       }
       className="contents"
     >
-      <DashboardShell empresaNome={marca.nome} ehRaiz={marca.ehRaiz}>{children}</DashboardShell>
+      <DashboardShell empresaNome={marca.nome} exibeSeloMasar={marca.exibeSeloMasar}>{children}</DashboardShell>
     </div>
   );
 }

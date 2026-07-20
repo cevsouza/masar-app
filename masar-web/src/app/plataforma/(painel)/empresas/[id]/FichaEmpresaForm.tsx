@@ -108,6 +108,7 @@ export default function FichaEmpresaForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome: f.nome,
+          slug: f.slug,
           cnpj: f.cnpj,
           dominio: f.dominio,
           logoUrl: f.logoUrl,
@@ -171,6 +172,25 @@ export default function FichaEmpresaForm({
         <div>
           <label className={rotulo}>Nome exibido</label>
           <input className={campo} value={f.nome} onChange={(e) => set('nome', e.target.value)} required />
+        </div>
+
+        <div>
+          <label className={rotulo}>Identificador interno</label>
+          <input
+            className={campo + ' font-mono'}
+            value={f.slug}
+            onChange={(e) => set('slug', normalizarSubdominio(e.target.value))}
+            required
+          />
+          <p className={dica}>
+            Não aparece para o cliente.{' '}
+            {f.slug === 'masar' && (
+              <strong className="text-amber-400">
+                Com o identificador <code>masar</code>, o selo árabe مسار aparece na tela de entrada,
+                no menu e nos relatórios. Numa instância que não é da Masar, troque.
+              </strong>
+            )}
+          </p>
         </div>
 
         <div>

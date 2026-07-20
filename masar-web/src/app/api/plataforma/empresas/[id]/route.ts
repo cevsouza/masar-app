@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { exigirAdminPlataforma } from '@/lib/plataforma';
 import { runSemEscopoDeEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
 import { logger } from '@/lib/logger';
-import { subdominioDoHost, validarSubdominio } from '@/lib/dominioPlataforma';
+import { subdominioDoHost, validarSubdominio, normalizarSubdominio } from '@/lib/dominioPlataforma';
 
 /**
  * Ficha do cliente (nível FICHA do control plane): identidade visual, domínio
@@ -218,6 +218,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const nome = String(body.nome).trim();
       if (!nome) return NextResponse.json({ error: 'O nome não pode ficar vazio.' }, { status: 400 });
       dados.nome = nome;
+    }
+
+    // O slug é editável por causa da instância nova: a migração inicial cria a
+    // empresa raiz como "Masar Empreendimentos"/`masar`, e é o slug `masar` que
+    // acende o selo árabe. Numa instância comercial isso carimbaria a marca da
+    // Masar no login de outro produto — renomear aqui é o que apaga o selo.
+    if (body.slug !== undefined) {
+      const novoSlug = normalizarSubdominio(String(body.slug));
+      if (!novoSlug) {
+        return NextResponse.json({ error: 'O identificador não pode ficar vazio.' }, { status: 400 });
+      }
+      if (novoSlug !== atual.slug) {
+        const conflito = await runSemEscopoDeEmpresa(() =>
+          db.empresa.findFirst({ where: { slug: novoSlug, NOT: { id } }, select: { nome: true } })
+        );
+        if (conflito) {
+          return NextResponse.json(
+            { error: `O identificador "${novoSlug}" já é usado por "${conflito.nome}".` },
+            { status: 409 }
+          );
+        }
+        dados.slug = novoSlug;
+      }
     }
 
     if (body.cnpj !== undefined) dados.cnpj = String(body.cnpj).trim() || null;

@@ -8,16 +8,16 @@ interface DashboardShellProps {
   children: React.ReactNode;
   /** Nome da construtora do usuário logado. Vem da sessão, não do Host. */
   empresaNome: string;
-  ehRaiz: boolean;
+  exibeSeloMasar: boolean;
 }
 
-export default function DashboardShell({ children, empresaNome, ehRaiz }: DashboardShellProps) {
+export default function DashboardShell({ children, empresaNome, exibeSeloMasar }: DashboardShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <div className="flex w-full min-h-screen bg-[#0b0f19]">
       {/* Sidebar - responsivo via props */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} empresaNome={empresaNome} ehRaiz={ehRaiz} />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} empresaNome={empresaNome} exibeSeloMasar={exibeSeloMasar} />
 
       {/* Main Content Area */}
       <div className="flex-1 pl-0 md:pl-64 min-h-screen flex flex-col w-full">
