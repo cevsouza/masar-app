@@ -39,6 +39,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/health') ||
+    pathname.startsWith('/api/marca') ||
     pathname.startsWith('/api/seed') ||
     pathname.startsWith('/api/clean') ||
     // Portal do fornecedor: autenticado pelo token da URL.

@@ -1,4 +1,4 @@
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, readdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, isAbsolute, normalize } from 'path';
 import { exigirEmpresaId } from '@/lib/tenant';
@@ -52,6 +52,75 @@ export async function salvarArquivoDaEmpresa(
  * (`../../etc/passwd`), que passaria a ser possível agora que o caminho é
  * montado a partir de um valor do banco.
  */
+/**
+ * Logos das empresas — pasta SEPARADA das dos documentos.
+ *
+ * Por que fora do diretório do tenant: o logo é servido SEM login (aparece na
+ * tela de entrada, no portal do comprador, na página pública de cotação). A
+ * rota que o entrega é pública. Se os logos morassem junto dos documentos,
+ * essa rota pública seria um caminho para ler o cofre alheio. Aqui ela só
+ * enxerga `logos/`, e nada mais.
+ *
+ * Um logo por empresa: o nome é `<empresaId>.<ext>`, e gravar de novo apaga o
+ * anterior (inclusive de outra extensão). Sem lixo acumulado, sem ambiguidade
+ * de qual é o vigente.
+ */
+const EXTENSOES_LOGO = new Set(['png', 'jpg', 'jpeg', 'webp']);
+
+function pastaLogos(): string {
+  return join(diretorioBase(), 'logos');
+}
+
+/** Grava o logo e devolve a extensão gravada. Só a plataforma chama isto. */
+export async function salvarLogoDaEmpresa(
+  empresaId: string,
+  conteudo: Buffer,
+  extensaoBruta: string
+): Promise<string> {
+  const ext = extensaoBruta.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!EXTENSOES_LOGO.has(ext)) {
+    throw new Error('Formato de imagem não suportado. Use PNG, JPG ou WebP.');
+  }
+  if (!/^[a-zA-Z0-9-]+$/.test(empresaId)) {
+    throw new Error('Identificador de empresa inválido.');
+  }
+
+  const pasta = pastaLogos();
+  if (!existsSync(pasta)) await mkdir(pasta, { recursive: true });
+
+  // Apaga qualquer logo anterior desta empresa (qualquer extensão).
+  await apagarLogoDaEmpresa(empresaId);
+
+  const nome = `${empresaId}.${ext}`;
+  await writeFile(join(pasta, nome), conteudo);
+  return ext;
+}
+
+/** Caminho absoluto do logo da empresa, ou null se não houver. */
+export function caminhoLogo(empresaId: string): { caminho: string; ext: string } | null {
+  if (!/^[a-zA-Z0-9-]+$/.test(empresaId)) return null;
+  const pasta = pastaLogos();
+  if (!existsSync(pasta)) return null;
+  for (const ext of EXTENSOES_LOGO) {
+    const caminho = join(pasta, `${empresaId}.${ext}`);
+    if (existsSync(caminho)) return { caminho, ext };
+  }
+  return null;
+}
+
+async function apagarLogoDaEmpresa(empresaId: string): Promise<void> {
+  const pasta = pastaLogos();
+  if (!existsSync(pasta)) return;
+  try {
+    const arquivos = await readdir(pasta);
+    for (const a of arquivos) {
+      if (a.startsWith(`${empresaId}.`)) await unlink(join(pasta, a)).catch(() => {});
+    }
+  } catch {
+    // pasta some entre existsSync e readdir — nada a apagar.
+  }
+}
+
 export function caminhoAbsoluto(caminhoGravado: string): string {
   // Legado: já era absoluto, usa como está.
   if (isAbsolute(caminhoGravado) || /^[a-zA-Z]:[\\/]/.test(caminhoGravado)) {

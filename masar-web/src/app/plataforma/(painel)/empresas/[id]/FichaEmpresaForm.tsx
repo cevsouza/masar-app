@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertCircle, CheckCircle2, ArrowLeft, Building2, Globe, Trash2 } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, ArrowLeft, Building2, Globe, Trash2, Upload } from 'lucide-react';
 import { normalizarSubdominio, validarSubdominio } from '@/lib/dominioPlataforma';
 
 export interface Ficha {
@@ -47,7 +47,30 @@ export default function FichaEmpresaForm({
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [enviandoLogo, setEnviandoLogo] = useState(false);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+
+  // O upload grava na hora e devolve o novo logoUrl — não espera o "Salvar" do
+  // formulário. Assim a prévia aparece imediatamente e o arquivo já está no
+  // volume; o Salvar continua valendo para nome, cores e o resto.
+  const enviarLogo = async (arquivo: File) => {
+    setEnviandoLogo(true);
+    setErro(null);
+    try {
+      const fd = new FormData();
+      fd.append('logo', arquivo);
+      const r = await fetch(`/api/plataforma/empresas/${f.id}/logo`, { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Falha ao enviar o logo.');
+      setF((p) => ({ ...p, logoUrl: d.logoUrl }));
+      setOk(false);
+      router.refresh();
+    } catch (e: any) {
+      setErro(e.message);
+    } finally {
+      setEnviandoLogo(false);
+    }
+  };
   const [nomeDigitado, setNomeDigitado] = useState('');
   const [apagando, setApagando] = useState(false);
 
@@ -194,24 +217,63 @@ export default function FichaEmpresaForm({
         </div>
 
         <div>
-          <label className={rotulo}>Endereço do logotipo</label>
-          <input
-            className={campo}
-            value={f.logoUrl ?? ''}
-            onChange={(e) => set('logoUrl', e.target.value)}
-            placeholder="https://..."
-          />
-          <p className={dica}>
-            Endereço de uma imagem já hospedada. Vazio, o sistema usa a inicial do nome sobre a cor
-            primária.
-          </p>
+          <label className={rotulo}>Logotipo</label>
+
           {f.logoUrl ? (
-            <div className="mt-2 p-3 bg-stone-950 border border-stone-800 rounded-lg flex items-center gap-3">
+            <div className="mb-2 p-3 bg-stone-950 border border-stone-800 rounded-lg flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={f.logoUrl} alt="Prévia" className="h-9 w-auto max-w-[150px] object-contain" />
               <span className="text-[11px] text-stone-600">prévia</span>
             </div>
           ) : null}
+
+          <div className="flex items-center gap-2">
+            <label
+              className={`cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl ${
+                enviandoLogo
+                  ? 'bg-stone-800 text-stone-500'
+                  : 'bg-amber-500 hover:bg-amber-400 text-stone-950'
+              }`}
+            >
+              {enviandoLogo ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+              {enviandoLogo ? 'Enviando…' : 'Enviar do computador'}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={enviandoLogo}
+                onChange={(e) => {
+                  const arq = e.target.files?.[0];
+                  if (arq) enviarLogo(arq);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {f.logoUrl && (
+              <button
+                type="button"
+                onClick={() => set('logoUrl', '')}
+                className="text-xs text-stone-500 hover:text-red-400"
+              >
+                remover
+              </button>
+            )}
+          </div>
+          <p className={dica}>
+            PNG, JPG ou WebP, até 2 MB. Vazio, o sistema usa a inicial do nome sobre a cor primária.
+          </p>
+
+          <details className="mt-2">
+            <summary className="text-[11px] text-stone-600 cursor-pointer hover:text-stone-400">
+              ou usar o endereço de uma imagem já hospedada
+            </summary>
+            <input
+              className={campo + ' mt-1.5'}
+              value={f.logoUrl ?? ''}
+              onChange={(e) => set('logoUrl', e.target.value)}
+              placeholder="https://..."
+            />
+          </details>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
