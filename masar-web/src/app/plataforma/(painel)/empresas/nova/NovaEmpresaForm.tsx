@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertCircle, CheckCircle2, Copy, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Copy, Check, ArrowLeft } from 'lucide-react';
 import { normalizarSubdominio, subdominioSugerido, validarSubdominio } from '@/lib/dominioPlataforma';
 
 function slugify(v: string) {
@@ -31,7 +31,19 @@ export default function NovaEmpresaForm({ dominioBase }: { dominioBase: string }
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
-  const [copiado, setCopiado] = useState(false);
+  const [copiado, setCopiado] = useState<'usuario' | 'senha' | 'tudo' | null>(null);
+
+  const copiarCampo = async (qual: 'usuario' | 'senha' | 'tudo', texto: string) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch {
+      // Alguns navegadores negam a área de transferência; seleção manual ainda
+      // funciona, então não mostramos erro — só não confirmamos.
+      return;
+    }
+    setCopiado(qual);
+    setTimeout(() => setCopiado(null), 2000);
+  };
   const [confirmando, setConfirmando] = useState(false);
 
   const slug = slugManual || slugify(nome);
@@ -92,32 +104,57 @@ export default function NovaEmpresaForm({ dominioBase }: { dominioBase: string }
             por canal seguro e peça que troque no primeiro acesso.
           </p>
 
-          <div className="bg-stone-950 border border-stone-800 rounded-lg p-3 space-y-1.5 font-mono text-sm">
+          <div className="bg-stone-950 border border-stone-800 rounded-lg p-3 space-y-2 font-mono text-sm">
             {empresa.dominio && (
-              <>
+              <div>
                 <div className="text-stone-500 text-[11px]">endereço</div>
                 <div className="text-stone-200 break-all">https://{empresa.dominio}/login</div>
-              </>
+              </div>
             )}
-            <div className="text-stone-500 text-[11px] pt-1">usuário</div>
-            <div className="text-stone-200">{admin.email}</div>
-            <div className="text-stone-500 text-[11px] pt-1">senha</div>
-            <div className="text-amber-300 tracking-wide break-all">{admin.senhaProvisoria}</div>
+            <div>
+              <div className="text-stone-500 text-[11px]">usuário</div>
+              <div className="flex items-center gap-2">
+                <span className="text-stone-200 break-all flex-1">{admin.email}</span>
+                <button
+                  type="button"
+                  onClick={() => copiarCampo('usuario', admin.email)}
+                  className="shrink-0 text-stone-500 hover:text-amber-300"
+                  title="Copiar usuário"
+                >
+                  {copiado === 'usuario' ? <Check size={13} /> : <Copy size={13} />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <div className="text-stone-500 text-[11px]">senha</div>
+              <div className="flex items-center gap-2">
+                <span className="text-amber-300 tracking-wide break-all flex-1">
+                  {admin.senhaProvisoria}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copiarCampo('senha', admin.senhaProvisoria)}
+                  className="shrink-0 text-stone-500 hover:text-amber-300"
+                  title="Copiar só a senha"
+                >
+                  {copiado === 'senha' ? <Check size={13} /> : <Copy size={13} />}
+                </button>
+              </div>
+            </div>
           </div>
 
           <button
             type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(
+            onClick={() =>
+              copiarCampo(
+                'tudo',
                 (empresa.dominio ? `Endereço: https://${empresa.dominio}/login\n` : '') +
                   `Usuário: ${admin.email}\nSenha: ${admin.senhaProvisoria}`
-              );
-              setCopiado(true);
-              setTimeout(() => setCopiado(false), 2500);
-            }}
+              )
+            }
             className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300"
           >
-            <Copy size={13} /> {copiado ? 'Copiado' : 'Copiar dados de acesso'}
+            <Copy size={13} /> {copiado === 'tudo' ? 'Copiado' : 'Copiar tudo (para enviar ao cliente)'}
           </button>
         </div>
 
