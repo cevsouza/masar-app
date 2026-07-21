@@ -1,20 +1,29 @@
-name: Backup do Banco Masar (pg_dump)
+name: Backup dos Bancos (Masar + Novastrus)
 
-# Faz um dump completo do Postgres de producao toda noite e guarda como
+# Faz um dump completo de CADA Postgres de producao toda noite e guarda como
 # artifact do repositorio (privado). Rede de seguranca contra corrupcao de
 # volume, delete acidental ou incidente do Railway (que hoje NAO tem backup:
 # PITR nativo so no plano Pro).
 #
-# Requer o secret DATABASE_PUBLIC_URL no GitHub (Settings > Secrets and
-# variables > Actions) = a connection string publica do Postgres no Railway
-# (host hayabusa.proxy.rlwy.net). Fail-closed: sem o secret, o job falha.
+# SAO DOIS BANCOS SEPARADOS, um por instancia:
+#   - Masar     -> a operacao privada da construtora
+#   - Novastrus -> a instancia comercial, onde ficam os dados dos CLIENTES
+#
+# O banco do Novastrus e o mais critico dos dois: perder dado de cliente nao e
+# um problema seu, e um problema dele — e vira questao contratual e de LGPD.
+#
+# Requer, em Settings > Secrets and variables > Actions:
+#   DATABASE_PUBLIC_URL            = connection string publica do Postgres do MASAR
+#   DATABASE_PUBLIC_URL_NOVASTRUS  = connection string publica do Postgres do NOVASTRUS
+# Fail-closed: sem o segredo, o job falha em vez de gerar um backup vazio.
 on:
   schedule:
     - cron: '0 6 * * *' # 03:00 America/Sao_Paulo (UTC-3), todos os dias
   workflow_dispatch: {} # disparo manual pela aba Actions (para testar/backup sob demanda)
 
 jobs:
-  backup:
+  masar:
+    name: Backup — Masar
     runs-on: ubuntu-latest
     # container com pg_dump v18 (mesmo major do servidor). pg_dump precisa ser
     # >= a versao do servidor, senao aborta com "server version mismatch".
@@ -41,7 +50,38 @@ jobs:
       - name: Subir artifact
         uses: actions/upload-artifact@v4
         with:
-          name: db-backup-${{ github.run_id }}
+          name: db-backup-masar-${{ github.run_id }}
           path: backups/*.dump
           retention-days: 90 # maximo do plano gratuito
+          if-no-files-found: error
+
+  novastrus:
+    name: Backup — Novastrus (dados de cliente)
+    runs-on: ubuntu-latest
+    container: postgres:18
+    steps:
+      - name: Gerar dump comprimido
+        env:
+          DATABASE_PUBLIC_URL: ${{ secrets.DATABASE_PUBLIC_URL_NOVASTRUS }}
+        run: |
+          if [ -z "$DATABASE_PUBLIC_URL" ]; then
+            echo "ERRO: secret DATABASE_PUBLIC_URL_NOVASTRUS nao configurado (Settings > Secrets and variables > Actions)."
+            echo "Pegue em: Railway > projeto NOVASTRUS > servico Postgres > Variables > DATABASE_PUBLIC_URL."
+            exit 1
+          fi
+          STAMP=$(date -u +%Y%m%d-%H%M%SZ)
+          mkdir -p backups
+          pg_dump --format=custom --no-owner --no-privileges \
+            "$DATABASE_PUBLIC_URL" -f "backups/novastrus-${STAMP}.dump"
+          echo "Dump gerado:"
+          ls -lh backups/
+
+      - name: Subir artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # Nome distinto do Masar de proposito: artifact com nome repetido
+          # colide e um sobrescreve o outro.
+          name: db-backup-novastrus-${{ github.run_id }}
+          path: backups/*.dump
+          retention-days: 90
           if-no-files-found: error

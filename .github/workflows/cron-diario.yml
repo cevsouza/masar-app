@@ -1,14 +1,26 @@
-name: Alertas Diarios Masar
+name: Alertas Diarios (Masar + Novastrus)
 
-# Dispara o relatorio diario de alertas (prazos + criticos financeiros) por e-mail via Resend.
-# Chama o endpoint protegido /api/cron/diario com o Bearer CRON_SECRET.
+# Dispara o relatorio diario de alertas (prazos + criticos financeiros) por e-mail
+# via Resend, chamando o endpoint protegido /api/cron/diario com o Bearer CRON_SECRET.
+#
+# SAO DUAS INSTANCIAS INDEPENDENTES, cada uma com o proprio banco e o proprio segredo:
+#   - masarempreendimentos.com.br -> a operacao privada da construtora
+#   - novastrus.com.br            -> a instancia comercial, onde ficam os clientes
+#
+# O alerta diario E o produto que se vende: e ele que avisa que um documento vai
+# vencer ANTES de a medicao travar. Instancia sem cron = cliente descobre a pendencia
+# no dia da vistoria, que e exatamente o que o sistema promete evitar.
+#
+# Os dois jobs sao independentes de proposito: se um cair, o outro continua rodando.
+# Fail-closed: sem o segredo correspondente, o job falha em vez de passar calado.
 on:
   schedule:
     - cron: '0 11 * * *' # 08:00 America/Sao_Paulo (UTC-3), todos os dias
   workflow_dispatch: {} # permite disparo manual pela aba Actions (para testar)
 
 jobs:
-  disparar-alertas:
+  masar:
+    name: Alertas — Masar (operacao propria)
     runs-on: ubuntu-latest
     steps:
       - name: Chamar /api/cron/diario
@@ -16,12 +28,39 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$CRON_SECRET" ]; then
-            echo "ERRO: secret CRON_SECRET nao configurado no repositorio (Settings > Secrets and variables > Actions)."
+            echo "ERRO: secret CRON_SECRET nao configurado (Settings > Secrets and variables > Actions)."
             exit 1
           fi
-          code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+          code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" --max-time 120 \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             https://masarempreendimentos.com.br/api/cron/diario)
+          echo "HTTP $code"
+          echo "Resposta:"
+          cat /tmp/resp.json || true
+          echo
+          if [ "$code" != "200" ]; then
+            echo "Falha: o endpoint retornou HTTP $code"
+            exit 1
+          fi
+
+  novastrus:
+    name: Alertas — Novastrus (instancia comercial)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar /api/cron/diario
+        env:
+          # Segredo DIFERENTE do Masar de proposito: cada instancia tem o seu.
+          # Segredo repetido entre instancias = chamada valida numa vale na outra.
+          CRON_SECRET: ${{ secrets.CRON_SECRET_NOVASTRUS }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "ERRO: secret CRON_SECRET_NOVASTRUS nao configurado (Settings > Secrets and variables > Actions)."
+            echo "Ele deve ser IGUAL a variavel CRON_SECRET do servico masar-app no projeto NOVASTRUS do Railway."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" --max-time 120 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://novastrus.com.br/api/cron/diario)
           echo "HTTP $code"
           echo "Resposta:"
           cat /tmp/resp.json || true
