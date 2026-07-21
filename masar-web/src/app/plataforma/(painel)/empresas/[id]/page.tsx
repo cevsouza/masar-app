@@ -50,6 +50,9 @@ export default async function FichaEmpresaPage({
     emailRemetente: e.emailRemetente,
     plano: e.plano,
     limiteObras: e.limiteObras,
+    limiteUnidades: e.limiteUnidades,
+    valorMensal: e.valorMensal,
+    diaVencimento: e.diaVencimento,
     dataExpiracao: e.dataExpiracao ? e.dataExpiracao.toISOString() : null,
     ehRaiz: e.id === EMPRESA_RAIZ_ID,
   };

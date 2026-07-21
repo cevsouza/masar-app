@@ -70,6 +70,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       emailRemetente: empresa.emailRemetente,
       plano: empresa.plano,
       limiteObras: empresa.limiteObras,
+      limiteUnidades: empresa.limiteUnidades,
+      valorMensal: empresa.valorMensal,
+      diaVencimento: empresa.diaVencimento,
       dataExpiracao: empresa.dataExpiracao ? empresa.dataExpiracao.toISOString() : null,
       ehRaiz: empresa.id === EMPRESA_RAIZ_ID,
     });
@@ -256,6 +259,42 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         return NextResponse.json({ error: 'Limite de obras inválido.' }, { status: 400 });
       }
       dados.limiteObras = n;
+    }
+
+    // Exceção negociada ao teto de unidades do plano. Vazio = vale o plano;
+    // ZERO é um valor legítimo (conta suspensa), por isso o teste é contra
+    // null/'' e não contra falsy.
+    if (body.limiteUnidades !== undefined) {
+      const n =
+        body.limiteUnidades === null || body.limiteUnidades === '' ? null : Number(body.limiteUnidades);
+      if (n !== null && (!Number.isFinite(n) || n < 0)) {
+        return NextResponse.json({ error: 'Limite de unidades inválido.' }, { status: 400 });
+      }
+      dados.limiteUnidades = n;
+    }
+
+    // Termos do contrato: é daqui que a geração mensal de cobranças tira valor
+    // e vencimento.
+    if (body.valorMensal !== undefined) {
+      const n = body.valorMensal === null || body.valorMensal === '' ? null : Number(body.valorMensal);
+      if (n !== null && (!Number.isFinite(n) || n < 0)) {
+        return NextResponse.json({ error: 'Mensalidade inválida.' }, { status: 400 });
+      }
+      dados.valorMensal = n;
+    }
+
+    if (body.diaVencimento !== undefined) {
+      const n =
+        body.diaVencimento === null || body.diaVencimento === '' ? null : Number(body.diaVencimento);
+      // Teto em 28 de propósito: 29/30/31 não existem em todo mês e o
+      // vencimento escorregaria em fevereiro.
+      if (n !== null && (!Number.isInteger(n) || n < 1 || n > 28)) {
+        return NextResponse.json(
+          { error: 'Dia de vencimento deve estar entre 1 e 28.' },
+          { status: 400 },
+        );
+      }
+      dados.diaVencimento = n;
     }
 
     for (const campo of ['corPrimaria', 'corSecundaria'] as const) {

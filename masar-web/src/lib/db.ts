@@ -43,7 +43,17 @@ const ESCRITAS_POR_DATA = new Set(['create', 'createMany', 'createManyAndReturn'
  * Cuidado ao acrescentar nomes aqui: cada entrada é uma tabela que deixa de
  * ter isolamento automático.
  */
-const MODELOS_CONTROL_PLANE = new Set(['Empresa', 'AdminPlataforma', 'AcessoAssistido']);
+const MODELOS_CONTROL_PLANE = new Set([
+  'Empresa',
+  'AdminPlataforma',
+  'AcessoAssistido',
+  // `Cobranca` tem um campo chamado `empresaId`, e é justamente por isso que
+  // precisa estar aqui: sem esta entrada a extensão escoparia a tabela como se
+  // fosse dado do tenant, e o ADMIN da construtora passaria a ver — e alterar —
+  // a própria fatura. O que o cliente deve à plataforma é assunto NOSSO sobre
+  // ele, nunca dado DELE.
+  'Cobranca',
+]);
 
 function criarClient() {
   const base = new PrismaClient({

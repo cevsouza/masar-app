@@ -268,4 +268,57 @@ describe('fronteira do control plane', () => {
     cookieAtual = { masar_admin_session: tokenTenantAdmin }; // token de construtora
     await expect(panoramaInstancias()).rejects.toThrow(/administrador da plataforma/i);
   });
+
+  it('o faturamento inteiro exige admin de plataforma', async () => {
+    // O que o cliente DEVE à plataforma é assunto nosso sobre ele, nunca dado
+    // dele. A tabela Cobranca fica fora do escopo de tenant (control plane), o
+    // que significa que a extensão do Prisma NÃO a protege — quem protege é a
+    // exigência de admin dentro de cada função. Se uma função nova esquecer a
+    // checagem, este teste é o que percebe.
+    const cobranca = await import('@/lib/cobranca');
+    cookieAtual = { masar_admin_session: tokenTenantAdmin }; // token de construtora
+
+    await expect(cobranca.cobrancasDaCompetencia('2026-08')).rejects.toThrow(
+      /administrador da plataforma/i,
+    );
+    await expect(cobranca.pendentesEmAberto()).rejects.toThrow(/administrador da plataforma/i);
+    await expect(cobranca.gerarCobrancasDoMes('2026-08')).rejects.toThrow(
+      /administrador da plataforma/i,
+    );
+    await expect(
+      cobranca.atualizarCobranca('id-qualquer', { status: 'PAGA' }),
+    ).rejects.toThrow(/administrador da plataforma/i);
+
+    // E também sem cookie nenhum.
+    cookieAtual = {};
+    await expect(cobranca.pendentesEmAberto()).rejects.toThrow();
+  });
+
+  it('gerar cobranças duas vezes no mesmo mês não cobra duas vezes', async () => {
+    const cobranca = await import('@/lib/cobranca');
+    cookieAtual = { masar_admin_session: tokenPlataforma };
+
+    await runSemEscopoDeEmpresa(async () => {
+      await db.cobranca.deleteMany({ where: { empresaId } });
+      await db.empresa.update({
+        where: { id: empresaId },
+        data: { valorMensal: 1290, diaVencimento: 10, ativa: true },
+      });
+    });
+
+    const primeira = await cobranca.gerarCobrancasDoMes('2026-08');
+    const segunda = await cobranca.gerarCobrancasDoMes('2026-08');
+
+    expect(primeira.geradas).toBeGreaterThanOrEqual(1);
+    // A geração é manual: quem clica não deve precisar lembrar se já clicou.
+    expect(segunda.geradas).toBe(0);
+
+    const linhas = await cobranca.cobrancasDaCompetencia('2026-08');
+    const desteCliente = linhas.filter((l) => l.empresaId === empresaId);
+    expect(desteCliente).toHaveLength(1);
+    expect(desteCliente[0].valor).toBe(1290);
+    expect(desteCliente[0].dataVencimento.getDate()).toBe(10);
+
+    await runSemEscopoDeEmpresa(() => db.cobranca.deleteMany({ where: { empresaId } }));
+  });
 });

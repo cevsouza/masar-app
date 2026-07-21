@@ -20,6 +20,9 @@ export interface Ficha {
   emailRemetente: string | null;
   plano: string;
   limiteObras: number | null;
+  limiteUnidades: number | null;
+  valorMensal: number | null;
+  diaVencimento: number | null;
   dataExpiracao: string | null;
   ehRaiz: boolean;
   empreendimentos: number;
@@ -176,6 +179,9 @@ export default function FichaEmpresaForm({
           emailRemetente: f.emailRemetente,
           plano: f.plano,
           limiteObras: f.limiteObras,
+          limiteUnidades: f.limiteUnidades,
+          valorMensal: f.valorMensal,
+          diaVencimento: f.diaVencimento,
           dataExpiracao: f.dataExpiracao,
           ativa: f.ativa,
         }),
@@ -438,6 +444,47 @@ export default function FichaEmpresaForm({
               onChange={(e) => set('dataExpiracao', e.target.value || null)}
             />
             <p className={dica}>Vencido, o login é recusado.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className={rotulo}>Mensalidade (R$)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              className={campo}
+              value={f.valorMensal ?? ''}
+              onChange={(e) => set('valorMensal', e.target.value === '' ? null : Number(e.target.value))}
+              placeholder="1290"
+            />
+            <p className={dica}>Vazio = não entra na cobrança do mês (cortesia, piloto).</p>
+          </div>
+          <div>
+            <label className={rotulo}>Vence dia</label>
+            <input
+              type="number"
+              min={1}
+              max={28}
+              className={campo}
+              value={f.diaVencimento ?? ''}
+              onChange={(e) => set('diaVencimento', e.target.value === '' ? null : Number(e.target.value))}
+              placeholder="10"
+            />
+            <p className={dica}>1 a 28. Acima disso escorregaria em fevereiro.</p>
+          </div>
+          <div>
+            <label className={rotulo}>Teto de unidades</label>
+            <input
+              type="number"
+              min={0}
+              className={campo}
+              value={f.limiteUnidades ?? ''}
+              onChange={(e) => set('limiteUnidades', e.target.value === '' ? null : Number(e.target.value))}
+              placeholder="do plano"
+            />
+            <p className={dica}>Só para exceção negociada. Vazio = vale o teto do plano.</p>
           </div>
         </div>
 

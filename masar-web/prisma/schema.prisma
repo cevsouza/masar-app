@@ -1160,6 +1160,12 @@ model Empresa {
   limiteUnidades  Int?
   dataContratacao DateTime?
   dataExpiracao   DateTime?
+  /// Mensalidade contratada. E daqui que a geracao mensal de cobrancas tira o
+  /// valor; vazio = cliente sem cobranca automatica (cortesia, piloto, a raiz).
+  valorMensal     Float?
+  /// Dia do mes do vencimento (1-28). Limitado a 28 de proposito: 29/30/31 nao
+  /// existem em todo mes e a data escorregaria em fevereiro.
+  diaVencimento   Int?
 
   dataCriacao     DateTime @default(now())
   dataAtualizacao DateTime @updatedAt
@@ -1272,4 +1278,49 @@ model AcessoAssistido {
 
   @@index([adminId])
   @@index([empresaId, expiraEm])
+}
+
+/// Situacao de uma cobranca mensal do cliente.
+enum StatusCobranca {
+  PENDENTE
+  PAGA
+  CANCELADA
+}
+
+/// Cobranca mensal do cliente — o registro de FATURAMENTO, nao um gateway.
+///
+/// E control plane por uma razao de seguranca, nao de arrumacao: se pendurasse
+/// em `empresaId` como dado de tenant, a extensao de isolamento escoparia a
+/// tabela e o ADMIN da construtora enxergaria (e poderia alterar) a propria
+/// fatura. O que o cliente deve a plataforma e assunto NOSSO sobre ele, nunca
+/// dado DELE.
+///
+/// Deliberadamente sem integracao de pagamento: com um punhado de contratos,
+/// PIX e boleto manual resolvem. O que faltava nao era cobrar automaticamente
+/// — era nao esquecer de faturar, e saber quem nao pagou.
+model Cobranca {
+  id        String @id @default(uuid())
+  /// Tenant cobrado. Referencia solta, como em AcessoAssistido: o historico
+  /// financeiro nao pode sumir junto com a empresa.
+  empresaId String
+
+  /// Mes de referencia no formato AAAA-MM. Texto, e nao data, porque a
+  /// competencia e um MES, nao um instante — e e o que evita duas cobrancas
+  /// do mesmo mes (ver o unique composto abaixo).
+  competencia String
+
+  valor          Float
+  dataVencimento DateTime
+  status         StatusCobranca @default(PENDENTE)
+  dataPagamento  DateTime?
+  /// Como foi pago, numero do boleto, o que for. Anotacao livre.
+  observacao     String?
+
+  dataCriacao     DateTime @default(now())
+  dataAtualizacao DateTime @updatedAt
+
+  /// Uma cobranca por cliente por mes. E o que torna a geracao do mes
+  /// repetivel sem duplicar — rodar duas vezes nao cobra duas vezes.
+  @@unique([empresaId, competencia])
+  @@index([status, dataVencimento])
 }

@@ -1,4 +1,4 @@
-import { Building2, Users, Home, Clock, AlertTriangle, Lock, Plus, ChevronRight } from 'lucide-react';
+import { Building2, Users, Home, Clock, AlertTriangle, Lock, Plus, ChevronRight, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { adminPlataformaAtual, panoramaInstancias } from '@/lib/plataforma';
@@ -69,7 +69,13 @@ export default async function CockpitPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Link
+          href="/plataforma/cobrancas"
+          className="inline-flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-800 text-xs font-bold px-4 py-2 rounded-xl"
+        >
+          <Receipt size={14} /> Faturamento
+        </Link>
         <Link
           href="/plataforma/empresas/nova"
           className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold px-4 py-2 rounded-xl"
