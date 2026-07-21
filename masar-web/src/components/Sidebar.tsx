@@ -24,6 +24,7 @@ import {
   ClipboardList,
   Home,
   FileSpreadsheet,
+  LifeBuoy,
   FileText,
   TrendingUp,
   ChevronDown,
@@ -120,6 +121,16 @@ const NAV_GROUPS = [
       { name: 'Parâmetros MCMV', href: '/configuracoes/mcmv', icon: ShieldCheck, roles: ['ADMIN'] },
       { name: 'Equipe', href: '/usuarios', icon: Users, roles: ['ADMIN'] },
       { name: 'Permissões', href: '/permissoes', icon: ShieldCheck, roles: ['ADMIN'] },
+    ],
+  },
+  {
+    id: 'ajuda',
+    label: 'Ajuda',
+    icon: LifeBuoy,
+    items: [
+      // Sem restrição de papel de propósito: quem trava numa tela é quem mais
+      // precisa da explicação, e nem sempre é o administrador.
+      { name: 'Central de Ajuda', href: '/ajuda', icon: LifeBuoy, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA', 'COMERCIAL'] },
     ],
   },
 ];

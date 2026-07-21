@@ -104,12 +104,21 @@ export default function AvisoTravaMedicao({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 p-5">
-          <button
-            onClick={onFechar}
-            className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-200 transition hover:bg-slate-700"
-          >
-            Entendi, vou resolver
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onFechar}
+              className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-200 transition hover:bg-slate-700"
+            >
+              Entendi, vou resolver
+            </button>
+            {/* A dúvida nasce aqui; o texto longo mora na ajuda. */}
+            <Link
+              href="/ajuda/medicao-travada"
+              className="text-[11px] text-slate-500 underline underline-offset-4 transition hover:text-slate-300"
+            >
+              Por que a medição trava?
+            </Link>
+          </div>
 
           {podeForcar && (
             <button
