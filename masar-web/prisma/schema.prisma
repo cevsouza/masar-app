@@ -1154,6 +1154,10 @@ model Empresa {
   // --- Licenciamento ---
   plano           String    @default("PADRAO")
   limiteObras     Int?
+  /// EXCECAO negociada ao teto de unidades do plano (ex.: comprou 40 no plano
+  /// de 25). Vazio = vale o teto do plano, definido em lib/planos.ts. O teto
+  /// mora no codigo porque muda para todos de uma vez; a coluna e o desvio.
+  limiteUnidades  Int?
   dataContratacao DateTime?
   dataExpiracao   DateTime?
 

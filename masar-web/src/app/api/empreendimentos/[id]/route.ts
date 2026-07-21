@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { verifySession } from '@/lib/auth';
 import { fetchCoordinates } from '@/lib/geocoding';
+import { bloqueioNovasUnidades } from '@/lib/licenca';
 
 export async function PATCH(
   request: NextRequest,
@@ -104,6 +105,24 @@ export async function PATCH(
 
     function cityOrTown(val: any) {
       return val || null;
+    }
+
+    // Teto da licença ANTES de gravar. Aumentar as casas previstas é o terceiro
+    // caminho que cria unidade — e também em lote. Se a recusa viesse depois do
+    // update, o empreendimento ficaria dizendo "300 previstas" com 25 casas de
+    // fato: um estado que ninguém pediu e que nenhuma tela sabe explicar.
+    if (updateData.quantidadeCasasPrevistas !== undefined && updateData.quantidadeCasasPrevistas > 0) {
+      const jaExistem = await db.casa.count({ where: { empreendimentoId: id } });
+      const aCriar = updateData.quantidadeCasasPrevistas - jaExistem;
+      if (aCriar > 0) {
+        const licenca = await bloqueioNovasUnidades(aCriar);
+        if (licenca.bloqueado) {
+          return NextResponse.json(
+            { error: 'LIMITE_LICENCA_EXCEDIDO', message: licenca.mensagem },
+            { status: 402 },
+          );
+        }
+      }
     }
 
     const updated = await db.empreendimento.update({

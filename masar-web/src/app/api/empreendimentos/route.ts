@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { fetchCoordinates } from '@/lib/geocoding';
 import { CHAVES_CATALOGO } from '@/lib/mcmv/catalogo';
+import { bloqueioNovasUnidades } from '@/lib/licenca';
 
 const FAIXAS_MCMV = ['FAIXA_1', 'FAIXA_2', 'FAIXA_3', 'FAIXA_4'];
 
@@ -62,6 +63,20 @@ export async function POST(request: NextRequest) {
     const casasPrevistasInt = quantidadeCasasPrevistas ? parseInt(quantidadeCasasPrevistas, 10) : null;
     const valorCompraFloat = valorCompraTerreno ? parseFloat(valorCompraTerreno) : null;
     const amenidadesArray = Array.isArray(amenidades) ? amenidades : [];
+
+    // Teto da licença. Este caminho cria as casas EM LOTE logo abaixo, então a
+    // verificação é pela quantidade prevista — e vem ANTES de criar o
+    // empreendimento, para não deixar um empreendimento órfão sem as unidades
+    // que o justificavam.
+    if (casasPrevistasInt && casasPrevistasInt > 0) {
+      const licenca = await bloqueioNovasUnidades(casasPrevistasInt);
+      if (licenca.bloqueado) {
+        return NextResponse.json(
+          { error: 'LIMITE_LICENCA_EXCEDIDO', message: licenca.mensagem },
+          { status: 402 },
+        );
+      }
+    }
 
     const empreendimento = await db.empreendimento.create({
       data: {

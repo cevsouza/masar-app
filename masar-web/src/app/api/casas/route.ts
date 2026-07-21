@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { bloqueioNovasUnidades } from '@/lib/licenca';
 
 // Lista enxuta de casas (id/numero/quadra/status), opcionalmente por empreendimento.
 // Usada em seletores (ex.: Eficiência de material — Fase 6.1).
@@ -41,6 +42,17 @@ export async function POST(request: NextRequest) {
 
     if (!numero || !quadra || !empreendimentoId) {
       return NextResponse.json({ error: 'Número, quadra e ID do empreendimento são obrigatórios' }, { status: 400 });
+    }
+
+    // 0. Teto da licença (plano contratado). Vem antes da trava de estoque
+    // físico porque é a restrição mais externa: não adianta caber no
+    // empreendimento se não cabe no contrato.
+    const licenca = await bloqueioNovasUnidades(1);
+    if (licenca.bloqueado) {
+      return NextResponse.json(
+        { error: 'LIMITE_LICENCA_EXCEDIDO', message: licenca.mensagem },
+        { status: 402 },
+      );
     }
 
     // 1. Validar limite de casas do empreendimento (Trava de Estoque Físico)

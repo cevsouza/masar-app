@@ -154,7 +154,10 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
         }),
       });
 
-      if (!response.ok) throw new Error('Erro ao criar empreendimento');
+      if (!response.ok) {
+        const corpo = await response.json().catch(() => null);
+        throw new Error(corpo?.message || corpo?.error || 'Erro ao criar empreendimento.');
+      }
 
       // Clear state
       setNewProjectName('');
@@ -171,7 +174,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
       alert('Empreendimento cadastrado com sucesso!');
     } catch (err) {
       console.error(err);
-      alert('Erro ao criar projeto.');
+      alert(err instanceof Error ? err.message : 'Erro ao criar projeto.');
     } finally {
       setIsCreatingProject(false);
     }
@@ -198,7 +201,14 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
         }),
       });
 
-      if (!response.ok) throw new Error('Erro ao cadastrar casa');
+      // A rota recusa por dois motivos que o usuário PRECISA ler: teto do
+      // empreendimento (LIMITE_CASAS_EXCEDIDO) e teto da licença
+      // (LIMITE_LICENCA_EXCEDIDO). Antes, ambos viravam "Erro ao cadastrar
+      // casa" — a explicação existia no servidor e morria aqui.
+      if (!response.ok) {
+        const corpo = await response.json().catch(() => null);
+        throw new Error(corpo?.message || 'Erro ao cadastrar casa.');
+      }
 
       // Clear state
       setNewHouseNum('');
@@ -211,7 +221,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
       alert('Unidade habitacional cadastrada com sucesso!');
     } catch (err) {
       console.error(err);
-      alert('Erro ao criar unidade.');
+      alert(err instanceof Error ? err.message : 'Erro ao criar unidade.');
     } finally {
       setIsCreatingHouse(false);
     }
