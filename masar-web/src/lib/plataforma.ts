@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import { signSession, verifySession } from '@/lib/auth';
 import { runComEmpresa, runSemEscopoDeEmpresa } from '@/lib/tenant';
+import { limiteEfetivo, decidirTeto } from '@/lib/planos';
 
 /**
  * CONTROL PLANE — autenticação e limites do administrador da plataforma.
@@ -202,6 +203,13 @@ export interface ResumoTenant {
   dataExpiracao: Date | null;
   empreendimentos: number;
   unidades: number;
+  /**
+   * Teto de unidades já resolvido (exceção da empresa, senão o do plano).
+   * null = sem teto. Vem calculado daqui para a tela não repetir a regra.
+   */
+  limiteUnidades: number | null;
+  /** Consumo do teto em %. null quando não há teto. */
+  percentualLicenca: number | null;
   usuarios: number;
   /**
    * Data do último registro de auditoria do tenant.
@@ -231,6 +239,7 @@ export async function panoramaInstancias(): Promise<ResumoTenant[]> {
         slug: true,
         ativa: true,
         plano: true,
+        limiteUnidades: true,
         dataExpiracao: true,
       },
       orderBy: { nome: 'asc' },
@@ -245,6 +254,9 @@ export async function panoramaInstancias(): Promise<ResumoTenant[]> {
           select: { data: true },
         });
 
+        const unidades = await db.casa.count({ where: { empresaId: e.id } });
+        const limiteUnidades = limiteEfetivo(e.plano, e.limiteUnidades);
+
         return {
           empresaId: e.id,
           nome: e.nome,
@@ -253,7 +265,9 @@ export async function panoramaInstancias(): Promise<ResumoTenant[]> {
           plano: e.plano,
           dataExpiracao: e.dataExpiracao,
           empreendimentos: await db.empreendimento.count({ where: { empresaId: e.id } }),
-          unidades: await db.casa.count({ where: { empresaId: e.id } }),
+          unidades,
+          limiteUnidades,
+          percentualLicenca: decidirTeto(unidades, limiteUnidades, 0).percentual,
           usuarios: await db.user.count({ where: { empresaId: e.id } }),
           ultimaAtividade: ultimo?.data ?? null,
         };

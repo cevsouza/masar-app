@@ -60,10 +60,23 @@ export const PLANOS_LISTA: Plano[] = [
   PLANOS.PADRAO,
 ];
 
+/**
+ * Nomes antigos que já foram gravados no banco e ainda apontam para um plano.
+ *
+ * `ESCALA` era o rótulo do terceiro degrau no console antes de o catálogo
+ * existir. Sem este apelido, um cliente salvo como ESCALA cairia no PADRAO e
+ * ficaria SEM TETO — a falha silenciosa exata que este módulo veio impedir:
+ * console oferece o plano, motor ignora, ninguém percebe.
+ */
+const APELIDOS: Record<string, string> = {
+  ESCALA: 'OPERACAO',
+};
+
 /** Plano de uma chave; cai em PADRAO (sem teto) se a chave for desconhecida. */
 export function planoDe(chave: string | null | undefined): Plano {
   if (!chave) return PLANOS.PADRAO;
-  return PLANOS[chave.trim().toUpperCase()] ?? PLANOS.PADRAO;
+  const limpa = chave.trim().toUpperCase();
+  return PLANOS[APELIDOS[limpa] ?? limpa] ?? PLANOS.PADRAO;
 }
 
 /**

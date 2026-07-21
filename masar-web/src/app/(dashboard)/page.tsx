@@ -25,6 +25,7 @@ import { verifySession } from '@/lib/auth';
 import DashboardMilestones from '@/components/DashboardMilestones';
 import PrimeiroAcesso from '@/components/PrimeiroAcesso';
 import FaixaConfiguracaoInicial from '@/components/FaixaConfiguracaoInicial';
+import FaixaLicenca from '@/components/FaixaLicenca';
 import { identidadeVisualAtual } from '@/lib/empresaVisual';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 
@@ -371,6 +372,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Teto do plano chegando e contrato vencendo. Some quando está tudo em dia. */}
+      <FaixaLicenca />
+
       {/* Cadastro ainda incompleto: leva de volta ao assistente guiado. */}
       <FaixaConfiguracaoInicial />
 

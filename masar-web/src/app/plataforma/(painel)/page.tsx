@@ -18,6 +18,18 @@ function diasAte(d: Date | null): number | null {
   return Math.ceil((new Date(d).getTime() - Date.now()) / 86_400_000);
 }
 
+/**
+ * Consumo do plano. Cliente encostando no teto é sinal COMERCIAL, não alarme:
+ * é a hora de propor o plano de cima, antes de o sistema recusar a unidade e a
+ * conversa começar por uma recusa.
+ */
+function corDoConsumo(pct: number | null): string {
+  if (pct === null) return 'text-stone-100';
+  if (pct >= 100) return 'text-red-400';
+  if (pct >= 80) return 'text-amber-400';
+  return 'text-stone-100';
+}
+
 /** Sinal de abandono. Cliente que parou de mexer está a caminho do cancelamento. */
 function sinalAtividade(ultima: Date | null) {
   const dias = diasDesde(ultima);
@@ -128,7 +140,19 @@ export default async function CockpitPage() {
                     </td>
                     <td className="px-4 py-3 text-stone-400">{i.plano}</td>
                     <td className="px-4 py-3 text-right tabular-nums text-stone-300">{i.empreendimentos}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-stone-100">{i.unidades}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold">
+                      <span className={corDoConsumo(i.percentualLicenca)}>
+                        {i.unidades}
+                        {i.limiteUnidades !== null && (
+                          <span className="text-stone-500 font-normal">/{i.limiteUnidades}</span>
+                        )}
+                      </span>
+                      {i.percentualLicenca !== null && i.percentualLicenca >= 80 && (
+                        <span className="text-[11px] block font-normal text-amber-500/70">
+                          {i.percentualLicenca >= 100 ? 'no teto' : `${i.percentualLicenca}% do plano`}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right tabular-nums text-stone-300">{i.usuarios}</td>
                     <td className={`px-4 py-3 ${sinal.cor}`}>{sinal.texto}</td>
                     <td className="px-4 py-3">

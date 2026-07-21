@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2, AlertCircle, CheckCircle2, ArrowLeft, Building2, Globe, Trash2, Upload, KeyRound, Copy, Check } from 'lucide-react';
 import { normalizarSubdominio, validarSubdominio } from '@/lib/dominioPlataforma';
+import { PLANOS_LISTA } from '@/lib/planos';
 
 export interface Ficha {
   id: string;
@@ -416,10 +417,16 @@ export default function FichaEmpresaForm({
               value={f.plano}
               onChange={(e) => set('plano', e.target.value)}
             >
-              <option value="ESSENCIAL">Essencial (até 25 unidades)</option>
-              <option value="CRESCIMENTO">Crescimento (até 100)</option>
-              <option value="ESCALA">Escala (até 300)</option>
-              <option value="PADRAO">Padrão / a definir</option>
+              {/* Do catálogo (lib/planos), não escrito à mão: as opções daqui
+                  precisam ser exatamente as chaves que o motor de licença
+                  reconhece. Quando divergiram, o console oferecia "ESCALA" e o
+                  motor lia PADRAO — plano vendido, teto nenhum. */}
+              {PLANOS_LISTA.map((p) => (
+                <option key={p.chave} value={p.chave}>
+                  {p.rotulo}
+                  {p.limiteUnidades !== null ? ` (até ${p.limiteUnidades} unidades)` : ''}
+                </option>
+              ))}
             </select>
           </div>
           <div>

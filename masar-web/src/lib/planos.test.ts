@@ -18,6 +18,13 @@ describe('planoDe', () => {
     expect(planoDe(' essencial ').chave).toBe('ESSENCIAL');
   });
 
+  it('ESCALA (rótulo antigo do console) resolve para OPERACAO, não para "sem teto"', () => {
+    // Regressão de um divergência real: o console gravava ESCALA e o catálogo
+    // só conhecia OPERACAO, então o cliente do plano de 300 ficava sem teto.
+    expect(planoDe('ESCALA').chave).toBe('OPERACAO');
+    expect(planoDe('ESCALA').limiteUnidades).toBe(300);
+  });
+
   it('cai em PADRAO sem teto quando a chave é desconhecida ou vazia', () => {
     // Fail-open aqui é deliberado: chave errada não pode travar a obra de um
     // cliente adimplente. O risco oposto (cobrar a menos) é conversa comercial.
