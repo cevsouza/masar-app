@@ -23,6 +23,9 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth';
 import DashboardMilestones from '@/components/DashboardMilestones';
+import PrimeiroAcesso from '@/components/PrimeiroAcesso';
+import FaixaConfiguracaoInicial from '@/components/FaixaConfiguracaoInicial';
+import { identidadeVisualAtual } from '@/lib/empresaVisual';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 
 export const revalidate = 0; // Disable server component caching to reflect real-time updates
@@ -46,6 +49,23 @@ export default async function DashboardPage() {
   });
   
   const totalEmpreendimentos = await db.empreendimento.count();
+
+  // PRIMEIRO ACESSO: conta recém-provisionada, ainda sem nenhum empreendimento.
+  //
+  // Sai daqui antes das queries pesadas — nada abaixo tem o que somar, e o
+  // cliente que acabou de assinar veria uma parede de indicadores zerados, que
+  // se lê como "o sistema está quebrado". O assistente guiado já existe em
+  // /gestao/onboarding; esta tela é a porta que leva até ele.
+  if (totalEmpreendimentos === 0) {
+    const marca = await identidadeVisualAtual();
+    return (
+      <PrimeiroAcesso
+        marcaNome={marca.nome}
+        podeConfigurar={['ADMIN', 'FINANCEIRO'].includes(userRole)}
+        nomeUsuario={session?.nome}
+      />
+    );
+  }
 
   // Soma de medições por status
   const resumoMedicoes = await db.medicaoCaixa.groupBy({
@@ -351,6 +371,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Cadastro ainda incompleto: leva de volta ao assistente guiado. */}
+      <FaixaConfiguracaoInicial />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
