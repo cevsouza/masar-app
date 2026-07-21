@@ -402,11 +402,15 @@ export default function FichaEmpresaForm({
             className={campo}
             value={f.emailRemetente ?? ''}
             onChange={(e) => set('emailRemetente', e.target.value)}
-            placeholder="Construtora Fulano <nao-responda@construtorafulano.com.br>"
+            placeholder="nao-responda@construtorafulano.com.br"
           />
           <p className={dica}>
-            Exige domínio verificado no provedor de e-mail. Vazio, usa o remetente padrão da
-            instância.
+            Só o endereço — o nome exibido é sempre <strong className="text-stone-400">{f.nome || 'o nome da empresa'}</strong>,
+            que já vai no e-mail mesmo com este campo vazio. Preencher só muda o
+            <em> endereço</em>, e exige o domínio verificado no Resend: enquanto não estiver,
+            o envio continua saindo pelo endereço da plataforma e este vira o
+            <strong className="text-stone-400"> Responder para</strong> — a marca aparece e a entrega
+            não corre risco.
           </p>
         </div>
       </div>

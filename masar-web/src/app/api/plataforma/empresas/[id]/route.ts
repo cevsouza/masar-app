@@ -4,6 +4,7 @@ import { exigirAdminPlataforma } from '@/lib/plataforma';
 import { runSemEscopoDeEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
 import { logger } from '@/lib/logger';
 import { subdominioDoHost, validarSubdominio, normalizarSubdominio } from '@/lib/dominioPlataforma';
+import { limparCacheDominios } from '@/lib/resend';
 
 /**
  * Ficha do cliente (nível FICHA do control plane): identidade visual, domínio
@@ -249,7 +250,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.cnpj !== undefined) dados.cnpj = String(body.cnpj).trim() || null;
     if (body.logoUrl !== undefined) dados.logoUrl = String(body.logoUrl).trim() || null;
     if (body.emailRemetente !== undefined) {
-      dados.emailRemetente = String(body.emailRemetente).trim() || null;
+      const bruto = String(body.emailRemetente).trim();
+      // Só o endereço, sem `Nome <...>`: o nome de exibição vem SEMPRE do nome
+      // da empresa (lib/remetente), senão teríamos duas fontes para a mesma
+      // coisa e a marca do e-mail poderia divergir da marca do sistema.
+      if (bruto && !/^[^\s@<>",;]+@[^\s@<>",;.]+\.[^\s@<>",;]+$/.test(bruto)) {
+        return NextResponse.json(
+          { error: 'Informe apenas o endereço (ex.: contato@construtora.com.br), sem o nome.' },
+          { status: 400 },
+        );
+      }
+      dados.emailRemetente = bruto.toLowerCase() || null;
+      // O remetente efetivo depende de quais domínios estão verificados no
+      // Resend; sem limpar, a mudança demoraria o TTL do cache para valer.
+      limparCacheDominios();
     }
     if (body.plano !== undefined) dados.plano = String(body.plano).trim() || 'PADRAO';
 
