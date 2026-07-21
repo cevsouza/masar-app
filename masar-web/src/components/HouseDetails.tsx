@@ -35,6 +35,7 @@ import {
 import GedManager from '@/components/GedManager';
 import ModalNovoLancamento from './ModalNovoLancamento';
 import CronogramaPanel from './CronogramaPanel';
+import AvisoTravaMedicao, { type PendenciaTravaUI } from '@/components/AvisoTravaMedicao';
 import {
   BarChart,
   Bar,
@@ -195,6 +196,16 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
 
   // Admin Edit/Delete House States
   const [userRole, setUserRole] = useState('COMERCIAL');
+
+  // Aviso da trava de medição. Guarda a AÇÃO a retomar porque o modal é
+  // assíncrono: o `confirm()` que ele substituiu devolvia a resposta na hora;
+  // um modal só devolve quando o usuário clica.
+  const [travaAviso, setTravaAviso] = useState<{
+    titulo: string;
+    resumo: string;
+    pendencias: PendenciaTravaUI[];
+    retomar: () => Promise<void>;
+  } | null>(null);
   const [isDeletingHouse, setIsDeletingHouse] = useState(false);
   const [isEditHouseModalOpen, setIsEditHouseModalOpen] = useState(false);
   const [editNumero, setEditNumero] = useState(initialCasa.numero);
@@ -448,9 +459,25 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
     }
   };
 
-  // Monta a mensagem do bloqueio de segurança (trava SST da liberação de medição).
-  const mensagemBloqueioSST = (data: any) =>
-    `${data.message}\n\n${(data.motivos || []).map((m: string) => `• ${m}`).join('\n')}\n\nLiberar mesmo assim como ADMIN (fica auditado)?`;
+  // Título e resumo do aviso de trava, a partir da resposta 409 da API.
+  const dadosDaTrava = (data: any) => {
+    const pendencias: PendenciaTravaUI[] = data.pendencias ?? [];
+    const n = pendencias.length;
+    const vencidas = pendencias.filter((p) => p.prazo?.startsWith('venceu')).length;
+    const base = n === 1 ? 'Falta 1 item' : `Faltam ${n} itens`;
+    return {
+      titulo:
+        data.error === 'BLOQUEIO_SEGURANCA'
+          ? 'Segurança do trabalho impede a liberação'
+          : 'Conformidade MCMV/Caixa impede a liberação',
+      resumo: n
+        ? vencidas
+          ? `${base} para liberar esta medição — ${vencidas} já ${vencidas === 1 ? 'vencido' : 'vencidos'}.`
+          : `${base} para liberar esta medição.`
+        : data.message,
+      pendencias,
+    };
+  };
 
   const handleCreateMedicao = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -463,16 +490,22 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
           body: JSON.stringify({ percentualMedido, valorLiberado, status: statusMedicao, forcarLiberacao: forcar }),
         });
 
-      let response = await enviar(false);
+      const response = await enviar(false);
       if (response.status === 409) {
         const data = await response.json();
         if (data.error === 'BLOQUEIO_SEGURANCA' || data.error === 'BLOQUEIO_CONFORMIDADE_MCMV') {
-          if (!confirm(mensagemBloqueioSST(data))) return;
-          response = await enviar(true);
-          if (response.status === 409) {
-            const d2 = await response.json();
-            throw new Error(d2.message || 'Liberação excepcional negada (requer ADMIN).');
-          }
+          setTravaAviso({
+            ...dadosDaTrava(data),
+            retomar: async () => {
+              const r = await enviar(true);
+              if (!r.ok) {
+                const d2 = await r.json().catch(() => null);
+                throw new Error(d2?.message || 'Liberação excepcional negada (requer ADMIN).');
+              }
+              router.refresh();
+            },
+          });
+          return;
         }
       }
       if (!response.ok) throw new Error('Falha ao registrar medição.');
@@ -490,16 +523,22 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
           body: JSON.stringify({ status: newStatus, forcarLiberacao: forcar }),
         });
 
-      let response = await enviar(false);
+      const response = await enviar(false);
       if (response.status === 409) {
         const data = await response.json();
         if (data.error === 'BLOQUEIO_SEGURANCA' || data.error === 'BLOQUEIO_CONFORMIDADE_MCMV') {
-          if (!confirm(mensagemBloqueioSST(data))) return;
-          response = await enviar(true);
-          if (response.status === 409) {
-            const d2 = await response.json();
-            throw new Error(d2.message || 'Liberação excepcional negada (requer ADMIN).');
-          }
+          setTravaAviso({
+            ...dadosDaTrava(data),
+            retomar: async () => {
+              const r = await enviar(true);
+              if (!r.ok) {
+                const d2 = await r.json().catch(() => null);
+                throw new Error(d2?.message || 'Liberação excepcional negada (requer ADMIN).');
+              }
+              router.refresh();
+            },
+          });
+          return;
         }
       }
       if (!response.ok) throw new Error('Falha ao atualizar status.');
@@ -597,6 +636,25 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
 
   return (
     <div className="space-y-6">
+      {travaAviso && (
+        <AvisoTravaMedicao
+          titulo={travaAviso.titulo}
+          resumo={travaAviso.resumo}
+          pendencias={travaAviso.pendencias}
+          podeForcar={userRole === 'ADMIN'}
+          onFechar={() => setTravaAviso(null)}
+          onForcar={async () => {
+            const acao = travaAviso.retomar;
+            setTravaAviso(null);
+            try {
+              await acao();
+            } catch (e: any) {
+              alert(e?.message || 'Não foi possível liberar.');
+            }
+          }}
+        />
+      )}
+
       {initialCasa.obstaculos && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl flex items-start gap-3 animate-pulse">
           <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={18} />

@@ -41,6 +41,7 @@ export async function POST(
             error: 'BLOQUEIO_SEGURANCA',
             message: 'Liberação bloqueada: há trabalhadores com segurança fora de dia (ASO/EPI vencido). Regularize ou libere excepcionalmente como ADMIN.',
             motivos: bloqueio.motivos,
+            pendencias: bloqueio.pendencias,
           }, { status: 409 });
         }
         await logMutation({
@@ -70,6 +71,7 @@ export async function POST(
               error: 'BLOQUEIO_CONFORMIDADE_MCMV',
               message: 'Liberação bloqueada: há exigências MCMV/Caixa obrigatórias fora de conformidade. Regularize na aba Conformidade MCMV ou libere excepcionalmente como ADMIN.',
               motivos: bloqueioMcmv.motivos,
+              pendencias: bloqueioMcmv.pendencias,
             }, { status: 409 });
           }
           await logMutation({

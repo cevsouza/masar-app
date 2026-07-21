@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { pendenciaSST, ordenar, type PendenciaTrava } from '@/lib/travaMedicao';
 
 // Janela padrão de alerta de vencimento (dias).
 export const DIAS_ALERTA_VENCIMENTO = 30;
@@ -86,14 +87,26 @@ export async function buscarVencimentosSST(dias = DIAS_ALERTA_VENCIMENTO) {
  * é bloqueada quando há trabalhador ativo com ASO ou EPI VENCIDO (segurança fora de
  * dia). Apenas o VENCIDO bloqueia; "a vencer" é só alerta. Retorna os motivos.
  */
-export async function bloqueioSegurancaMedicao(): Promise<{ bloqueado: boolean; motivos: string[] }> {
+export async function bloqueioSegurancaMedicao(): Promise<{
+  bloqueado: boolean;
+  motivos: string[];
+  pendencias: PendenciaTrava[];
+}> {
   const v = await buscarVencimentosSST();
-  const motivos: string[] = [];
+  const pendencias: PendenciaTrava[] = [];
+
   for (const a of v.asosVencidos) {
-    motivos.push(`ASO vencido: ${a.trabalhadorNome} (validade ${new Date(a.dataValidade).toLocaleDateString('pt-BR')})`);
+    pendencias.push(pendenciaSST('aso', `ASO de ${a.trabalhadorNome}`, a.dataValidade));
   }
   for (const e of v.episVencidos) {
-    motivos.push(`EPI vencido: ${e.equipamento} de ${e.trabalhadorNome}`);
+    pendencias.push(pendenciaSST('epi', `EPI ${e.equipamento} — ${e.trabalhadorNome}`));
   }
-  return { bloqueado: motivos.length > 0, motivos };
+
+  const ordenadas = ordenar(pendencias);
+  return {
+    bloqueado: ordenadas.length > 0,
+    // Mantido para quem já consumia texto puro (log de auditoria, e-mail).
+    motivos: ordenadas.map((p) => (p.prazo ? `${p.titulo} (${p.prazo})` : p.titulo)),
+    pendencias: ordenadas,
+  };
 }

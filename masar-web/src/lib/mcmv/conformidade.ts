@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { pendenciaMCMV, ordenar, type PendenciaTrava } from '@/lib/travaMedicao';
 import { bloqueioSegurancaMedicao } from '@/lib/sst';
 import {
   CATALOGO_MCMV,
@@ -43,7 +44,8 @@ export interface ConformidadeResultado {
   faixaMCMV: string | null;
   itens: ItemAvaliado[];
   resumo: ResumoConformidade;
-  bloqueadores: string[]; // motivos que travariam a medição (Slice 3)
+  bloqueadores: string[]; // motivos em texto puro (log, e-mail)
+  pendenciasBloqueio: PendenciaTrava[]; // as mesmas, com o que fazer a respeito
 }
 
 // Documento válido = existe com o tipo pedido e não está vencido.
@@ -169,9 +171,15 @@ export async function avaliarConformidade(empreendimentoId: string): Promise<Con
   const pendencias = obrigatorios.filter((i) => i.status === 'PENDENTE' || i.status === 'EM_ANDAMENTO').length;
   const percentual = obrigatorios.length > 0 ? Math.round((conformes / obrigatorios.length) * 100) : 100;
 
-  const bloqueadores = itens
-    .filter((i) => i.bloqueiaMedicao && i.status !== 'CONFORME' && i.status !== 'NAO_APLICAVEL')
-    .map((i) => `${i.titulo}${i.detalhe ? ` — ${i.detalhe}` : ''}`);
+  const itensBloqueadores = itens.filter(
+    (i) => i.bloqueiaMedicao && i.status !== 'CONFORME' && i.status !== 'NAO_APLICAVEL',
+  );
+  const bloqueadores = itensBloqueadores.map(
+    (i) => `${i.titulo}${i.detalhe ? ` — ${i.detalhe}` : ''}`,
+  );
+  const pendenciasBloqueio = itensBloqueadores.map((i) =>
+    pendenciaMCMV(i.chave, i.titulo, i.detalhe ?? undefined),
+  );
 
   return {
     regimeMCMV: emp.regimeMCMV,
@@ -179,6 +187,7 @@ export async function avaliarConformidade(empreendimentoId: string): Promise<Con
     itens,
     resumo: { totalObrigatorios: obrigatorios.length, conformes, percentual, pendencias, naoConformes },
     bloqueadores,
+    pendenciasBloqueio,
   };
 }
 
@@ -187,10 +196,16 @@ export async function avaliarConformidade(empreendimentoId: string): Promise<Con
  * empreendimentos no regime MCMV; espelha bloqueioSegurancaMedicao() do SST.
  * A segurança em si continua sendo travada pela trava de SST (não duplicamos aqui).
  */
-export async function bloqueioConformidadeMCMV(
-  empreendimentoId: string,
-): Promise<{ bloqueado: boolean; motivos: string[] }> {
+export async function bloqueioConformidadeMCMV(empreendimentoId: string): Promise<{
+  bloqueado: boolean;
+  motivos: string[];
+  pendencias: PendenciaTrava[];
+}> {
   const r = await avaliarConformidade(empreendimentoId);
-  if (!r.regimeMCMV) return { bloqueado: false, motivos: [] };
-  return { bloqueado: r.bloqueadores.length > 0, motivos: r.bloqueadores };
+  if (!r.regimeMCMV) return { bloqueado: false, motivos: [], pendencias: [] };
+  return {
+    bloqueado: r.bloqueadores.length > 0,
+    motivos: r.bloqueadores,
+    pendencias: ordenar(r.pendenciasBloqueio),
+  };
 }
