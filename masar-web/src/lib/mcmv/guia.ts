@@ -155,13 +155,16 @@ export const GUIA_MCMV: Record<string, GuiaItem> = {
   'alvara-construcao': {
     porque:
       'Alvará vencido é obra irregular perante a prefeitura — e obra irregular não passa em vistoria. ' +
-      'É uma das causas mais comuns de medição travada, porque o vencimento chega no meio da obra.',
+      'É uma das causas mais comuns de medição travada, porque o vencimento chega no meio da obra, ' +
+      'quando ninguém está olhando para ele. Por isso este item bloqueia a liberação aqui dentro.',
     comoResolver:
-      'Protocole a renovação na prefeitura antes do vencimento e anexe o alvará vigente no cofre. ' +
-      'Se já venceu, protocole hoje: o tempo de análise corre com a obra parada para efeito de vistoria.',
+      'São duas coisas, e só a primeira destrava: registre o marco "Alvará de Prefeitura" como ' +
+      'aprovado na ficha do empreendimento. Depois anexe o alvará no cofre com a data de validade — ' +
+      'é dela que sai o aviso antes de vencer. Se já venceu, protocole a renovação hoje: o tempo de ' +
+      'análise corre com a obra irregular para efeito de vistoria.',
     quantoTempo: 'Semanas, e varia muito de município para município.',
-    href: '/fiscal/documentos',
-    ondeLabel: 'Cofre de documentos',
+    href: '/empreendimentos',
+    ondeLabel: 'Marcos do empreendimento',
   },
   'projeto-caixa': {
     porque:

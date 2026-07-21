@@ -895,6 +895,9 @@ enum TipoDocumentoAnexo {
   PROJETO_ELETRICO
   MATRICULA_TERRENO
   ALVARA_LOTEAMENTO
+  /// Alvara de CONSTRUCAO. Separado do de loteamento de proposito: e o que
+  /// vence no meio da obra e trava a medicao.
+  ALVARA_CONSTRUCAO
   // Documentos de conformidade MCMV/Caixa
   PBQP_H_SIAC
   LAUDO_DESEMPENHO_NBR15575

@@ -35,6 +35,19 @@ export interface ContextoAvaliacao {
   marcosAprovados: string[]; // tipos de MarcoBurocratico com dataAprovacaoReal preenchida
   totalAtividadesCronograma: number;
   segurancaBloqueada: boolean;
+  /**
+   * Validade do alvará de construção, que o marco sozinho não sabe.
+   *
+   * O marco `ALVARA_PREFEITURA` registra um EVENTO — "o alvará saiu" — e não
+   * tem data de vencimento. Só o documento no cofre carrega validade. Sem
+   * cruzar os dois, o sistema travaria a medição por "nunca saiu" e ficaria
+   * cego para "venceu no meio da obra", que é o caso caro e o mais comum.
+   */
+  alvara: {
+    temDocumento: boolean;
+    vencido: boolean;
+    vencimento: Date | null;
+  };
 }
 
 export interface ResultadoAuto {
@@ -65,6 +78,38 @@ function marcoAprovado(tipo: string): (ctx: ContextoAvaliacao) => ResultadoAuto 
     ctx.marcosAprovados.includes(tipo)
       ? { status: 'CONFORME' }
       : { status: 'PENDENTE', detalhe: 'Marco ainda não aprovado.' };
+}
+
+/**
+ * Alvará de construção: cruza o MARCO (saiu?) com a VALIDADE do documento.
+ *
+ * Trava a medição, por decisão do dono do produto — alvará vencido é obra
+ * irregular perante a prefeitura, e obra irregular não passa em vistoria.
+ *
+ * A gradação abaixo é deliberada, e o caso do meio é o que evita quebrar quem
+ * já opera: quando o marco está aprovado e NÃO há documento no cofre, o item
+ * fica CONFORME com uma ressalva — não bloqueia. Bloquear por documento
+ * ausente transformaria o dia do deploy num dia de obras paradas em toda
+ * instância, por uma exigência que ninguém tinha como cumprir antes. O aviso
+ * puxa o cliente para o cofre; a trava fica para o que é de fato irregular.
+ */
+function autoAlvara(ctx: ContextoAvaliacao): ResultadoAuto {
+  if (!ctx.marcosAprovados.includes('ALVARA_PREFEITURA')) {
+    return { status: 'PENDENTE', detalhe: 'O marco do alvará ainda não foi aprovado.' };
+  }
+  if (ctx.alvara.vencido) {
+    const quando = ctx.alvara.vencimento
+      ? ` em ${new Date(ctx.alvara.vencimento).toLocaleDateString('pt-BR')}`
+      : '';
+    return { status: 'NAO_CONFORME', detalhe: `O alvará no cofre venceu${quando}.` };
+  }
+  if (!ctx.alvara.temDocumento) {
+    return {
+      status: 'CONFORME',
+      detalhe: 'Marco aprovado. Anexe o alvará no cofre com a data de validade para ser avisado antes de vencer.',
+    };
+  }
+  return { status: 'CONFORME' };
 }
 
 function autoTetoValor(ctx: ContextoAvaliacao): ResultadoAuto {
@@ -195,10 +240,12 @@ export const CATALOGO_MCMV: ItemCatalogo[] = [
     chave: 'alvara-construcao',
     categoria: 'B',
     titulo: 'Alvará de construção / prefeitura',
-    descricao: 'Alvará de construção emitido pela prefeitura (marco ALVARA_PREFEITURA aprovado).',
+    descricao:
+      'Alvará emitido pela prefeitura (marco aprovado) e dentro da validade, quando o documento está no cofre.',
     obrigatorio: true,
     tipoAvaliacao: 'AUTO',
-    auto: marcoAprovado('ALVARA_PREFEITURA'),
+    auto: autoAlvara,
+    bloqueiaMedicao: true,
   },
   {
     chave: 'projeto-caixa',

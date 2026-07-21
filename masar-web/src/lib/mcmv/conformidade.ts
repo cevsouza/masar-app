@@ -63,7 +63,38 @@ function docValido(
   return algumValido ? 'CONFORME' : 'NAO_CONFORME';
 }
 
-async function montarContexto(empreendimentoId: string, faixaMCMV: string | null): Promise<ContextoAvaliacao> {
+/**
+ * Estado do alvará no cofre. Vencido = existe documento do tipo e a data já
+ * passou (ou o status foi marcado VENCIDO). Documento sem data de vencimento
+ * conta como presente, não como vencido — ausência de data é dado faltando,
+ * não irregularidade.
+ */
+function estadoDoAlvara(
+  documentos: { tipo: string | null; status: string; dataVencimento: Date | null }[],
+): ContextoAvaliacao['alvara'] {
+  const doAlvara = documentos.filter((d) => d.tipo === 'ALVARA_CONSTRUCAO');
+  if (doAlvara.length === 0) return { temDocumento: false, vencido: false, vencimento: null };
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const valido = doAlvara.find(
+    (d) => d.status !== 'VENCIDO' && (!d.dataVencimento || new Date(d.dataVencimento) >= hoje),
+  );
+  if (valido) return { temDocumento: true, vencido: false, vencimento: valido.dataVencimento };
+
+  // Nenhum válido: reporta o que venceu mais tarde, que é o mais recente.
+  const maisRecente = doAlvara
+    .map((d) => d.dataVencimento)
+    .filter((d): d is Date => !!d)
+    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  return { temDocumento: true, vencido: true, vencimento: maisRecente };
+}
+
+async function montarContexto(
+  empreendimentoId: string,
+  faixaMCMV: string | null,
+  documentos: { tipo: string | null; status: string; dataVencimento: Date | null }[],
+): Promise<ContextoAvaliacao> {
   const [casas, marcos, totalAtividadesCronograma, parametro, seguranca] = await Promise.all([
     db.casa.findMany({
       where: { empreendimentoId },
@@ -99,6 +130,7 @@ async function montarContexto(empreendimentoId: string, faixaMCMV: string | null
     marcosAprovados: marcos.map((m) => m.tipo),
     totalAtividadesCronograma,
     segurancaBloqueada: seguranca.bloqueado,
+    alvara: estadoDoAlvara(documentos),
   };
 }
 
@@ -125,7 +157,7 @@ export async function avaliarConformidade(empreendimentoId: string): Promise<Con
   }
 
   const faixa = emp.faixaMCMV as string | null;
-  const ctx = await montarContexto(empreendimentoId, faixa);
+  const ctx = await montarContexto(empreendimentoId, faixa, emp.documentos);
   const estadoPorChave = new Map(emp.itensConformidadeMCMV.map((i) => [i.chave, i]));
 
   const itens: ItemAvaliado[] = CATALOGO_MCMV.map((cat) => {
