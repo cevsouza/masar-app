@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   ClipboardList,
   Home,
+  FileSpreadsheet,
   FileText,
   TrendingUp,
   ChevronDown,
@@ -83,6 +84,7 @@ const NAV_GROUPS = [
     items: [
       { name: 'Empreendimentos', href: '/empreendimentos', icon: KanbanSquare, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
       { name: 'Obras', href: '/casas', icon: Home, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
+      { name: 'Importar Planilha', href: '/importacao', icon: FileSpreadsheet, roles: ['ADMIN', 'FINANCEIRO', 'ENGENHARIA'] },
       { name: 'Vendas', href: '/comercial', icon: BadgeDollarSign, roles: ['ADMIN', 'FINANCEIRO', 'COMERCIAL'] },
       { name: 'Compras', href: '/suprimentos', icon: ShoppingBag, roles: ['ADMIN', 'FINANCEIRO'] },
       { name: 'Fornecedores', href: '/fornecedores', icon: Truck, roles: ['ADMIN', 'FINANCEIRO'] },
