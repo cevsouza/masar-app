@@ -239,15 +239,22 @@ describe('fronteira do control plane', () => {
 
     // Lista FECHADA de propósito: se alguém acrescentar um campo ao panorama,
     // este teste quebra e obriga a decidir se aquilo é metadado ou conteúdo.
-    // Já cumpriu esse papel uma vez, quando `ultimaAtividade` foi adicionada.
+    // Já cumpriu esse papel duas vezes: quando `ultimaAtividade` foi adicionada
+    // e quando entraram `limiteUnidades`/`percentualLicenca` — ambos aprovados
+    // como metadado de LICENÇA (um teto e uma razão entre contagens; nenhum
+    // dado de obra, cliente ou financeiro do tenant atravessa a fronteira).
     const campos = Object.keys(alvo!).sort();
     expect(campos).toEqual(
       [
         'ativa', 'dataExpiracao', 'empreendimentos', 'empresaId',
-        'nome', 'plano', 'slug', 'ultimaAtividade', 'unidades', 'usuarios',
+        'limiteUnidades', 'nome', 'percentualLicenca', 'plano', 'slug',
+        'ultimaAtividade', 'unidades', 'usuarios',
       ].sort()
     );
     expect(typeof alvo!.unidades).toBe('number');
+    // Números ou ausência — nunca objeto com detalhe do tenant.
+    expect(alvo!.limiteUnidades === null || typeof alvo!.limiteUnidades === 'number').toBe(true);
+    expect(alvo!.percentualLicenca === null || typeof alvo!.percentualLicenca === 'number').toBe(true);
 
     // `ultimaAtividade` é um TIMESTAMP — diz QUE houve atividade, nunca QUAL.
     // Se um dia virar objeto com ação/tabela/usuário, deixou de ser metadado.
