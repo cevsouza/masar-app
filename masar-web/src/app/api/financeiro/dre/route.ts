@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calcularDre } from '@/lib/dre';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 // DRE (projetado x realizado) de um empreendimento. A lógica vive em lib/dre.
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'financeiro' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const empreendimentoId = searchParams.get('empreendimentoId');

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
 import { logger } from '@/lib/logger';
 import { sugerirTitulo, conciliar, naturezaEsperada, type TituloAberto } from '@/lib/conciliacao';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 // Carrega os títulos em aberto uma vez (recebíveis e a pagar) para sugestão/casamento.
 async function carregarTitulosAbertos(): Promise<TituloAberto[]> {
@@ -15,7 +16,10 @@ async function carregarTitulosAbertos(): Promise<TituloAberto[]> {
 
 // GET: lista as linhas de extrato ainda não conciliadas, cada uma com a sugestão
 // de título (se houver), para revisão manual na tela de conciliação.
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'financeiro' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const linhas = await db.transacaoBancaria.findMany({
       where: { conciliado: false },
@@ -56,7 +60,10 @@ export async function GET() {
 
 // POST: motor automático — casa TODA linha não conciliada (crédito->receita,
 // débito->despesa) que tenha match único por valor e data. Cada casamento é ACID.
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'financeiro' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const traceId = crypto.randomUUID();
     logger.info('[Conciliação] Rodando motor automático', { traceId });

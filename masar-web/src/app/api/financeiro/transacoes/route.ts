@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 import { logMutation } from '@/lib/audit';
 import { postLancamento } from '@/lib/ledger';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,6 +87,9 @@ export async function POST(request: NextRequest) {
 
 // GET: Listar transações com filtros avançados para o Livro-Caixa
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'financeiro' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const empreendimentoId = searchParams.get('empreendimentoId');

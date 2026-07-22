@@ -1,10 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { statusValidade } from '@/lib/sst';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 // GET: cofre global — todos os documentos com status de validade computado
 // (Vencido / A vencer <=30d / Em dia / Sem validade) + resumo de contadores.
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'fiscal' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const documentos = await db.documentoAnexo.findMany({
       orderBy: [{ dataVencimento: 'asc' }, { dataCriacao: 'desc' }],

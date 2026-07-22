@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 import { apurarRET } from '@/lib/ret';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 // GET: apuração mensal do RET de um empreendimento.
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'fiscal' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const empreendimentoId = searchParams.get('empreendimentoId');

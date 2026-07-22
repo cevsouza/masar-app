@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
 import { logMutation } from '@/lib/audit';
 import { postLancamento } from '@/lib/ledger';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 // Faixa de aging de um título em aberto, a partir dos dias de atraso (base: hoje).
 function faixaAging(diasVencido: number): 'A_VENCER' | 'D_1_30' | 'D_31_60' | 'D_60_MAIS' {
@@ -20,6 +21,9 @@ function inicioDoDia(d: Date): Date {
 
 // GET: títulos em aberto (contas a pagar/receber) com faixa de aging e totais.
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'financeiro' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const empreendimentoId = searchParams.get('empreendimentoId');

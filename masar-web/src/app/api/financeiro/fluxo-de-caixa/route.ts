@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'financeiro' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const empreendimentoId = searchParams.get('empreendimentoId') || undefined;
