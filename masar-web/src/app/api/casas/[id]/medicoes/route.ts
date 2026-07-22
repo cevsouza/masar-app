@@ -29,6 +29,25 @@ export async function POST(
       ? status
       : 'AGUARDANDO';
 
+    // Guarda inversa da rota do empreendimento: em prédio não existe "medição
+    // do apartamento 101". Sem isto, o cliente vertical criaria uma medição por
+    // unidade e teria 200 registros que não correspondem a nenhuma vistoria.
+    const casaDaMedicao = await db.casa.findUnique({
+      where: { id: casaId },
+      select: { empreendimento: { select: { id: true, tipologia: true } } },
+    });
+    if (casaDaMedicao?.empreendimento?.tipologia === 'VERTICAL') {
+      return NextResponse.json(
+        {
+          error: 'TIPOLOGIA_INCOMPATIVEL',
+          message:
+            'Este empreendimento é vertical. A medição é da torre, não de cada apartamento — registre-a na ficha do empreendimento.',
+          empreendimentoId: casaDaMedicao.empreendimento.id,
+        },
+        { status: 400 },
+      );
+    }
+
     // Trava SST: não cria medição já PAGA com trabalhador de ASO/EPI vencido.
     // Override exige ADMIN e fica auditado.
     if (statusValido === 'PAGA') {

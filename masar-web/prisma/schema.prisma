@@ -152,17 +152,17 @@ model User {
 }
 
 model Empreendimento {
-  id                          String                 @id @default(uuid())
-  empresaId                   String                 @default("00000000-0000-0000-0000-000000000001")
-  empresa                     Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  id                          String                  @id @default(uuid())
+  empresaId                   String                  @default("00000000-0000-0000-0000-000000000001")
+  empresa                     Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome                        String
   localizacao                 String
-  statusLegal                 StatusLegal            @default(ESTUDO_VIABILIDADE)
+  statusLegal                 StatusLegal             @default(ESTUDO_VIABILIDADE)
   dataInicio                  DateTime?
   dataFim                     DateTime?
   orcamento                   Float?
-  temSondagemSolo             Boolean                @default(false)
-  temInfraestruturaBasica     Boolean                @default(false)
+  temSondagemSolo             Boolean                 @default(false)
+  temInfraestruturaBasica     Boolean                 @default(false)
   endereco                    String?
   cep                         String?
   bairro                      String?
@@ -177,23 +177,23 @@ model Empreendimento {
   amenidades                  String[]
   padraoAreaConstruida        Decimal?
   padraoAreaLote              Decimal?
-  padraoQuantidadeQuartos     Int                    @default(0)
-  padraoQuantidadeSuites      Int                    @default(0)
-  padraoQuantidadeBanheiros   Int                    @default(0)
-  padraoVagasGaragem          Int                    @default(0)
-  padraoPossuiQuintal         Boolean                @default(false)
-  padraoSalaConjugada         Boolean                @default(false)
+  padraoQuantidadeQuartos     Int                     @default(0)
+  padraoQuantidadeSuites      Int                     @default(0)
+  padraoQuantidadeBanheiros   Int                     @default(0)
+  padraoVagasGaragem          Int                     @default(0)
+  padraoPossuiQuintal         Boolean                 @default(false)
+  padraoSalaConjugada         Boolean                 @default(false)
   // Aliquota do RET (Regime Especial de Tributacao) em %. Padrao 4%; MCMV social = 1%.
-  aliquotaRET                 Float                  @default(4.0)
+  aliquotaRET                 Float                   @default(4.0)
   // Regime MCMV/Caixa: quando ligado, o empreendimento segue as diretrizes da Caixa
   // e o app aplica a camada de conformidade (checklist + guardrails + trava de medicao).
-  regimeMCMV                  Boolean                @default(false)
+  regimeMCMV                  Boolean                 @default(false)
   faixaMCMV                   FaixaMCMV?
   /// HORIZONTAL por padrao: e o que o sistema ja fazia, e nao muda nada para
   /// quem ja opera.
   tipologia                   TipologiaEmpreendimento @default(HORIZONTAL)
-  dataCriacao                 DateTime               @default(now())
-  dataAtualizacao             DateTime               @updatedAt
+  dataCriacao                 DateTime                @default(now())
+  dataAtualizacao             DateTime                @updatedAt
   casas                       Casa[]
   marcos                      MarcoBurocratico[]
   movimentacoesSocios         MovimentacaoSocio[]
@@ -208,6 +208,7 @@ model Empreendimento {
   acidentes                   Acidente[]
   checklistsNR                ChecklistNR[]
   itensConformidadeMCMV       ItemConformidadeMCMV[]
+  medicoes                    MedicaoCaixa[]
 
   @@index([empresaId])
 }
@@ -381,18 +382,33 @@ model InfraestruturaUnidade {
 }
 
 model MedicaoCaixa {
-  id                 String        @id @default(uuid())
-  empresaId          String        @default("00000000-0000-0000-0000-000000000001")
-  empresa            Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  casaId             String
-  casa               Casa          @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  id                 String          @id @default(uuid())
+  empresaId          String          @default("00000000-0000-0000-0000-000000000001")
+  empresa            Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  /// A medicao pertence a UMA unidade (horizontal) OU ao empreendimento
+  /// inteiro (vertical) — nunca aos dois, nunca a nenhum.
+  ///
+  /// Em obra de casas o engenheiro credenciado mede casa a casa, e o modelo
+  /// original refletia isso. Em predio nao existe "medicao do apartamento
+  /// 101": fundacao, estrutura e lajes servem todas as unidades ao mesmo
+  /// tempo, e o que se mede e o avanco da TORRE. Forcar medicao por unidade
+  /// num vertical produziria 200 registros que nao correspondem a nada.
+  casaId             String?
+  casa               Casa?           @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  empreendimentoId   String?
+  empreendimento     Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  /// Rotulo livre do que foi medido no vertical: "Torre A", "Bloco 2".
+  /// Texto em vez de entidade propria de proposito: o alvo inicial tem um
+  /// predio so, e criar a entidade Torre antes de haver quem precise dela e
+  /// custo sem retorno.
+  referencia         String?
   percentualMedido   Float
   valorLiberado      Float
-  status             StatusMedicao @default(AGUARDANDO)
+  status             StatusMedicao   @default(AGUARDANDO)
   checklistSeguranca Json?
-  dataMedicao        DateTime      @default(now())
-  dataCriacao        DateTime      @default(now())
-  dataAtualizacao    DateTime      @updatedAt
+  dataMedicao        DateTime        @default(now())
+  dataCriacao        DateTime        @default(now())
+  dataAtualizacao    DateTime        @updatedAt
 
   @@index([empresaId])
 }

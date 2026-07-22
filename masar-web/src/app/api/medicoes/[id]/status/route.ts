@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { registerFinancialTransaction } from '@/lib/transactions';
 import { bloqueioSegurancaMedicao } from '@/lib/sst';
 import { bloqueioConformidadeMCMV } from '@/lib/mcmv/conformidade';
+import { rotuloMedicao, nomeDoEmpreendimento } from '@/lib/medicao';
 import { verifySession } from '@/lib/auth';
 import { logMutation } from '@/lib/audit';
 
@@ -22,11 +23,10 @@ export async function PATCH(
     const current = await db.medicaoCaixa.findUnique({
       where: { id },
       include: {
-        casa: {
-          include: {
-            empreendimento: true
-          }
-        }
+        // A medição é de UMA unidade (horizontal) ou do empreendimento
+        // inteiro (vertical). Traz os dois e resolve depois.
+        casa: { include: { empreendimento: true } },
+        empreendimento: true,
       }
     });
 
@@ -65,8 +65,10 @@ export async function PATCH(
     // Trava de conformidade MCMV: só para empreendimentos no regime MCMV. Bloqueia
     // a liberação quando há exigência obrigatória crítica da Caixa fora de conformidade
     // (PBQP-H, projeto Caixa, faixa, teto). Override exige ADMIN e fica auditado.
-    if (isNewlyPaid && current.casa.empreendimento.regimeMCMV) {
-      const bloqueioMcmv = await bloqueioConformidadeMCMV(current.casa.empreendimento.id);
+    const empDaMedicao = current.empreendimento ?? current.casa?.empreendimento ?? null;
+
+    if (isNewlyPaid && empDaMedicao?.regimeMCMV) {
+      const bloqueioMcmv = await bloqueioConformidadeMCMV(empDaMedicao.id);
       if (bloqueioMcmv.bloqueado) {
         const sessionToken = request.cookies.get('masar_session')?.value;
         const session = sessionToken ? await verifySession(sessionToken) : null;
@@ -100,13 +102,13 @@ export async function PATCH(
       await registerFinancialTransaction(
         medicao.valorLiberado,
         'CREDITO',
-        `Liberação Medição CEF - Lote Qd ${current.casa.quadra}, Casa ${current.casa.numero} | Projeto: ${current.casa.empreendimento.nome}`
+        `Liberação Medição CEF - ${rotuloMedicao(current)} | Projeto: ${nomeDoEmpreendimento(current)}`
       );
     } else if (isNewlyReverted) {
       await registerFinancialTransaction(
         medicao.valorLiberado,
         'DEBITO',
-        `Estorno Medição CEF - Lote Qd ${current.casa.quadra}, Casa ${current.casa.numero} | Projeto: ${current.casa.empreendimento.nome}`
+        `Estorno Medição CEF - ${rotuloMedicao(current)} | Projeto: ${nomeDoEmpreendimento(current)}`
       );
     }
 

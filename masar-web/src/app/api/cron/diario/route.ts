@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendEmail, getExtraAlertEmails } from '@/lib/resend';
 import { runComEmpresa, runSemEscopoDeEmpresa, exigirEmpresaId } from '@/lib/tenant';
+import { rotuloMedicao, nomeDoEmpreendimento } from '@/lib/medicao';
 import { identidadeVisualDaEmpresa } from '@/lib/empresaVisual';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 import { buscarVencimentosSST } from '@/lib/sst';
@@ -139,7 +140,8 @@ async function processarEmpresa() {
     // b) Medições reprovadas/glosadas pela Caixa (retêm liberação de recursos)
     const medicoesGlosadas = await db.medicaoCaixa.findMany({
       where: { status: 'GLOSADA_REPROVADA' },
-      include: { casa: { include: { empreendimento: true } } }
+      // Vertical mede a torre, entao a medicao pode nao ter casa — traz os dois.
+      include: { casa: { include: { empreendimento: true } }, empreendimento: true }
     });
 
     // c) Casas ativas estourando o orçamento (regime de competência)
@@ -292,7 +294,7 @@ async function processarEmpresa() {
       }
 
       for (const m of medicoesGlosadas) {
-        const msg = `🔴 Glosa CEF: Casa ${m.casa.numero} Qd ${m.casa.quadra} (${m.casa.empreendimento.nome}) — ${formatBRL(m.valorLiberado)} retido pela Caixa.`;
+        const msg = `🔴 Glosa CEF: ${rotuloMedicao(m)} (${nomeDoEmpreendimento(m)}) — ${formatBRL(m.valorLiberado)} retido pela Caixa.`;
         await db.notificacao.createMany({
           data: financeiroUsers.map(u => ({
             usuarioId: u.id,
@@ -372,7 +374,7 @@ async function processarEmpresa() {
       ).join('');
 
       const glosaListHtml = medicoesGlosadas.map(m =>
-        `<li><strong>Casa ${m.casa.numero} - Qd ${m.casa.quadra}</strong> (${m.casa.empreendimento.nome}) — <strong style="color:#dc2626;">${formatBRL(m.valorLiberado)}</strong> retido/reprovado</li>`
+        `<li><strong>${rotuloMedicao(m)}</strong> (${nomeDoEmpreendimento(m)}) — <strong style="color:#dc2626;">${formatBRL(m.valorLiberado)}</strong> retido/reprovado</li>`
       ).join('');
 
       const orcamentoListHtml = casasEstouradas.map(x =>

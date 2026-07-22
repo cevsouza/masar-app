@@ -25,6 +25,7 @@ import Link from 'next/link';
 import ModalNovoLancamento from './ModalNovoLancamento';
 import CronogramaPanel from './CronogramaPanel';
 import ConformidadeMCMVPanel from './ConformidadeMCMVPanel';
+import MedicoesTorre from '@/components/MedicoesTorre';
 
 interface Documento {
   id: string;
@@ -41,6 +42,7 @@ interface Empreendimento {
   statusLegal: string;
   regimeMCMV?: boolean;
   faixaMCMV?: string | null;
+  tipologia?: string | null;
   endereco: string | null;
   cep: string | null;
   bairro: string | null;
@@ -102,7 +104,7 @@ const TIPO_DOCS_GED = [
 
 export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheetProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre' | 'cronograma' | 'conformidade'>(() => {
+  const [activeTab, setActiveTab] = useState<'ficha' | 'financeiro' | 'cofre' | 'cronograma' | 'conformidade' | 'medicoes'>(() => {
     if (typeof window !== 'undefined') {
       const tabParam = new URLSearchParams(window.location.search).get('tab');
       if (tabParam === 'financeiro' || tabParam === 'cofre' || tabParam === 'ficha' || tabParam === 'cronograma') {
@@ -476,6 +478,16 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
             >
               Cronograma
             </button>
+            {project.tipologia === 'VERTICAL' && (
+              <button
+                onClick={() => setActiveTab('medicoes')}
+                className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition cursor-pointer ${
+                  activeTab === 'medicoes' ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/15' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Medições da Torre
+              </button>
+            )}
             {project.regimeMCMV && (
               <button
                 onClick={() => setActiveTab('conformidade')}
@@ -969,6 +981,10 @@ export default function ProjectTechnicalSheet({ project }: ProjectTechnicalSheet
 
 
       {/* Conteúdo Aba 3: Cofre de Projetos (GED Técnico) */}
+      {activeTab === 'medicoes' && (
+        <MedicoesTorre empreendimentoId={project.id} userRole={userRole} />
+      )}
+
       {activeTab === 'cofre' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
