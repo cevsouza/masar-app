@@ -6,6 +6,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { logMutation } from '@/lib/audit';
 import { logger } from '@/lib/logger';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,15 +26,28 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const solicitacaoId = formData.get('solicitacaoId') as string;
+    // DUAS credenciais possíveis, uma para cada caller — e nenhuma proposta
+    // entra sem uma delas:
+    //
+    //  `token`         → o fornecedor, pelo link que recebeu. Não tem conta.
+    //  `solicitacaoId` → o lançamento manual do staff de suprimentos, que tem.
+    //
+    // Antes a rota aceitava só o id, e sem sessão: os dois caminhos entravam
+    // pela mesma porta destrancada. Id e token são ambos UUID, igualmente
+    // difíceis de adivinhar — o que muda é a superfície de VAZAMENTO. O id
+    // circula no painel da construtora, em respostas de API e em log; o token
+    // só existe no link mandado ao fornecedor. Quem tivesse visto um id em
+    // qualquer uma dessas superfícies lançava preço em concorrência alheia.
+    const token = (formData.get('token') as string) || null;
+    const idInformado = (formData.get('solicitacaoId') as string) || null;
     let fornecedorNome = formData.get('fornecedorNome') as string;
     const fornecedorId = (formData.get('fornecedorId') as string) || null;
     const valorUnitarioStr = formData.get('valorUnitario') as string;
     const prazoEntregaDiasStr = formData.get('prazoEntregaDias') as string;
     const file = formData.get('file') as File;
 
-    if (!solicitacaoId || !fornecedorNome || !valorUnitarioStr || !prazoEntregaDiasStr) {
-      return NextResponse.json({ error: 'Todos os campos obrigatórios (solicitacaoId, fornecedorNome, valorUnitario, prazoEntregaDias) devem ser preenchidos.' }, { status: 400 });
+    if ((!token && !idInformado) || !fornecedorNome || !valorUnitarioStr || !prazoEntregaDiasStr) {
+      return NextResponse.json({ error: 'Informe o token do link (ou a solicitação, se for lançamento interno) mais fornecedorNome, valorUnitario e prazoEntregaDias.' }, { status: 400 });
     }
 
     const valorUnitario = parseFloat(valorUnitarioStr);
@@ -43,21 +57,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valores numéricos inválidos.' }, { status: 400 });
     }
 
-    // Rota PÚBLICA: quem posta é o fornecedor do cliente, sem conta no sistema.
-    // A solicitação é que diz de qual empresa é esta cotação — a busca roda sem
-    // escopo só para descobrir isso, e todo o resto roda dentro do tenant.
-    const solicitacao = await runSemEscopoDeEmpresa(() =>
-      db.solicitacaoCompra.findUnique({
-        where: { id: solicitacaoId },
-        select: { id: true, empresaId: true, status: true },
-      })
-    );
-    if (!solicitacao) {
-      return NextResponse.json({ error: 'Solicitação de cotação não encontrada.' }, { status: 404 });
+    let solicitacao: { id: string; empresaId: string; status: string } | null;
+
+    if (token) {
+      // Caminho do fornecedor: o token é a credencial E é o que identifica o
+      // tenant — a busca roda sem escopo só para descobrir de qual empresa é a
+      // cotação, e todo o resto roda dentro dela. Mesma credencial da página
+      // `/cotacao/[token]`, para o formulário não aceitar nada que a página já
+      // não tenha aceitado.
+      solicitacao = await runSemEscopoDeEmpresa(() =>
+        db.solicitacaoCompra.findUnique({
+          where: { tokenCotacao: token },
+          select: { id: true, empresaId: true, status: true },
+        })
+      );
+      if (!solicitacao) {
+        return NextResponse.json({ error: 'Link de cotação inválido ou expirado.' }, { status: 404 });
+      }
+    } else {
+      // Caminho interno: exige sessão de suprimentos. A busca roda ESCOPADA de
+      // propósito — quem está logado só enxerga solicitação da própria empresa,
+      // então um id de outro tenant simplesmente não existe daqui.
+      //
+      // O escopo vem do `empresaId` da sessão que o guarda acabou de devolver, e
+      // não do contexto ambiente resolvido por `cookies()`: além de dispensar
+      // uma segunda leitura do mesmo cookie, é o que torna esta rota chamável
+      // fora de uma requisição real — em teste, por exemplo.
+      const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+      if (!auth.ok) return auth.resposta;
+      if (!auth.sessao.empresaId) {
+        return NextResponse.json({ error: 'Sessão sem empresa. Entre de novo.' }, { status: 401 });
+      }
+
+      solicitacao = await runComEmpresa(auth.sessao.empresaId, () =>
+        db.solicitacaoCompra.findUnique({
+          where: { id: idInformado! },
+          select: { id: true, empresaId: true, status: true },
+        })
+      );
+      if (!solicitacao) {
+        return NextResponse.json({ error: 'Solicitação de cotação não encontrada.' }, { status: 404 });
+      }
     }
 
-    // A checagem de status existe TAMBÉM aqui, e não só na página: este endpoint
-    // é público e pode ser chamado direto, sem passar por tela nenhuma.
+    const solicitacaoId = solicitacao.id;
+
+    // A checagem de status existe TAMBÉM aqui, e não só na página: o endpoint
+    // pode ser chamado direto, sem passar por tela nenhuma.
     if (!['PENDENTE', 'ABERTA', 'EM_COTACAO'].includes(solicitacao.status)) {
       return NextResponse.json(
         { error: 'Esta solicitação não está mais recebendo propostas.' },

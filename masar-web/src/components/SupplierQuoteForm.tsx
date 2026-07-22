@@ -4,10 +4,18 @@ import React, { useState } from 'react';
 import { DollarSign, Truck, Upload, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 
 interface SupplierQuoteFormProps {
-  solicitacaoId: string;
+  /**
+   * O token secreto da URL — NÃO o id da solicitação.
+   *
+   * A página já validou o token para poder existir; entregar o id ao formulário
+   * rebaixava a credencial no meio do caminho, porque o id circula no painel da
+   * construtora, nas respostas de API e nos logs, enquanto o token só existe no
+   * link que foi mandado ao fornecedor.
+   */
+  token: string;
 }
 
-export default function SupplierQuoteForm({ solicitacaoId }: SupplierQuoteFormProps) {
+export default function SupplierQuoteForm({ token }: SupplierQuoteFormProps) {
   const [fornecedorNome, setFornecedorNome] = useState('');
   const [valorUnitario, setValorUnitario] = useState('');
   const [prazoEntregaDias, setPrazoEntregaDias] = useState('');
@@ -28,7 +36,7 @@ export default function SupplierQuoteForm({ solicitacaoId }: SupplierQuoteFormPr
     setError(null);
 
     const formData = new FormData();
-    formData.append('solicitacaoId', solicitacaoId);
+    formData.append('token', token);
     formData.append('fornecedorNome', fornecedorNome);
     formData.append('valorUnitario', valorUnitario);
     formData.append('prazoEntregaDias', prazoEntregaDias);

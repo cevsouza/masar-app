@@ -132,7 +132,7 @@ export default async function SupplierQuotePage({ params }: PageProps) {
 
         {/* Formulário de Resposta */}
         <div className="glassmorphism p-6 rounded-2xl border border-slate-800/80 shadow-2xl">
-          <SupplierQuoteForm solicitacaoId={solicitacao.id} />
+          <SupplierQuoteForm token={token} />
         </div>
       </div>
     </div>

@@ -53,9 +53,6 @@ const PUBLICAS: Record<string, string> = {
   'DELETE /api/auth/plataforma': 'Logout do control plane.',
   'GET /api/health': 'Sonda de saúde do Railway — precisa responder sem credencial.',
   'GET /api/marca/logo/[empresaId]': 'Serve o logo na tela de LOGIN, antes de existir sessão.',
-  'POST /api/suprimentos/cotacao':
-    'Portal do fornecedor: quem posta não tem conta. A capacidade é o id da solicitação; ' +
-    'a rota valida status, tipo e tamanho do anexo e tem teto de propostas.',
 };
 
 function listarRotas(dir: string): string[] {
