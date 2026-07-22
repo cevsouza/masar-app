@@ -5,6 +5,9 @@ import { exigirAcesso } from '@/lib/apiAuth';
 
 // POST: Criar nova requisição de compra
 export async function POST(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const body = await request.json();
     const { casaId, empreendimentoId, insumoId, quantidadeSolicitada, dataNecessidade } = body;

@@ -38,7 +38,12 @@ const MARCADORES: RegExp[] = [
   /SEED_SECRET/,
   /BOOTSTRAP_SECRET/,
   /PLATAFORMA_BOOTSTRAP_SECRET/,
-  /tokenCotacao|tokenAcessoPortal/,
+  // O token só conta como credencial quando é CHAVE DE BUSCA. Antes o padrão era
+  // só o nome do campo, e isso contava como protegida a rota que GERA o token
+  // (`const tokenCotacao = crypto.randomUUID()`) — foi assim que
+  // `POST /api/suprimentos`, que não checava nada, passou batido na primeira
+  // auditoria. Marcador que casa com o nome de uma variável não prova nada.
+  /where:\s*\{\s*token(Cotacao|AcessoPortal)\s*:/,
 ];
 
 /**
