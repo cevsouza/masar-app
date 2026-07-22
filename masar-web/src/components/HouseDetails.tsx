@@ -36,6 +36,7 @@ import GedManager from '@/components/GedManager';
 import ModalNovoLancamento from './ModalNovoLancamento';
 import CronogramaPanel from './CronogramaPanel';
 import AvisoTravaMedicao, { type PendenciaTravaUI } from '@/components/AvisoTravaMedicao';
+import { vocabulario, rotuloUnidade } from '@/lib/vocabulario';
 import {
   BarChart,
   Bar,
@@ -195,6 +196,9 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
   const [updatingMedicaoId, setUpdatingMedicaoId] = useState<string | null>(null);
 
   // Admin Edit/Delete House States
+  // Vocabulário da tela: casa/quadra/quintal ou apartamento/bloco.
+  const voc = vocabulario((initialCasa as any).empreendimento?.tipologia);
+
   const [userRole, setUserRole] = useState('COMERCIAL');
 
   // Aviso da trava de medição. Guarda a AÇÃO a retomar porque o modal é
@@ -327,7 +331,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
   }, []);
 
   const handleDeleteHouse = async () => {
-    if (!confirm(`Tem certeza que deseja excluir a Casa ${initialCasa.numero} da Quadra ${initialCasa.quadra}?\nEsta ação excluirá todos os lançamentos financeiros, diários e apropriações vinculados.`)) {
+    if (!confirm(`Tem certeza que deseja excluir ${rotuloUnidade(initialCasa, (initialCasa as any).empreendimento?.tipologia)}?\nEsta ação excluirá todos os lançamentos financeiros, diários e apropriações vinculados.`)) {
       return;
     }
     setIsDeletingHouse(true);
@@ -670,7 +674,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
             <Home size={14} /> Unidade Habitacional
           </div>
           <h1 className="text-2xl font-bold text-white mt-1">
-            Casa {initialCasa.numero} - Quadra {initialCasa.quadra}
+            {rotuloUnidade(initialCasa, (initialCasa as any).empreendimento?.tipologia)}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Projeto: <strong>{initialCasa.empreendimento.nome}</strong>
@@ -758,7 +762,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
                     </span>
                   </div>
                   <div className="p-3 bg-[#0f1422]/60 rounded-xl border border-slate-850">
-                    <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">Área do Lote</span>
+                    <span className="text-slate-500 block uppercase tracking-wider text-[9px] font-bold">{voc.areaLote}</span>
                     <span className="text-slate-200 font-bold font-mono text-sm mt-0.5 block">
                       {initialCasa.areaLote ? `${initialCasa.areaLote} m²` : '---'}
                     </span>
@@ -843,9 +847,11 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-1">
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${initialCasa.possuiQuintal ? 'bg-emerald-950/20 border-emerald-900/30 text-emerald-400' : 'bg-slate-900/40 border-slate-850 text-slate-500'}`}>
-                    {initialCasa.possuiQuintal ? '✓ Possui Quintal' : '✗ Sem Quintal'}
-                  </span>
+                  {voc.temQuintal && (
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${initialCasa.possuiQuintal ? 'bg-emerald-950/20 border-emerald-900/30 text-emerald-400' : 'bg-slate-900/40 border-slate-850 text-slate-500'}`}>
+                      {initialCasa.possuiQuintal ? '✓ Possui Quintal' : '✗ Sem Quintal'}
+                    </span>
+                  )}
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${initialCasa.salaConjugada ? 'bg-blue-950/20 border-blue-900/30 text-blue-400' : 'bg-slate-900/40 border-slate-850 text-slate-500'}`}>
                     {initialCasa.salaConjugada ? '✓ Sala Conjugada' : '✗ Sala Separada'}
                   </span>
@@ -1678,7 +1684,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-400 font-medium">Quadra</label>
+                  <label className="text-[10px] text-slate-400 font-medium">{voc.agrupador}</label>
                   <input
                     type="text"
                     required
@@ -1705,7 +1711,7 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-400 font-medium">Área do Lote (m²)</label>
+                  <label className="text-[10px] text-slate-400 font-medium">{voc.areaLote} (m²)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1771,16 +1777,18 @@ export default function HouseDetails({ initialCasa, allInsumos = [], mcmvLimites
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-6">
-                  <input
-                    type="checkbox"
-                    id="editQuintal"
-                    checked={editQuintal}
-                    onChange={(e) => setEditQuintal(e.target.checked)}
-                    className="rounded bg-[#0f1422] border-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                  />
-                  <label htmlFor="editQuintal" className="text-[10px] text-slate-400 cursor-pointer select-none">Possui Quintal</label>
-                </div>
+                {voc.temQuintal && (
+                  <div className="flex items-center gap-2 pt-6">
+                    <input
+                      type="checkbox"
+                      id="editQuintal"
+                      checked={editQuintal}
+                      onChange={(e) => setEditQuintal(e.target.checked)}
+                      className="rounded bg-[#0f1422] border-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                    />
+                    <label htmlFor="editQuintal" className="text-[10px] text-slate-400 cursor-pointer select-none">Possui Quintal</label>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 pt-6">
                   <input

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { rotuloUnidade } from '@/lib/vocabulario';
 import { 
   Search, 
   Building2, 
@@ -243,7 +244,7 @@ export default function CasasGlobalBoard({ initialCasas, empreendimentos }: Casa
                       <div>
                         <div className="flex justify-between items-start gap-2">
                           <h4 className="text-xs font-bold text-slate-100 font-sans">
-                            Casa {casa.numero} - Quadra {casa.quadra}
+                            {rotuloUnidade(casa, casa.empreendimento?.tipologia)}
                           </h4>
                           <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md ${
                             isVendida ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-500'

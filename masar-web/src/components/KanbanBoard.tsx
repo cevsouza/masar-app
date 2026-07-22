@@ -50,6 +50,9 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
   const [newProjectEnd, setNewProjectEnd] = useState('');
   const [newProjectStatus, setNewProjectStatus] = useState('ESTUDO_VIABILIDADE');
   const [newProjectMCMV, setNewProjectMCMV] = useState(false);
+  // Tipologia: muda só o vocabulário das telas (casa/quadra/quintal x
+  // apartamento/bloco). HORIZONTAL é o padrão e o comportamento de sempre.
+  const [newProjectTipologia, setNewProjectTipologia] = useState('HORIZONTAL');
   const [newProjectFaixa, setNewProjectFaixa] = useState('FAIXA_2');
 
   // Faixas que JÁ têm parâmetro regulatório cadastrado.
@@ -151,6 +154,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
           dataFim: newProjectEnd ? new Date(newProjectEnd) : null,
           regimeMCMV: newProjectMCMV,
           faixaMCMV: newProjectMCMV ? newProjectFaixa : null,
+          tipologia: newProjectTipologia,
         }),
       });
 
@@ -167,6 +171,7 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
       setNewProjectEnd('');
       setNewProjectStatus('ESTUDO_VIABILIDADE');
       setNewProjectMCMV(false);
+      setNewProjectTipologia('HORIZONTAL');
       setNewProjectFaixa('FAIXA_2');
       setIsProjectModalOpen(false);
       
@@ -482,6 +487,23 @@ export default function KanbanBoard({ initialProjects }: { initialProjects: Proj
                     className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              {/* Tipologia — define o vocabulário das telas deste empreendimento */}
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5 font-medium">Tipo de empreendimento</label>
+                <select
+                  value={newProjectTipologia}
+                  onChange={(e) => setNewProjectTipologia(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
+                >
+                  <option value="HORIZONTAL">Casas / condomínio horizontal</option>
+                  <option value="VERTICAL">Apartamentos / vertical</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1.5">
+                  Muda como as telas chamam as coisas — casa e quadra, ou apartamento e bloco. As
+                  regras de medição e conformidade são as mesmas nos dois.
+                </p>
               </div>
 
               {/* Regime MCMV / Caixa */}

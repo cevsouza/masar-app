@@ -27,6 +27,7 @@ import PrimeiroAcesso from '@/components/PrimeiroAcesso';
 import FaixaConfiguracaoInicial from '@/components/FaixaConfiguracaoInicial';
 import FaixaLicenca from '@/components/FaixaLicenca';
 import { identidadeVisualAtual } from '@/lib/empresaVisual';
+import { rotuloUnidade } from '@/lib/vocabulario';
 import { calcularFluxoCaixaProjetado } from '@/lib/cashFlowService';
 
 export const revalidate = 0; // Disable server component caching to reflect real-time updates
@@ -864,7 +865,7 @@ export default async function DashboardPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2.5">
                       <span className="text-sm font-bold text-white">
-                        Casa {casa.numero} - Quadra {casa.quadra}
+                        {rotuloUnidade(casa, casa.empreendimento?.tipologia)}
                       </span>
                       <span className="text-xs text-slate-500 font-medium text-slate-400">
                         ({casa.empreendimento.nome})

@@ -106,6 +106,16 @@ enum RoleUsuario {
   COMERCIAL
 }
 
+/// Tipologia do empreendimento. Muda o VOCABULARIO das telas, nao a regra:
+/// horizontal fala em casa/quadra/lote/quintal; vertical fala em apartamento e
+/// bloco, e esconde os campos que so existem em casa. Sem isto, um construtor
+/// de predio ve "quintal" e "area do lote" na demonstracao e conclui, com
+/// razao, que o sistema nao foi feito para ele.
+enum TipologiaEmpreendimento {
+  HORIZONTAL
+  VERTICAL
+}
+
 enum EscopoCronograma {
   GERAL
   LOTE
@@ -179,6 +189,9 @@ model Empreendimento {
   // e o app aplica a camada de conformidade (checklist + guardrails + trava de medicao).
   regimeMCMV                  Boolean                @default(false)
   faixaMCMV                   FaixaMCMV?
+  /// HORIZONTAL por padrao: e o que o sistema ja fazia, e nao muda nada para
+  /// quem ja opera.
+  tipologia                   TipologiaEmpreendimento @default(HORIZONTAL)
   dataCriacao                 DateTime               @default(now())
   dataAtualizacao             DateTime               @updatedAt
   casas                       Casa[]

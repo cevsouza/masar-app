@@ -26,7 +26,7 @@ export default async function CasasPage() {
   const casas = await db.casa.findMany({
     include: {
       empreendimento: {
-        select: { nome: true }
+        select: { nome: true, tipologia: true }
       },
       cliente: {
         select: { nome: true }

@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
       valorCompraTerreno,
       amenidades,
       regimeMCMV,
-      faixaMCMV
+      faixaMCMV,
+      tipologia
     } = body;
 
     if (!nome || !localizacao) {
@@ -37,6 +38,9 @@ export async function POST(request: NextRequest) {
     }
 
     const ehMCMV = regimeMCMV === true;
+    // Tipologia só muda o vocabulário das telas. Valor desconhecido cai em
+    // HORIZONTAL, que é o padrão do banco e o comportamento de sempre.
+    const tipologiaFinal = tipologia === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL';
     const faixaValida = faixaMCMV && FAIXAS_MCMV.includes(faixaMCMV) ? faixaMCMV : null;
     // RET social (1%) para a faixa de interesse social; demais mantêm o padrão (4%).
     const aliquotaRET = ehMCMV && faixaValida === 'FAIXA_1' ? 1.0 : 4.0;
@@ -100,6 +104,7 @@ export async function POST(request: NextRequest) {
         amenidades: amenidadesArray,
         regimeMCMV: ehMCMV,
         faixaMCMV: ehMCMV ? faixaValida : null,
+        tipologia: tipologiaFinal,
         aliquotaRET
       },
     });
