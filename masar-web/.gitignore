@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# arquivos gravados em runtime (cofre GED, anexos de cotacao) — dado, nao codigo
+/uploads
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
