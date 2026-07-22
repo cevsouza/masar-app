@@ -28,6 +28,14 @@ import { CHAVES_CATALOGO } from '@/lib/mcmv/catalogo';
  * conversa na primeira tela.
  */
 
+/**
+ * Prefixo do seed de demonstração. É o que torna a limpeza possível SEM apagar
+ * dado real: `limparSeed()` remove exatamente o que começa com ele. Toda coisa
+ * nomeada que este módulo cria precisa carregá-lo — senão vira lixo que só sai
+ * a mão, e numa instância com cliente isso é inaceitável.
+ */
+const PFX = '[SEED]';
+
 const dias = (n: number) => {
   const d = new Date();
   d.setHours(12, 0, 0, 0);
@@ -43,10 +51,32 @@ export interface ResumoCenario {
 }
 
 export async function criarCenarioDemonstracao(): Promise<ResumoCenario> {
+  // ── 0. Parâmetros da faixa — sem eles o teto não tem contra o que conferir ─
+  // Em produção quem preenche é a tela de Parâmetros MCMV. Aqui é semeado com
+  // os valores de 2026 para o item de teto sair CONFORME em vez de "faltando
+  // parâmetro", que numa demonstração parece defeito do produto.
+  //
+  // findFirst + create em vez de upsert de propósito: a chave composta do
+  // upsert exige empresaId no `where`, e o empresaId vem da extensão de tenant,
+  // não do chamador — montá-lo à mão aqui seria contornar a própria proteção.
+  const jaTemParametro = await db.parametroMCMV.findFirst({ where: { faixa: 'FAIXA_3' } });
+  if (!jaTemParametro) {
+    await db.parametroMCMV.create({
+      data: {
+        faixa: 'FAIXA_3',
+        tetoValorImovel: 400_000,
+        areaUtilMinima: 41,
+        percentualUnidadesAcessiveis: 3,
+        portariaReferencia: 'MCMV 2026 — Conselho Curador do FGTS',
+        dataVigencia: new Date(2026, 2, 1),
+      },
+    });
+  }
+
   // ── 1. O empreendimento estrela: vertical, MCMV Faixa 3, São Paulo ────────
   const emp = await db.empreendimento.create({
     data: {
-      nome: 'Residencial Vista Paulista',
+      nome: `${PFX} Residencial Vista Paulista`,
       localizacao: 'São Paulo/SP',
       endereco: 'Rua das Palmeiras, 1200',
       bairro: 'Vila Prudente',
@@ -113,7 +143,7 @@ export async function criarCenarioDemonstracao(): Promise<ResumoCenario> {
   await db.documentoAnexo.createMany({
     data: [
       {
-        nome: 'Alvará de construção — Prefeitura de São Paulo',
+        nome: `${PFX} Alvará de construção — Prefeitura de São Paulo`,
         caminhoArquivo: 'demonstracao/alvara-construcao.pdf',
         tipo: 'ALVARA_CONSTRUCAO',
         empreendimentoId: emp.id,
@@ -121,7 +151,7 @@ export async function criarCenarioDemonstracao(): Promise<ResumoCenario> {
         status: 'ATIVO',
       },
       {
-        nome: 'PBQP-H / SiAC — certificado nível A',
+        nome: `${PFX} PBQP-H / SiAC — certificado nível A`,
         caminhoArquivo: 'demonstracao/pbqp-h.pdf',
         tipo: 'PBQP_H_SIAC',
         empreendimentoId: emp.id,
@@ -129,7 +159,7 @@ export async function criarCenarioDemonstracao(): Promise<ResumoCenario> {
         status: 'ATIVO',
       },
       {
-        nome: 'CND Federal (Receita/PGFN)',
+        nome: `${PFX} CND Federal (Receita/PGFN)`,
         caminhoArquivo: 'demonstracao/cnd-federal.pdf',
         tipo: 'CND_FEDERAL',
         empreendimentoId: emp.id,
@@ -137,7 +167,7 @@ export async function criarCenarioDemonstracao(): Promise<ResumoCenario> {
         status: 'ATIVO',
       },
       {
-        nome: 'CRF FGTS',
+        nome: `${PFX} CRF FGTS`,
         caminhoArquivo: 'demonstracao/crf-fgts.pdf',
         tipo: 'CND_FGTS',
         empreendimentoId: emp.id,
@@ -146,7 +176,7 @@ export async function criarCenarioDemonstracao(): Promise<ResumoCenario> {
         status: 'ATIVO',
       },
       {
-        nome: 'ART do responsável técnico — CREA-SP',
+        nome: `${PFX} ART do responsável técnico — CREA-SP`,
         caminhoArquivo: 'demonstracao/art.pdf',
         tipo: 'ART_RRT',
         empreendimentoId: emp.id,
@@ -158,11 +188,11 @@ export async function criarCenarioDemonstracao(): Promise<ResumoCenario> {
 
   // ── 5. A equipe — e o ASO que trava a medição ─────────────────────────────
   const equipe = [
-    { nome: 'João Batista Ferreira', funcao: 'Pedreiro', validadeASO: -11 },
-    { nome: 'Maria Aparecida Souza', funcao: 'Serralheira', validadeASO: 96 },
-    { nome: 'Antônio Carlos Lima', funcao: 'Mestre de obras', validadeASO: 145 },
-    { nome: 'Rafael Nunes da Silva', funcao: 'Eletricista', validadeASO: 12 },
-    { nome: 'Sebastião Rocha', funcao: 'Servente', validadeASO: 210 },
+    { nome: `${PFX} João Batista Ferreira`, funcao: 'Pedreiro', validadeASO: -11 },
+    { nome: `${PFX} Maria Aparecida Souza`, funcao: 'Serralheira', validadeASO: 96 },
+    { nome: `${PFX} Antônio Carlos Lima`, funcao: 'Mestre de obras', validadeASO: 145 },
+    { nome: `${PFX} Rafael Nunes da Silva`, funcao: 'Eletricista', validadeASO: 12 },
+    { nome: `${PFX} Sebastião Rocha`, funcao: 'Servente', validadeASO: 210 },
   ];
 
   for (const [i, p] of equipe.entries()) {

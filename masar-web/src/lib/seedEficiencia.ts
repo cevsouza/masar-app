@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { criarCenarioDemonstracao } from '@/lib/demonstracao';
 
 /**
  * Seed de demonstração para exercitar TODOS os indicadores de eficiência,
@@ -552,9 +553,17 @@ export async function seedEficiencia() {
   await db.checklistNR.create({ data: { norma: 'NR-18', responsavel: 'Eng. Segurança', itens: [{ item: 'Tapumes instalados', conforme: true }, { item: 'Extintores no prazo', conforme: true }, { item: 'EPC em altura', conforme: false }], empreendimentoId: primeiroEmpId } });
   await db.checklistNR.create({ data: { norma: 'NR-35', responsavel: 'Téc. Segurança', itens: [{ item: 'Cinto tipo paraquedista', conforme: true }, { item: 'Linha de vida', conforme: false }], empreendimentoId: primeiroEmpId } });
 
+  // ── Cenário da DEMONSTRAÇÃO comercial ─────────────────────────────────────
+  // Os dois empreendimentos acima exercitam os INDICADORES (eficiência, EVM,
+  // estoque). Este terceiro existe para a CONVERSA DE VENDA: é vertical, está
+  // no regime MCMV e tem a Prontidão Caixa com conteúdo — que era a única das
+  // três telas do kit que não funcionava aqui.
+  const cenario = await criarCenarioDemonstracao();
+
   return {
-    empreendimentos: empsPlano.length,
-    casas: totalCasas,
+    empreendimentos: empsPlano.length + 1,
+    demonstracaoComercial: cenario.empreendimento,
+    casas: totalCasas + cenario.unidades,
     insumos: insumos.length,
     fornecedores: fornecedores.length,
     ocPendente: comprasPendentes.length,

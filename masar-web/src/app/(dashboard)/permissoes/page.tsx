@@ -56,7 +56,7 @@ export default function PermissoesPage() {
     try {
       const res = await fetch('/api/seed/eficiencia', { method: acao === 'popular' ? 'POST' : 'DELETE' });
       const d = await res.json().catch(() => ({}));
-      if (res.ok) setSeedMsg(acao === 'popular' ? `Demonstração criada: ${d.empreendimentos} empreendimentos, ${d.casas} casas, ${d.insumos} insumos, ${d.trabalhadores} trabalhadores.` : 'Dados de demonstração removidos.');
+      if (res.ok) setSeedMsg(acao === 'popular' ? `Demonstração criada: ${d.empreendimentos} empreendimentos (incluindo ${d.demonstracaoComercial}), ${d.casas} unidades, ${d.trabalhadores} trabalhadores. A trava de medição e a Prontidão Caixa já respondem.` : 'Dados de demonstração removidos.');
       else setSeedMsg(d.error || 'Falha na operação.');
     } finally {
       setSeedBusy(null);
@@ -126,7 +126,7 @@ export default function PermissoesPage() {
       {/* Dados de demonstração — exercita os indicadores de eficiência */}
       <div className="glassmorphism p-5 rounded-2xl border border-slate-800/80">
         <h3 className="text-sm font-bold text-white mb-1 uppercase tracking-wider flex items-center gap-1.5"><Database size={15} className="text-indigo-400" /> Dados de demonstração</h3>
-        <p className="text-[11px] text-slate-500 mb-3">Cria um empreendimento <strong className="text-slate-400">[SEED]</strong> com 4 obras de perfis distintos (saudável, custo estourado, cronograma atrasado, material desalinhado) para exercitar todos os indicadores de eficiência. Idempotente e isolado dos dados reais.</p>
+        <p className="text-[11px] text-slate-500 mb-3">Monta a base de <strong className="text-slate-400">apresentação ao cliente</strong>: obras de perfis distintos para exercitar os indicadores, mais o <strong className="text-slate-400">Residencial Vista Paulista</strong> — vertical, no regime MCMV, com o ASO vencido que <strong className="text-slate-400">faz a trava de medição recusar ao vivo</strong> e a Prontidão Caixa com pendências reais. Tudo prefixado <strong className="text-slate-400">[SEED]</strong>: idempotente, e o botão ao lado remove sem encostar em dado real.</p>
         <div className="flex flex-wrap items-center gap-2.5">
           <button onClick={() => seed('popular')} disabled={!!seedBusy} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 text-xs font-bold uppercase tracking-wider hover:bg-indigo-600/25 transition disabled:opacity-50 cursor-pointer">
             {seedBusy === 'popular' ? <Loader2 size={13} className="animate-spin" /> : <Database size={13} />} Popular demonstração

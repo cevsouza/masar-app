@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { db } from '@/lib/db';
 import { runComEmpresa, runSemEscopoDeEmpresa } from '@/lib/tenant';
 import { criarCenarioDemonstracao } from '@/lib/demonstracao';
+import { seedEficiencia, limparSeed } from '@/lib/seedEficiencia';
 import { bloqueioSegurancaMedicao } from '@/lib/sst';
 import { avaliarConformidade } from '@/lib/mcmv/conformidade';
 
@@ -121,6 +122,36 @@ describe('cenário de demonstração', () => {
     // o caminho de uso é sempre pelo seed, que apaga antes.
     const asos = await runComEmpresa(empresaId, () => db.aSO.count());
     expect(asos).toBe(5);
+  });
+
+  it('o BOTÃO da tela de permissões produz o cenário — não só o terminal', async () => {
+    // A lição que já estava na memória e eu repeti: capacidade entregue como
+    // comando de terminal não foi entregue. O caminho de uso real é o botão em
+    // /permissoes, que chama seedEficiencia — então é ELE que precisa produzir
+    // a demonstração comercial.
+    await runComEmpresa(empresaId, () => limparSeed());
+    const resumo: any = await runComEmpresa(empresaId, () => seedEficiencia());
+    expect(resumo.demonstracaoComercial).toContain('Vista Paulista');
+
+    const vertical = await runComEmpresa(empresaId, () =>
+      db.empreendimento.findFirst({ where: { tipologia: 'VERTICAL' } }),
+    );
+    expect(vertical?.regimeMCMV).toBe(true);
+  });
+
+  it('e a LIMPEZA do botão remove o cenário junto, sem sobrar lixo', async () => {
+    // Prefixo [SEED] em tudo que é nomeado: é o que faz limparSeed alcançar o
+    // cenário. Sem isso, cada clique em "popular" empilharia um Vista Paulista
+    // novo — e numa instância com cliente o lixo só sairia a mão.
+    await runComEmpresa(empresaId, () => limparSeed());
+
+    const sobrou = await runComEmpresa(empresaId, () =>
+      db.empreendimento.count({ where: { tipologia: 'VERTICAL' } }),
+    );
+    expect(sobrou).toBe(0);
+
+    const trabalhadores = await runComEmpresa(empresaId, () => db.trabalhador.count());
+    expect(trabalhadores).toBe(0);
   });
 
   it('a limpeza do seed cobre TODO modelo que o cenário cria', async () => {
