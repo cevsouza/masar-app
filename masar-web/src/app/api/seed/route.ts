@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { runComEmpresa, runSemEscopoDeEmpresa, EMPRESA_RAIZ_ID } from '@/lib/tenant';
 import { hashPassword } from '@/lib/auth';
+import { criarCenarioDemonstracao } from '@/lib/demonstracao';
 
 /**
  * Popula a BASE DE DEMONSTRAÇÃO — e só ela.
@@ -82,6 +83,17 @@ async function semear(seedAdminPassword: string) {
     await db.orcamentoCasa.deleteMany();
     await db.insumoPadrao.deleteMany();
     await db.medicaoCaixa.deleteMany();
+
+    // Cenário de demonstração: sem limpar aqui, rodar o seed de novo empilharia
+    // trabalhador e documento em cima dos antigos — e a demonstração passaria a
+    // mostrar quinze João Batista. A ordem respeita as chaves estrangeiras.
+    await db.aSO.deleteMany();
+    await db.entregaEPI.deleteMany();
+    await db.trabalhador.deleteMany();
+    await db.atividadeCronograma.deleteMany();
+    await db.documentoAnexo.deleteMany();
+    await db.itemConformidadeMCMV.deleteMany();
+
     await db.casa.deleteMany();
     await db.cliente.deleteMany();
     await db.marcoBurocratico.deleteMany();
@@ -601,7 +613,15 @@ async function semear(seedAdminPassword: string) {
       ]
     });
 
-    return NextResponse.json({ success: true, message: 'Banco de dados de microgerenciamento e livro-caixa unificado populado com sucesso!' });
+    // O cenário da DEMONSTRAÇÃO, montado a partir das três telas do kit de
+    // vendas. Vem por último: depende de o banco já estar limpo.
+    const cenario = await criarCenarioDemonstracao();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Base de demonstração pronta.',
+      demonstracao: cenario,
+    });
   } catch (error: any) {
     console.error('Erro ao rodar o seed via API:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
