@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
+import { exigirAcesso } from '@/lib/apiAuth';
 import { UnidadeMedida, CategoriaInsumo } from '@prisma/client';
 
 // GET: Listar todos os insumos cadastrados
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const categoria = searchParams.get('categoria');
@@ -28,6 +32,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Criar novo insumo padrão ou popular catálogo padrão MCMV
 export async function POST(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const body = await request.json();
     const { nome, unidadeMedida, categoria, populateDefault } = body;
@@ -150,6 +157,9 @@ export async function POST(request: NextRequest) {
 
 // PATCH: Atualizar o nível mínimo de estoque de um insumo (alerta de reposição)
 export async function PATCH(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const body = await request.json();
     const { id, nivelMinimoEstoque } = body;
@@ -181,6 +191,9 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE: Excluir insumo padrão se não houver vínculos ativos
 export async function DELETE(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

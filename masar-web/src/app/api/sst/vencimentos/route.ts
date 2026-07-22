@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { buscarVencimentosSST } from '@/lib/sst';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 // GET: ASOs e EPIs vencidos ou a vencer (janela de 30 dias) dos trabalhadores ativos.
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'seguranca' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const v = await buscarVencimentosSST();
     return NextResponse.json({

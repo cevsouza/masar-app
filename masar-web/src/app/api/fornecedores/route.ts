@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { parseFornecedorBody } from '@/lib/fornecedor';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const incluirInativos = searchParams.get('incluirInativos') === 'true';
@@ -19,6 +23,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const body = await request.json();
     const data = parseFornecedorBody(body);

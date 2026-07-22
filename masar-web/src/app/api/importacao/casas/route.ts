@@ -5,6 +5,7 @@ import { lerCSV, normalizarChave } from '@/lib/importacao/csv';
 import { analisarCasas, modeloCSV, STATUS_VALIDOS, type CasaImportada } from '@/lib/importacao/casas';
 import { bloqueioNovasUnidades } from '@/lib/licenca';
 import { logMutation } from '@/lib/audit';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,9 @@ async function exigirPermissao(request: NextRequest) {
 
 // GET ?modelo=1 → baixa o CSV de exemplo para o cliente preencher.
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   const { searchParams } = new URL(request.url);
   if (searchParams.get('modelo') !== '1') {
     return NextResponse.json({ error: 'Parâmetro ausente.' }, { status: 400 });

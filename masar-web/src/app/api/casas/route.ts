@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { bloqueioNovasUnidades } from '@/lib/licenca';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 // Lista enxuta de casas (id/numero/quadra/status), opcionalmente por empreendimento.
 // Usada em seletores (ex.: Eficiência de material — Fase 6.1).
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const empreendimentoId = searchParams.get('empreendimentoId') || undefined;
@@ -21,6 +25,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const body = await request.json();
     const { 

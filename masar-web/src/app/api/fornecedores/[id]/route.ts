@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { parseFornecedorBody } from '@/lib/fornecedor';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const fornecedor = await db.fornecedor.findUnique({
@@ -25,6 +29,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -69,6 +76,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 // Soft-delete: inativa o fornecedor preservando o historico de cotacoes.
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const atual = await db.fornecedor.findUnique({ where: { id } });

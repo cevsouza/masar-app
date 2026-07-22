@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { parseTrabalhadorBody } from '@/lib/trabalhador';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await exigirAcesso(request, { modulo: 'seguranca' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const trabalhador = await db.trabalhador.findUnique({
@@ -24,6 +28,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await exigirAcesso(request, { modulo: 'seguranca' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -60,6 +67,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 // Soft-delete: inativa o trabalhador preservando o histórico de ponto.
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await exigirAcesso(request, { modulo: 'seguranca' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const atual = await db.trabalhador.findUnique({ where: { id } });

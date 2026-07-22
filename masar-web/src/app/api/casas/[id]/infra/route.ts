@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id: casaId } = await params;
     const body = await request.json();

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function POST(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'comercial' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const body = await request.json();
     const { nome, cpf, rendaComprovada, statusCredito, casaId } = body;
@@ -58,6 +62,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'comercial' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const clientes = await db.cliente.findMany({
       orderBy: { nome: 'asc' }

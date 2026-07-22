@@ -3,10 +3,14 @@ import { db } from '@/lib/db';
 import { fetchCoordinates } from '@/lib/geocoding';
 import { CHAVES_CATALOGO } from '@/lib/mcmv/catalogo';
 import { bloqueioNovasUnidades } from '@/lib/licenca';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 const FAIXAS_MCMV = ['FAIXA_1', 'FAIXA_2', 'FAIXA_3', 'FAIXA_4'];
 
 export async function POST(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const body = await request.json();
     const {
@@ -157,6 +161,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const empreendimentos = await db.empreendimento.findMany({
       orderBy: { nome: 'asc' }

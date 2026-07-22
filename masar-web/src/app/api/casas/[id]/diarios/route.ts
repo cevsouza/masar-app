@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendEmail, getExtraAlertEmails } from '@/lib/resend';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 // Sócios/gestão que acompanham a operação recebem o sino a cada diário.
 const SOCIO_ROLES = ['ADMIN', 'FINANCEIRO'] as const;
@@ -16,6 +17,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id: casaId } = await params;
     const body = await request.json();

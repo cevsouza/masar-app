@@ -4,6 +4,7 @@ import { verifySession } from '@/lib/auth';
 import { logMutation } from '@/lib/audit';
 import { bloqueioSegurancaMedicao } from '@/lib/sst';
 import { bloqueioConformidadeMCMV } from '@/lib/mcmv/conformidade';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,7 +134,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 }
 
 /** Medições do empreendimento (só as de torre; as por unidade ficam na unidade). */
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const medicoes = await db.medicaoCaixa.findMany({

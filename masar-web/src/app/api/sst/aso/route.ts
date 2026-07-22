@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/auth';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 const TIPOS = ['ADMISSIONAL', 'PERIODICO', 'RETORNO_AO_TRABALHO', 'MUDANCA_DE_FUNCAO', 'DEMISSIONAL'];
 const RESULTADOS = ['APTO', 'APTO_COM_RESTRICAO', 'INAPTO'];
 
 export async function GET(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'seguranca' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const trabalhadorId = searchParams.get('trabalhadorId');

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await exigirAcesso(request, { modulo: 'comercial' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const body = await request.json();

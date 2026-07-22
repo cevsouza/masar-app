@@ -4,11 +4,15 @@ import { logMutation } from '@/lib/audit';
 import { verifySession } from '@/lib/auth';
 import { fetchCoordinates } from '@/lib/geocoding';
 import { bloqueioNovasUnidades } from '@/lib/licenca';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -269,6 +273,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await exigirAcesso(request, { modulo: 'obras' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { id } = await params;
     const empreendimento = await db.empreendimento.findUnique({

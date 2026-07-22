@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logMutation } from '@/lib/audit';
+import { exigirAcesso } from '@/lib/apiAuth';
 
 // POST: Criar nova requisição de compra
 export async function POST(request: NextRequest) {
@@ -96,6 +97,9 @@ export async function POST(request: NextRequest) {
 
 // PATCH: Editar requisição existente
 export async function PATCH(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const body = await request.json();
     const { id, quantidadeSolicitada, status, dataNecessidade } = body;
@@ -182,6 +186,9 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE: Excluir requisição existente
 export async function DELETE(request: NextRequest) {
+  const auth = await exigirAcesso(request, { modulo: 'suprimentos' });
+  if (!auth.ok) return auth.resposta;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
